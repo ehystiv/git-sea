@@ -1,0 +1,10 @@
+@layer components {
+  .kbd {
+    font: 500 10.5px/1 var(--font-mono);
+    color: var(--text-3);
+    background: var(--subtle);
+    border: 0.5px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 2px 5px;
+  }
+}

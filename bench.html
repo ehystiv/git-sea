@@ -1,0 +1,18 @@
+<!doctype html>
+<!-- Development only: profiling and screenshots of the graph renderer. Not part of the app build. -->
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <title>graph bench</title>
+    <style>
+      html, body { background: var(--bg); margin: 0; height: 100%; overflow: hidden; }
+      canvas { display: block; width: 100vw; height: 100vh; }
+      pre { position: fixed; left: 8px; top: 8px; margin: 0; padding: 6px; background: #000a; color: #fff; font: 12px monospace; }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <pre id="out" hidden></pre>
+    <script type="module" src="/src/dev/bench.ts"></script>
+  </body>
+</html>

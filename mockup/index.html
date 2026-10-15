@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Branchscope — Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="window">
+
+  <header class="titlebar">
+    <div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="tabs" role="tablist">
+      <button class="tab is-active" role="tab" aria-selected="true"><span class="tab-dot"></span>branchscope<span class="tab-x">×</span></button>
+      <button class="tab" role="tab"><span class="tab-dot tab-dot--2"></span>linux-kernel<span class="tab-x">×</span></button>
+      <button class="tab-add" aria-label="Apri repo"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button>
+    </div>
+    <button class="palette-btn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>Cerca o esegui un’azione</span><kbd>⌘K</kbd></button>
+  </header>
+
+  <div class="shell shell--canvas">
+    
+<nav class="sidebar" aria-label="Riferimenti">
+  <div class="sb-search"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><span>Filtra…</span><kbd>/</kbd></div>
+  <section class="sb-group">
+    <h3><svg class="ic ic--chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>Branch locali<span class="count">5</span></h3>
+    <ul>
+      <li class="sb-item is-current"><span class="dot" style="--c: var(--b2)"></span><span class="sb-label">main</span></li>
+      <li class="sb-item"><span class="dot" style="--c: var(--b0)"></span><span class="sb-label">feat/login</span></li>
+      <li class="sb-item"><span class="dot" style="--c: var(--b3)"></span><span class="sb-label">feat/search</span></li>
+      <li class="sb-item"><span class="dot" style="--c: var(--b1)"></span><span class="sb-label">fix/header</span></li>
+      <li class="sb-item"><span class="dot" style="--c: var(--b4)"></span><span class="sb-label">fix/tabs</span></li>
+    </ul>
+  </section>
+  <section class="sb-group">
+    <h3><svg class="ic ic--chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>Remote<span class="count">2</span></h3>
+    <ul>
+      <li class="sb-item"><span class="dot" style="--c: var(--b2)"></span><span class="sb-label">origin/main</span></li>
+      <li class="sb-item"><span class="dot" style="--c: var(--b3)"></span><span class="sb-label">origin/feat/search</span></li>
+    </ul>
+  </section>
+  <section class="sb-group">
+    <h3><svg class="ic ic--chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>Tag<span class="count">2</span></h3>
+    <ul>
+      <li class="sb-item"><svg class="ic ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".6" fill="currentColor"/></svg><span class="sb-label">v0.2.0</span></li>
+      <li class="sb-item"><svg class="ic ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".6" fill="currentColor"/></svg><span class="sb-label">v0.1.0</span></li>
+    </ul>
+  </section>
+  <section class="sb-group">
+    <h3><svg class="ic ic--chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>Stash<span class="count">2</span></h3>
+    <ul>
+      <li class="sb-item"><svg class="ic ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg><span class="sb-label">WIP on feat/login</span></li>
+      <li class="sb-item"><svg class="ic ic--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg><span class="sb-label">WIP on main</span></li>
+    </ul>
+  </section>
+</nav>
+
+    <main class="main">
+      <div class="toolbar">
+        <div class="crumb"><span class="crumb-repo">branchscope</span><span class="sep">/</span><span class="crumb-branch"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>main</span></div>
+        <div class="seg" role="tablist" aria-label="Vista">
+          <button class="seg-btn is-active" role="tab" aria-selected="true">Grafo<kbd>1</kbd></button>
+          <button class="seg-btn" role="tab">Topologia<kbd>2</kbd></button>
+          <button class="seg-btn" role="tab">Timeline<kbd>3</kbd></button>
+        </div>
+        <div class="tool-right">
+          <button class="ghost">Tutti i branch<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          <button class="icon-btn" aria-label="Pannello dettagli"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg></button>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <div class="canvas" id="canvas">
+          <div class="stage" style="width:3340px;height:696px">
+            <svg class="edges" width="3340" height="696" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3200 190H3152" stroke="var(--b0)"/><path d="M3152 190H2996" stroke="var(--b0)"/><path d="M3044 282H2996" stroke="var(--b1)"/><path d="M2996 190H2840" stroke="var(--b0)"/><path d="M2996 282H2840" stroke="var(--b1)"/><path d="M2888 374H2840" stroke="var(--b2)"/><path d="M2888 374C2864 374 2864 466 2840 466" stroke="var(--b3)"/><path d="M2840 190H2792" stroke="var(--b0)"/><path d="M2840 282H2684" stroke="var(--b1)"/><path d="M2840 374H2684" stroke="var(--b2)"/><path d="M2840 466H2684" stroke="var(--b3)"/><path d="M2732 190H2684" stroke="var(--b0)"/><path d="M2684 190H2528" stroke="var(--b0)"/><path d="M2684 282H2528" stroke="var(--b1)"/><path d="M2684 374H2528" stroke="var(--b2)"/><path d="M2684 466H2636" stroke="var(--b3)"/><path d="M2576 466H2528" stroke="var(--b3)"/><path d="M2528 190H2372" stroke="var(--b0)"/><path d="M2528 282H2480" stroke="var(--b1)"/><path d="M2528 374C2504 374 2504 282 2480 282" stroke="var(--b2)"/><path d="M2528 466H2372" stroke="var(--b3)"/><path d="M2420 282H2372" stroke="var(--b1)"/><path d="M2372 190H2216" stroke="var(--b0)"/><path d="M2372 282H2216" stroke="var(--b1)"/><path d="M2372 466H2324" stroke="var(--b3)"/><path d="M2264 466H2216" stroke="var(--b3)"/><path d="M2216 190H2168" stroke="var(--b0)"/><path d="M2216 282C2192 282 2192 190 2168 190" stroke="var(--b1)"/><path d="M2216 466C2192 466 2192 190 2168 190" stroke="var(--b3)"/><path d="M2108 190H2060" stroke="var(--b0)"/><path d="M2108 190C2084 190 2084 282 2060 282" stroke="var(--b4)"/><path d="M2060 190H2012" stroke="var(--b0)"/><path d="M2060 282H1904" stroke="var(--b4)"/><path d="M1952 190H1904" stroke="var(--b0)"/><path d="M1904 190H1748" stroke="var(--b0)"/><path d="M1904 282H1856" stroke="var(--b4)"/><path d="M1796 282H1748" stroke="var(--b4)"/><path d="M1748 190H1700" stroke="var(--b0)"/><path d="M1748 282C1724 282 1724 190 1700 190" stroke="var(--b4)"/><path d="M1640 190H1592" stroke="var(--b0)"/><path d="M1592 190H1544" stroke="var(--b0)"/><path d="M1484 190H1436" stroke="var(--b0)"/><path d="M1436 190H1388" stroke="var(--b0)"/><path d="M1328 190H1280" stroke="var(--b0)"/><path d="M1328 190C1304 190 1304 282 1280 282" stroke="var(--b5)"/><path d="M1328 190C1304 190 1304 374 1280 374" stroke="var(--b6)"/><path d="M1280 190H1124" stroke="var(--b0)"/><path d="M1280 282H1232" stroke="var(--b5)"/><path d="M1280 374H1124" stroke="var(--b6)"/><path d="M1172 282H1124" stroke="var(--b5)"/><path d="M1124 190H968" stroke="var(--b0)"/><path d="M1124 282H968" stroke="var(--b5)"/><path d="M1124 374H1076" stroke="var(--b6)"/><path d="M1016 374H968" stroke="var(--b6)"/><path d="M968 190H920" stroke="var(--b0)"/><path d="M968 282C944 282 944 190 920 190" stroke="var(--b5)"/><path d="M968 374C944 374 944 190 920 190" stroke="var(--b6)"/><path d="M860 190H812" stroke="var(--b0)"/><path d="M812 190H764" stroke="var(--b0)"/><path d="M704 190H656" stroke="var(--b0)"/><path d="M656 190H608" stroke="var(--b0)"/><path d="M548 190H500" stroke="var(--b0)"/><path d="M500 190H452" stroke="var(--b0)"/><path d="M392 190H344" stroke="var(--b0)"/><path d="M344 190H296" stroke="var(--b0)"/><path d="M236 190H188" stroke="var(--b0)"/><path d="M188 190H140" stroke="var(--b0)"/></svg>
+<div class="node is-tip has-in" style="left:3156px;top:160px;--c:var(--b0);--ic:var(--b1)">
+  <div class="node-refs"><span class="ref ref--branch" style="--c: var(--b0)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>feat/login</span></div>
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10.5l-6.1 1.7L12 18l-1.9-5.8L4 10.5l6.1-1.7z"/></svg></div>
+  <div class="node-label"><b>validate login form fields</b><small>feat · d21d1ee</small></div>
+</div>
+<div class="node is-tip has-in" style="left:3000px;top:252px;--c:var(--b1);--ic:var(--b2)">
+  <div class="node-refs"><span class="ref ref--branch" style="--c: var(--b1)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>fix/header</span></div>
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+  <div class="node-label"><b>header overflow on narrow windows</b><small>fix · 6b7c23e</small></div>
+</div>
+<div class="node is-tip has-in" style="left:2844px;top:344px;--c:var(--b2);--ic:var(--b0)">
+  <div class="node-refs"><span class="ref ref--head" style="--c: var(--b2)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg><b>HEAD</b>main</span></div>
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></div>
+  <div class="node-label"><b>feat/search</b><small>merge · e5ec7c3</small></div>
+</div>
+<div class="node has-in has-out" style="left:2688px;top:160px;--c:var(--b0);--ic:var(--b1)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10.5l-6.1 1.7L12 18l-1.9-5.8L4 10.5l6.1-1.7z"/></svg></div>
+  <div class="node-label"><b>add login form</b><small>feat · 7f5cbe7</small></div>
+</div>
+<div class="node has-in has-out" style="left:2532px;top:436px;--c:var(--b3);--ic:var(--b1)">
+  <div class="node-refs"><span class="ref ref--branch" style="--c: var(--b3)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>feat/search</span><span class="ref ref--remote" style="--c: var(--b3)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>origin/feat/search</span></div>
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10.5l-6.1 1.7L12 18l-1.9-5.8L4 10.5l6.1-1.7z"/></svg></div>
+  <div class="node-label"><b>highlight matches in results</b><small>feat · 09cc046</small></div>
+</div>
+<div class="node has-in has-out" style="left:2376px;top:252px;--c:var(--b1);--ic:var(--text-2)">
+  <div class="node-refs"><span class="ref ref--remote" style="--c: var(--b1)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>origin/main</span></div>
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg></div>
+  <div class="node-label"><b>bump vite to 8.0</b><small>chore · 922b5a9</small></div>
+</div>
+<div class="node has-in has-out" style="left:2220px;top:436px;--c:var(--b3);--ic:var(--b1)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10.5l-6.1 1.7L12 18l-1.9-5.8L4 10.5l6.1-1.7z"/></svg></div>
+  <div class="node-label"><b>add fuzzy matcher</b><small>feat · 1c9bafb</small></div>
+</div>
+<div class="node is-selected has-in has-out" style="left:2064px;top:160px;--c:var(--b0);--ic:var(--b0)" id="selected">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></div>
+  <div class="node-label"><b>fix/tabs</b><small>merge · a60be5e</small></div>
+</div>
+<div class="node has-in has-out" style="left:1908px;top:160px;--c:var(--b0);--ic:var(--b4)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></div>
+  <div class="node-label"><b>extract lane allocator</b><small>refactor · 307b3b1</small></div>
+</div>
+<div class="node has-in has-out" style="left:1752px;top:252px;--c:var(--b4);--ic:var(--b2)">
+  <div class="node-refs"><span class="ref ref--branch" style="--c: var(--b4)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>fix/tabs</span></div>
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+  <div class="node-label"><b>keep active tab when closing</b><small>fix · c9da814</small></div>
+</div>
+<div class="node has-in has-out" style="left:1596px;top:160px;--c:var(--b0);--ic:var(--b1)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10.5l-6.1 1.7L12 18l-1.9-5.8L4 10.5l6.1-1.7z"/></svg></div>
+  <div class="node-label"><b>list local branches</b><small>feat · 434ad66</small></div>
+</div>
+<div class="node has-in has-out" style="left:1440px;top:160px;--c:var(--b0);--ic:var(--b7)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13h4M10 17h4"/></svg></div>
+  <div class="node-label"><b>update README with setup steps</b><small>docs · ddba5dc</small></div>
+</div>
+<div class="node has-in has-out" style="left:1284px;top:160px;--c:var(--b0);--ic:var(--b0)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg></div>
+  <div class="node-label"><b>release/0.2 and hotfix/changelog</b><small>merge · 672a62f</small></div>
+</div>
+<div class="node has-in has-out" style="left:1128px;top:252px;--c:var(--b5);--ic:var(--text-2)">
+  <div class="node-refs"><span class="ref ref--tag" style="--c: var(--b5)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".6" fill="currentColor"/></svg>v0.2.0</span><span class="ref ref--branch" style="--c: var(--b5)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>release/0.2</span></div>
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg></div>
+  <div class="node-label"><b>0.2.0</b><small>chore · f08b910</small></div>
+</div>
+<div class="node has-in has-out" style="left:972px;top:344px;--c:var(--b6);--ic:var(--b2)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+  <div class="node-label"><b>changelog typo</b><small>fix · 7afd365</small></div>
+</div>
+<div class="node has-in has-out" style="left:816px;top:160px;--c:var(--b0);--ic:var(--b1)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10.5l-6.1 1.7L12 18l-1.9-5.8L4 10.5l6.1-1.7z"/></svg></div>
+  <div class="node-label"><b>unified diff view</b><small>feat · 0469434</small></div>
+</div>
+<div class="node has-in has-out" style="left:660px;top:160px;--c:var(--b0);--ic:var(--b2)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg></div>
+  <div class="node-label"><b>virtualize the commit list</b><small>perf · 9ed9997</small></div>
+</div>
+<div class="node has-in has-out" style="left:504px;top:160px;--c:var(--b0);--ic:var(--b1)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8L20 10.5l-6.1 1.7L12 18l-1.9-5.8L4 10.5l6.1-1.7z"/></svg></div>
+  <div class="node-label"><b>stream commits in chunks</b><small>feat · 2738e2b</small></div>
+</div>
+<div class="node has-in has-out" style="left:348px;top:160px;--c:var(--b0);--ic:var(--text-2)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg></div>
+  <div class="node-label"><b>add rustfmt and clippy config</b><small>chore · a1a834c</small></div>
+</div>
+<div class="node has-in has-out" style="left:192px;top:160px;--c:var(--b0);--ic:var(--text-2)">
+  <div class="node-refs"><span class="ref ref--tag" style="--c: var(--b0)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".6" fill="currentColor"/></svg>v0.1.0</span></div>
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg></div>
+  <div class="node-label"><b>initial layout</b><small>chore · 3d41520</small></div>
+</div>
+<div class="node has-out" style="left:36px;top:160px;--c:var(--b0);--ic:var(--b5)">
+  
+  <div class="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4M4 4h13l-2 4 2 4H4"/></svg></div>
+  <div class="node-label"><b>Initial commit</b><small>init · c7a1a83</small></div>
+</div>
+          </div>
+        </div>
+
+        <div class="zoom" role="toolbar" aria-label="Zoom">
+          <button aria-label="Adatta"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+          <button aria-label="Ingrandisci"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button>
+          <button aria-label="Riduci"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+          <span class="zoom-pct">100%</span>
+        </div>
+
+        <div class="mm" id="mm" aria-label="Minimappa">
+          <svg viewBox="0 0 3340 696" width="230" height="84" preserveAspectRatio="none" fill="none" stroke-width="1" aria-hidden="true"><g class="mm-edges"><path d="M3200 190H3152" stroke="var(--b0)"/><path d="M3152 190H2996" stroke="var(--b0)"/><path d="M3044 282H2996" stroke="var(--b1)"/><path d="M2996 190H2840" stroke="var(--b0)"/><path d="M2996 282H2840" stroke="var(--b1)"/><path d="M2888 374H2840" stroke="var(--b2)"/><path d="M2888 374C2864 374 2864 466 2840 466" stroke="var(--b3)"/><path d="M2840 190H2792" stroke="var(--b0)"/><path d="M2840 282H2684" stroke="var(--b1)"/><path d="M2840 374H2684" stroke="var(--b2)"/><path d="M2840 466H2684" stroke="var(--b3)"/><path d="M2732 190H2684" stroke="var(--b0)"/><path d="M2684 190H2528" stroke="var(--b0)"/><path d="M2684 282H2528" stroke="var(--b1)"/><path d="M2684 374H2528" stroke="var(--b2)"/><path d="M2684 466H2636" stroke="var(--b3)"/><path d="M2576 466H2528" stroke="var(--b3)"/><path d="M2528 190H2372" stroke="var(--b0)"/><path d="M2528 282H2480" stroke="var(--b1)"/><path d="M2528 374C2504 374 2504 282 2480 282" stroke="var(--b2)"/><path d="M2528 466H2372" stroke="var(--b3)"/><path d="M2420 282H2372" stroke="var(--b1)"/><path d="M2372 190H2216" stroke="var(--b0)"/><path d="M2372 282H2216" stroke="var(--b1)"/><path d="M2372 466H2324" stroke="var(--b3)"/><path d="M2264 466H2216" stroke="var(--b3)"/><path d="M2216 190H2168" stroke="var(--b0)"/><path d="M2216 282C2192 282 2192 190 2168 190" stroke="var(--b1)"/><path d="M2216 466C2192 466 2192 190 2168 190" stroke="var(--b3)"/><path d="M2108 190H2060" stroke="var(--b0)"/><path d="M2108 190C2084 190 2084 282 2060 282" stroke="var(--b4)"/><path d="M2060 190H2012" stroke="var(--b0)"/><path d="M2060 282H1904" stroke="var(--b4)"/><path d="M1952 190H1904" stroke="var(--b0)"/><path d="M1904 190H1748" stroke="var(--b0)"/><path d="M1904 282H1856" stroke="var(--b4)"/><path d="M1796 282H1748" stroke="var(--b4)"/><path d="M1748 190H1700" stroke="var(--b0)"/><path d="M1748 282C1724 282 1724 190 1700 190" stroke="var(--b4)"/><path d="M1640 190H1592" stroke="var(--b0)"/><path d="M1592 190H1544" stroke="var(--b0)"/><path d="M1484 190H1436" stroke="var(--b0)"/><path d="M1436 190H1388" stroke="var(--b0)"/><path d="M1328 190H1280" stroke="var(--b0)"/><path d="M1328 190C1304 190 1304 282 1280 282" stroke="var(--b5)"/><path d="M1328 190C1304 190 1304 374 1280 374" stroke="var(--b6)"/><path d="M1280 190H1124" stroke="var(--b0)"/><path d="M1280 282H1232" stroke="var(--b5)"/><path d="M1280 374H1124" stroke="var(--b6)"/><path d="M1172 282H1124" stroke="var(--b5)"/><path d="M1124 190H968" stroke="var(--b0)"/><path d="M1124 282H968" stroke="var(--b5)"/><path d="M1124 374H1076" stroke="var(--b6)"/><path d="M1016 374H968" stroke="var(--b6)"/><path d="M968 190H920" stroke="var(--b0)"/><path d="M968 282C944 282 944 190 920 190" stroke="var(--b5)"/><path d="M968 374C944 374 944 190 920 190" stroke="var(--b6)"/><path d="M860 190H812" stroke="var(--b0)"/><path d="M812 190H764" stroke="var(--b0)"/><path d="M704 190H656" stroke="var(--b0)"/><path d="M656 190H608" stroke="var(--b0)"/><path d="M548 190H500" stroke="var(--b0)"/><path d="M500 190H452" stroke="var(--b0)"/><path d="M392 190H344" stroke="var(--b0)"/><path d="M344 190H296" stroke="var(--b0)"/><path d="M236 190H188" stroke="var(--b0)"/><path d="M188 190H140" stroke="var(--b0)"/></g><g class="mm-nodes"><rect x="3200" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="3044" y="252" width="60" height="60" rx="12" stroke="var(--b1)"/><rect x="2888" y="344" width="60" height="60" rx="12" stroke="var(--b2)"/><rect x="2732" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="2576" y="436" width="60" height="60" rx="12" stroke="var(--b3)"/><rect x="2420" y="252" width="60" height="60" rx="12" stroke="var(--b1)"/><rect x="2264" y="436" width="60" height="60" rx="12" stroke="var(--b3)"/><rect x="2108" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="1952" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="1796" y="252" width="60" height="60" rx="12" stroke="var(--b4)"/><rect x="1640" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="1484" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="1328" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="1172" y="252" width="60" height="60" rx="12" stroke="var(--b5)"/><rect x="1016" y="344" width="60" height="60" rx="12" stroke="var(--b6)"/><rect x="860" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="704" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="548" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="392" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="236" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/><rect x="80" y="160" width="60" height="60" rx="12" stroke="var(--b0)"/></g></svg>
+          <div class="mm-view" id="mmView"></div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="details" aria-label="Dettagli commit">
+      <div class="d-head">
+        <div class="d-kind">Merge commit</div>
+        <h2>Merge branch 'fix/tabs'</h2>
+        <div class="d-meta">
+          <span class="avatar avatar--lg" style="--c: var(--b1)">S</span>
+          <div><div class="who">Stiv</div><div class="when">12 ott 2026, 14:21 · 2 giorni fa</div></div>
+        </div>
+        <dl class="d-grid">
+          <dt>Commit</dt><dd><code>a60be5e</code><button class="copy">Copia</button></dd>
+          <dt>Parent</dt><dd class="parents"><a class="chip" href="#"><code>307b3b1</code><span>refactor(graph): extract lane allocator</span></a><a class="chip" href="#"><code>c9da814</code><span>fix(tabs): keep active tab when closing</span></a></dd>
+          <dt>Ref</dt><dd><span class="ref ref--remote" style="--c: var(--b0)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>origin/main</span></dd>
+        </dl>
+      </div>
+
+      <div class="d-section">
+        <h3>File modificati<span class="count">5</span><span class="totals"><i class="add">+73</i><i class="del">−34</i></span></h3>
+        <ul class="files"><li class="file is-active"><span class="st st--M">M</span><span class="fname"><span class="dir">src/features/tabs/</span>useTabs.ts</span><span class="num"><i class="add">+18</i><i class="del">−6</i></span></li><li class="file"><span class="st st--M">M</span><span class="fname"><span class="dir">src/features/tabs/</span>TabBar.tsx</span><span class="num"><i class="add">+9</i><i class="del">−3</i></span></li><li class="file"><span class="st st--A">A</span><span class="fname"><span class="dir">src/features/tabs/</span>tabs.test.ts</span><span class="num"><i class="add">+42</i><i class="del">−0</i></span></li><li class="file"><span class="st st--M">M</span><span class="fname"><span class="dir">src/lib/</span>ordering.ts</span><span class="num"><i class="add">+4</i><i class="del">−4</i></span></li><li class="file"><span class="st st--D">D</span><span class="fname"><span class="dir">docs/</span>tabs.md</span><span class="num"><i class="add">+0</i><i class="del">−21</i></span></li></ul>
+      </div>
+
+      <div class="d-section d-section--diff">
+        <h3><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>src/features/tabs/useTabs.ts<span class="views"><button class="is-active">Unified</button><button>Split</button></span></h3>
+        <div class="diff">
+<div class="dl dl--hunk"><span class="ln"></span><span class="ln"></span><span class="code">@@ -21,11 +21,23 @@ export function useTabs(initial: Tab[]) {</span></div>
+<div class="dl dl--ctx"><span class="ln">21</span><span class="ln">21</span><span class="code">   <span class="k">const</span> [tabs, setTabs] = <span class="f">useState</span>(initial);</span></div>
+<div class="dl dl--ctx"><span class="ln">22</span><span class="ln">22</span><span class="code">   <span class="k">const</span> [activeId, setActiveId] = <span class="f">useState</span>&lt;<span class="t">string</span> | <span class="k">null</span>&gt;(initial[<span class="n">0</span>]?.id ?? <span class="k">null</span>);</span></div>
+<div class="dl dl--ctx"><span class="ln">23</span><span class="ln">23</span><span class="code"> </span></div>
+<div class="dl dl--del"><span class="ln">24</span><span class="ln"></span><span class="code">−  <span class="k">function</span> <span class="f">closeTab</span>(id: <span class="t">string</span>) {</span></div>
+<div class="dl dl--del"><span class="ln">25</span><span class="ln"></span><span class="code">−    <span class="f">setTabs</span>((prev) =&gt; prev.<span class="f">filter</span>((t) =&gt; t.id !== id));</span></div>
+<div class="dl dl--del"><span class="ln">26</span><span class="ln"></span><span class="code">−    <span class="f">setActiveId</span>(tabs[<span class="n">0</span>]?.id ?? <span class="k">null</span>);</span></div>
+<div class="dl dl--add"><span class="ln"></span><span class="ln">24</span><span class="code">+  <span class="c">// Keep the user on a neighbouring tab instead of jumping to the first one.</span></span></div>
+<div class="dl dl--add"><span class="ln"></span><span class="ln">25</span><span class="code">+  <span class="k">function</span> <span class="f">closeTab</span>(id: <span class="t">string</span>) {</span></div>
+<div class="dl dl--add"><span class="ln"></span><span class="ln">26</span><span class="code">+    <span class="k">const</span> index = tabs.<span class="f">findIndex</span>((t) =&gt; t.id === id);</span></div>
+<div class="dl dl--add"><span class="ln"></span><span class="ln">27</span><span class="code">+    <span class="k">const</span> next = tabs.<span class="f">filter</span>((t) =&gt; t.id !== id);</span></div>
+<div class="dl dl--add"><span class="ln"></span><span class="ln">28</span><span class="code">+    <span class="f">setTabs</span>(next);</span></div>
+<div class="dl dl--add"><span class="ln"></span><span class="ln">29</span><span class="code">+    <span class="k">if</span> (id === activeId) {</span></div>
+<div class="dl dl--add"><span class="ln"></span><span class="ln">30</span><span class="code">+      <span class="f">setActiveId</span>((next[index] ?? next[index - <span class="n">1</span>])?.id ?? <span class="k">null</span>);</span></div>
+<div class="dl dl--add"><span class="ln"></span><span class="ln">31</span><span class="code">+    }</span></div>
+<div class="dl dl--ctx"><span class="ln">27</span><span class="ln">32</span><span class="code">   }</span></div>
+<div class="dl dl--ctx"><span class="ln">28</span><span class="ln">33</span><span class="code"> </span></div>
+<div class="dl dl--ctx"><span class="ln">29</span><span class="ln">34</span><span class="code">   <span class="k">return</span> { tabs, activeId, closeTab, <span class="f">setActiveId</span> };</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="statusbar">
+    <span>21 commit mostrati</span><span class="sep">·</span><span>5 branch</span><span class="sep">·</span><span>2 tag</span>
+    <span class="grow"></span>
+    <span class="hint"><kbd>j</kbd><kbd>k</kbd> naviga</span>
+    <span class="hint"><kbd>↵</kbd> dettagli</span>
+    <span class="hint"><kbd>g</kbd><kbd>h</kbd> HEAD</span>
+  </footer>
+</div>
+
+<button class="mock-theme" id="theme" title="Solo per la revisione del mockup: forza chiaro/scuro"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg><span>Tema: sistema</span></button>
+<script>
+  // Mockup-only helper: cycles system -> light -> dark. The real app follows macOS only.
+  const states = [null, "light", "dark"], labels = ["sistema", "chiaro", "scuro"];
+  let i = 0;
+  const btn = document.getElementById("theme");
+  btn.addEventListener("click", () => {
+    i = (i + 1) % 3;
+    if (states[i]) document.documentElement.dataset.theme = states[i]; else delete document.documentElement.dataset.theme;
+    btn.querySelector("span").textContent = "Tema: " + labels[i];
+  });
+</script>
+<script>
+  // Mockup-only: centre the selected commit and keep the minimap viewport in sync.
+  const cv = document.getElementById("canvas"), vw = document.getElementById("mmView"), mm = document.getElementById("mm");
+  const sel = document.getElementById("selected");
+  const sync = () => {
+    const f = cv.clientWidth / cv.scrollWidth;
+    vw.style.width = (f * 100) + "%";
+    vw.style.left = (cv.scrollLeft / cv.scrollWidth * 100) + "%";
+  };
+  cv.addEventListener("scroll", sync);
+  mm.addEventListener("click", (e) => {
+    const b = mm.getBoundingClientRect();
+    cv.scrollLeft = (e.clientX - b.left) / b.width * cv.scrollWidth - cv.clientWidth / 2;
+  });
+  window.addEventListener("load", () => { cv.scrollLeft = sel.offsetLeft + 74 - cv.clientWidth / 2; sync(); });
+</script>
+</body>
+</html>

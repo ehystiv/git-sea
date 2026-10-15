@@ -1,0 +1,34 @@
+@layer components {
+  .window {
+    display: grid;
+    grid-template-rows: var(--titlebar-height) auto minmax(0, 1fr);
+    height: 100%;
+  }
+
+  .banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+    background: var(--danger-soft);
+    color: var(--danger);
+    border-bottom: 1px solid var(--border);
+  }
+  .banner button { font-size: 16px; line-height: 1; color: inherit; }
+
+  /* the rows above are fixed; the main area is the only one that stretches */
+  .main { position: relative; min-height: 0; grid-row: 3; }
+
+  .pane { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
+  .visible { visibility: visible; pointer-events: auto; }
+
+  .empty {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--space-6);
+    background: var(--bg);
+  }
+}

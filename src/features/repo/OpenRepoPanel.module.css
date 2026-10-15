@@ -1,0 +1,54 @@
+@layer components {
+  .panel {
+    width: min(520px, 100%);
+    padding: var(--space-8);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: 0 0 0 0.5px var(--border-strong);
+    transition: box-shadow 120ms, background 120ms;
+  }
+
+  .dragging {
+    background: var(--accent-soft);
+    box-shadow: 0 0 0 1.5px var(--accent);
+  }
+
+  .title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  .hint { margin-top: var(--space-1); color: var(--text-3); }
+
+  .browse { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-4); }
+
+  .form { display: flex; gap: var(--space-2); margin-top: var(--space-4); }
+
+  .input {
+    flex: 1;
+    min-width: 0;
+    height: 28px;
+    padding: 0 var(--space-3);
+    border: 0;
+    border-radius: var(--r-md);
+    background: var(--subtle);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .input::placeholder { color: var(--text-3); }
+
+  .error {
+    margin-top: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--r-md);
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  .recents { margin-top: var(--space-6); }
+  .recents h2 { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: var(--text-3); margin-bottom: var(--space-2); }
+  .recents li { display: flex; align-items: center; border-radius: var(--r-md); }
+  .recents li:hover { background: var(--hover); }
+  .recent { display: flex; align-items: baseline; gap: var(--space-3); flex: 1; min-width: 0; height: 30px; padding: 0 var(--space-2); text-align: left; }
+  .recentName { font-weight: 500; flex: none; }
+  .recentPath { color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+  .forget { width: 22px; height: 22px; margin-right: 4px; display: grid; place-items: center; border-radius: 5px; color: var(--text-3); opacity: 0; }
+  .recents li:hover .forget { opacity: 1; }
+  .forget:hover { background: var(--subtle); color: var(--text); }
+}

@@ -1,0 +1,18 @@
+@layer components {
+  .zoom {
+    position: absolute;
+    left: var(--space-4);
+    bottom: var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: var(--r-md);
+    background: var(--surface);
+    box-shadow: 0 0 0 0.5px var(--border-strong), 0 2px 8px rgb(0 0 0 / 0.1);
+    color: var(--text-2);
+  }
+  .zoom button { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 6px; }
+  .zoom button:hover { background: var(--hover); color: var(--text); }
+  .pct { padding: 0 var(--space-2) 0 6px; font: 500 11px var(--font-mono); color: var(--text-3); min-width: 44px; text-align: right; }
+}

@@ -1,0 +1,408 @@
+import { COLUMN_W, LANE_H } from "./constants";
+import { draw, hitTest, RenderCache, type View } from "./draw";
+import type { GraphIndex } from "./GraphIndex";
+import { readPalette, type Palette } from "./palette";
+import { anchorAtCentre, centeredOn, clampView, clampZoom, fitView, homeView, viewAfterReplace, zoomAt, type ViewAnchor } from "./view";
+
+export interface GraphCallbacks {
+  onSelect: (index: number | null) => void;
+  onZoom: (zoom: number) => void;
+}
+
+interface Animation {
+  from: View;
+  to: View;
+  start: number;
+  duration: number;
+}
+
+const DRAG_THRESHOLD = 4;
+const ZOOM_STEP = 1.25;
+
+/**
+ * Owns the canvas: view state (pan and zoom), selection, input handling and the draw loop.
+ * React only creates it, feeds it size changes and data notifications, and reads selection and
+ * zoom through the callbacks. Keeping this out of React state avoids re-rendering at 60 fps.
+ */
+export class GraphController {
+  private readonly ctx: CanvasRenderingContext2D;
+  private readonly cache = new RenderCache();
+  private palette: Palette;
+  private view: View = { tx: 0, ty: 0, z: 1 };
+  private width = 0;
+  private height = 0;
+  private dpr = 1;
+  private selected: number | null = null;
+  private hovered: number | null = null;
+  private placed = false;
+  private frame = 0;
+  private animation: Animation | null = null;
+  private drag: { x: number; y: number; tx: number; ty: number; moved: boolean } | null = null;
+  private gestureStartZoom = 1;
+  private pendingG = 0;
+  private active = true;
+  private anchor: ViewAnchor | null = null;
+  private selectedBeforeReplace: string | null = null;
+  private readonly disposers: Array<() => void> = [];
+
+  /** Milliseconds the last frames took to issue their drawing commands (for profiling). */
+  readonly frameTimes: number[] = [];
+
+  constructor(
+    private readonly canvas: HTMLCanvasElement,
+    private readonly index: GraphIndex,
+    private readonly callbacks: GraphCallbacks,
+  ) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D is not available");
+    this.ctx = ctx;
+    this.palette = readPalette();
+    this.attach();
+    this.disposers.push(
+      index.onReplace({
+        before: () => this.beforeReplace(),
+        after: () => this.afterReplace(),
+      }),
+    );
+    void this.loadFonts();
+  }
+
+  // ---- lifecycle -------------------------------------------------------------------------
+
+  destroy(): void {
+    cancelAnimationFrame(this.frame);
+    this.disposers.forEach((dispose) => dispose());
+  }
+
+  /** Inactive controllers (background tabs) ignore the keyboard. */
+  setActive(active: boolean): void {
+    this.active = active;
+    if (active) this.requestDraw();
+  }
+
+  resize(width: number, height: number, dpr: number): void {
+    // A hidden canvas reports no size; keep the last real one and the view as it is.
+    if (width === 0 || height === 0) return;
+    this.width = width;
+    this.height = height;
+    this.dpr = dpr;
+    this.canvas.width = Math.round(width * dpr);
+    this.canvas.height = Math.round(height * dpr);
+    if (this.placed) this.view = clampView(this.view, width, height, this.index);
+    this.requestDraw();
+  }
+
+  /** Call after the index changed (new chunk, refs, reset). */
+  dataChanged(): void {
+    if (this.index.length === 0) {
+      this.placed = false;
+      this.selected = null;
+      this.hovered = null;
+      this.cache.described.clear();
+      this.cache.wrapped.clear();
+    } else if (!this.placed && this.width > 0) {
+      this.view = homeView(this.index, this.width, this.height);
+      this.placed = true;
+      this.callbacks.onZoom(this.view.z);
+    }
+    this.requestDraw();
+  }
+
+  /** The history is about to be swapped for a fresh one: remember what the user is looking at. */
+  private beforeReplace(): void {
+    this.anchor = this.placed ? anchorAtCentre(this.index, this.view, this.width) : null;
+    this.selectedBeforeReplace = this.selected === null ? null : (this.index.commits[this.selected]?.id ?? null);
+  }
+
+  /** Puts the view and the selection back on the same commits, wherever they ended up. */
+  private afterReplace(): void {
+    this.animation = null;
+    this.hovered = null;
+    this.cache.described.clear();
+    this.cache.wrapped.clear();
+    if (this.placed) {
+      this.view = clampView(viewAfterReplace(this.index, this.view, this.anchor), this.width, this.height, this.index);
+      this.callbacks.onZoom(this.view.z);
+    }
+    if (this.selectedBeforeReplace !== null) {
+      const at = this.index.indexOf(this.selectedBeforeReplace);
+      this.selected = at;
+      if (at === null) this.callbacks.onSelect(null);
+    }
+    this.anchor = null;
+    this.selectedBeforeReplace = null;
+    this.requestDraw();
+  }
+
+  // ---- commands --------------------------------------------------------------------------
+
+  get zoom(): number {
+    return this.view.z;
+  }
+
+  zoomBy(factor: number): void {
+    this.animateTo(zoomAt(this.view, factor, this.width / 2, this.height / 2));
+  }
+
+  fit(): void {
+    if (this.index.length > 0) this.animateTo(fitView(this.index, this.width, this.height));
+  }
+
+  select(index: number | null, center = true): void {
+    this.selected = index;
+    this.callbacks.onSelect(index);
+    if (index !== null && center) this.centerOn(index);
+    this.requestDraw();
+  }
+
+  centerOn(index: number): void {
+    const z = this.view.z < 0.35 ? 0.8 : this.view.z;
+    this.animateTo(centeredOn(this.index, index, z, this.width, this.height));
+  }
+
+  // ---- drawing ---------------------------------------------------------------------------
+
+  requestDraw(): void {
+    if (this.frame) return;
+    this.frame = requestAnimationFrame((now) => {
+      this.frame = 0;
+      this.step(now);
+    });
+  }
+
+  private step(now: number): void {
+    if (this.animation) {
+      const { from, to, start, duration } = this.animation;
+      const t = Math.min(1, (now - start) / duration);
+      const e = 1 - Math.pow(1 - t, 3);
+      this.view = {
+        tx: from.tx + (to.tx - from.tx) * e,
+        ty: from.ty + (to.ty - from.ty) * e,
+        z: from.z * Math.pow(to.z / from.z, e),
+      };
+      this.callbacks.onZoom(this.view.z);
+      if (t >= 1) this.animation = null;
+      else this.requestDraw();
+    }
+    this.render();
+  }
+
+  render(): void {
+    if (this.width === 0 || this.height === 0) return;
+    const started = performance.now();
+    draw(this.ctx, {
+      width: this.width,
+      height: this.height,
+      dpr: this.dpr,
+      view: this.view,
+      index: this.index,
+      palette: this.palette,
+      cache: this.cache,
+      selected: this.selected,
+      hovered: this.hovered,
+    });
+    this.frameTimes.push(performance.now() - started);
+    if (this.frameTimes.length > 300) this.frameTimes.shift();
+  }
+
+  /** Sets the view directly (used by profiling scripts). */
+  setView(view: View): void {
+    this.animation = null;
+    this.view = clampView(view, this.width, this.height, this.index);
+    this.placed = true;
+    this.requestDraw();
+  }
+
+  private animateTo(target: View, duration = 220): void {
+    const to = clampView(target, this.width, this.height, this.index);
+    this.animation = { from: this.view, to, start: performance.now(), duration };
+    this.requestDraw();
+  }
+
+  private setViewNow(view: View): void {
+    this.animation = null;
+    this.view = clampView(view, this.width, this.height, this.index);
+    this.callbacks.onZoom(this.view.z);
+    this.requestDraw();
+  }
+
+  private async loadFonts(): Promise<void> {
+    try {
+      await Promise.all([
+        document.fonts.load(`600 12px ${this.palette.fontUi}`),
+        document.fonts.load(`500 11px ${this.palette.fontUi}`),
+        document.fonts.load(`11px ${this.palette.fontMono}`),
+      ]);
+      this.cache.wrapped.clear();
+      this.requestDraw();
+    } catch {
+      // Falling back to the system fonts is fine.
+    }
+  }
+
+  // ---- input -----------------------------------------------------------------------------
+
+  private attach(): void {
+    const on = <K extends keyof HTMLElementEventMap>(
+      type: K,
+      handler: (event: HTMLElementEventMap[K]) => void,
+      options?: AddEventListenerOptions,
+    ) => {
+      this.canvas.addEventListener(type, handler, options);
+      this.disposers.push(() => this.canvas.removeEventListener(type, handler, options));
+    };
+
+    on("pointerdown", (e) => this.onPointerDown(e));
+    on("pointermove", (e) => this.onPointerMove(e));
+    on("pointerup", (e) => this.onPointerUp(e));
+    on("pointerleave", () => this.setHover(null));
+    on("wheel", (e) => this.onWheel(e), { passive: false });
+
+    // Safari / WKWebView reports trackpad pinch as non-standard gesture events.
+    const gestureStart = (e: Event) => {
+      e.preventDefault();
+      this.gestureStartZoom = this.view.z;
+    };
+    const gestureChange = (e: Event) => {
+      e.preventDefault();
+      const { scale, clientX, clientY } = e as unknown as { scale: number; clientX: number; clientY: number };
+      const rect = this.canvas.getBoundingClientRect();
+      const factor = (this.gestureStartZoom * scale) / this.view.z;
+      this.setViewNow(zoomAt(this.view, factor, clientX - rect.left, clientY - rect.top));
+    };
+    this.canvas.addEventListener("gesturestart", gestureStart);
+    this.canvas.addEventListener("gesturechange", gestureChange);
+    this.disposers.push(() => {
+      this.canvas.removeEventListener("gesturestart", gestureStart);
+      this.canvas.removeEventListener("gesturechange", gestureChange);
+    });
+
+    const keydown = (e: KeyboardEvent) => this.onKeyDown(e);
+    window.addEventListener("keydown", keydown);
+    this.disposers.push(() => window.removeEventListener("keydown", keydown));
+
+    const dark = window.matchMedia("(prefers-color-scheme: dark)");
+    const themeChanged = () => {
+      this.palette = readPalette();
+      this.requestDraw();
+    };
+    dark.addEventListener("change", themeChanged);
+    this.disposers.push(() => dark.removeEventListener("change", themeChanged));
+  }
+
+  private local(e: MouseEvent): { x: number; y: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  private onPointerDown(e: PointerEvent): void {
+    if (e.button !== 0) return;
+    this.canvas.setPointerCapture(e.pointerId);
+    this.animation = null;
+    const { x, y } = this.local(e);
+    this.drag = { x, y, tx: this.view.tx, ty: this.view.ty, moved: false };
+  }
+
+  private onPointerMove(e: PointerEvent): void {
+    const { x, y } = this.local(e);
+    if (!this.drag) {
+      this.setHover(hitTest(this.index, this.view, x, y));
+      return;
+    }
+    const dx = x - this.drag.x;
+    const dy = y - this.drag.y;
+    if (!this.drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    this.drag.moved = true;
+    this.canvas.style.cursor = "grabbing";
+    this.setViewNow({ ...this.view, tx: this.drag.tx + dx, ty: this.drag.ty + dy });
+  }
+
+  private onPointerUp(e: PointerEvent): void {
+    const drag = this.drag;
+    this.drag = null;
+    this.canvas.style.cursor = this.hovered === null ? "grab" : "pointer";
+    if (!drag || drag.moved) return;
+    const { x, y } = this.local(e);
+    this.select(hitTest(this.index, this.view, x, y), false);
+  }
+
+  private setHover(index: number | null): void {
+    if (index === this.hovered) return;
+    this.hovered = index;
+    this.canvas.style.cursor = index === null ? "grab" : "pointer";
+    this.requestDraw();
+  }
+
+  private onWheel(e: WheelEvent): void {
+    e.preventDefault();
+    const { x, y } = this.local(e);
+    if (e.ctrlKey || e.metaKey) {
+      // Pinch on Chromium reports ctrlKey with small deltas; ⌘+scroll needs a gentler curve.
+      const factor = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.002));
+      this.setViewNow(zoomAt(this.view, factor, x, y));
+    } else {
+      const dx = e.shiftKey && e.deltaX === 0 ? e.deltaY : e.deltaX;
+      const dy = e.shiftKey && e.deltaX === 0 ? 0 : e.deltaY;
+      this.setViewNow({ ...this.view, tx: this.view.tx - dx, ty: this.view.ty - dy });
+    }
+  }
+
+  private onKeyDown(e: KeyboardEvent): void {
+    if (!this.active) return;
+    const target = e.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+      return;
+    }
+
+    if (e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (e.key === "=" || e.key === "+") this.zoomBy(ZOOM_STEP);
+      else if (e.key === "-") this.zoomBy(1 / ZOOM_STEP);
+      else if (e.key === "0") this.fit();
+      else return;
+      e.preventDefault();
+      return;
+    }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    const current = this.selected;
+    const goto = (next: number | null) => {
+      if (next !== null) this.select(next);
+      e.preventDefault();
+    };
+
+    // `g h`: back to HEAD
+    if (e.key === "h" && performance.now() - this.pendingG < 600) {
+      this.pendingG = 0;
+      return goto(0);
+    }
+
+    switch (e.key) {
+      case "j": // older commit (to the left)
+        return goto(current === null ? 0 : Math.min(this.index.length - 1, current + 1));
+      case "k": // newer commit (to the right)
+        return goto(current === null ? 0 : Math.max(0, current - 1));
+      case "h": // first parent
+        return goto(current === null ? 0 : this.index.parentIndex(current));
+      case "l": // child
+        return goto(current === null ? 0 : this.index.childIndex(current));
+      case "Escape":
+        this.select(null, false);
+        return;
+      case "g":
+        this.pendingG = performance.now();
+        return;
+    }
+  }
+
+  /** Where the selected commit would be on screen; handy for tests and profiling. */
+  worldToScreen(column: number, lane: number): { x: number; y: number } {
+    return {
+      x: -column * COLUMN_W * this.view.z + this.view.tx,
+      y: lane * LANE_H * this.view.z + this.view.ty,
+    };
+  }
+
+  clampedZoom(z: number): number {
+    return clampZoom(z);
+  }
+}

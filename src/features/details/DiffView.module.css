@@ -1,0 +1,25 @@
+@layer components {
+  .diff { font: 11.5px/20px var(--font-mono); font-variant-ligatures: none; color: var(--shiki-foreground); min-width: max-content; padding-bottom: var(--space-3); }
+  .note { padding: var(--space-3) var(--space-4); color: var(--text-3); }
+
+  .hunkHeader { padding: 0 var(--space-3); background: var(--accent-soft); color: var(--accent-text); }
+
+  .row { display: grid; grid-template-columns: 38px 38px 1fr; white-space: pre; }
+  .splitRow { display: grid; grid-template-columns: 1fr 1fr; white-space: pre; }
+  .half { display: grid; grid-template-columns: 38px 1fr; min-width: 0; }
+  .half + .half { border-left: 1px solid var(--border); }
+
+  .no { text-align: right; padding-right: var(--space-2); color: var(--text-3); opacity: 0.7; user-select: none; }
+  .code { padding-right: var(--space-3); }
+  .half .code { padding-left: 6px; }
+  .sign { display: inline-block; width: 14px; font-weight: 400; color: var(--text-3); user-select: none; }
+
+  .Add { background: var(--add-bg); }
+  .Del { background: var(--del-bg); }
+  .Add .code { box-shadow: inset 2px 0 0 var(--add); }
+  .Del .code { box-shadow: inset 2px 0 0 var(--danger); }
+  .empty { background: var(--subtle); opacity: 0.5; }
+
+  .more { padding: var(--space-3); text-align: center; color: var(--text-3); font-family: var(--font-ui); font-size: 12px; }
+  .more button { color: var(--accent-text); }
+}

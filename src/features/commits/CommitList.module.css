@@ -1,0 +1,31 @@
+@layer components {
+  .list { display: flex; flex-direction: column; min-height: 0; height: 100%; background: var(--surface); }
+
+  .columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px 56px 76px;
+    align-items: center;
+    column-gap: var(--space-3);
+    padding: 0 var(--space-4);
+  }
+
+  .header {
+    height: 28px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-3);
+  }
+
+  .scroller { flex: 1; overflow: auto; min-height: 0; }
+  .canvas { position: relative; width: 100%; }
+
+  .row { position: absolute; top: 0; left: 0; width: 100%; }
+  .row:hover { background: var(--hover); }
+  .selected, .selected:hover { background: var(--accent-soft); }
+
+  .summary, .author { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .author { color: var(--text-2); }
+  .date { color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .hash { font: 12px var(--font-mono); color: var(--text-3); }
+}

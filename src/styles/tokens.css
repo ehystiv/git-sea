@@ -1,0 +1,108 @@
+@layer tokens, base, components;
+
+@layer tokens {
+  :root {
+    color-scheme: light dark;
+
+    --font-ui: "Inter Variable", ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --bg: #f7f7f9;
+    --surface: #ffffff;
+    --titlebar: #f1f1f5;
+    /* a light tint over the native vibrancy material; a high alpha would hide it */
+    --sidebar: rgb(244 244 248 / 0.18);
+    --border: #e7e7ee;
+    --border-strong: #d9d9e3;
+    --text: #1a1a22;
+    --text-2: #5b5b6b;
+    --text-3: #8d8d9e;
+    --accent: #6d4aff;
+    --accent-soft: rgb(109 74 255 / 0.1);
+    --accent-text: #5a37f0;
+    --accent-contrast: #ffffff;
+    --hover: #f3f3f8;
+    --subtle: #f0f0f5;
+    --danger: #c93a4a;
+    --danger-soft: rgb(201 58 74 / 0.09);
+    --canvas: #f5f5f8;
+    --dot: #d3d3de;
+    --node: #ffffff;
+    --add: #1a7f4b;
+    --add-bg: rgb(26 127 75 / 0.1);
+    --del-bg: rgb(201 58 74 / 0.09);
+
+    /* Shiki "css-variables" theme: syntax colours follow the app theme */
+    --shiki-foreground: #1a1a22;
+    --shiki-token-constant: #b45a0a;
+    --shiki-token-string: #0b7a5b;
+    --shiki-token-comment: #8d8d9e;
+    --shiki-token-keyword: #8b3fd1;
+    --shiki-token-parameter: #5b5b6b;
+    --shiki-token-function: #2563c9;
+    --shiki-token-string-expression: #0b7a5b;
+    --shiki-token-punctuation: #8d8d9e;
+    --shiki-token-link: #2563c9;
+
+    /* branch palette: 8 colours readable on both themes */
+    --b0: #6d4aff; --b1: #0f9d8a; --b2: #d98a0b; --b3: #d6457f;
+    --b4: #2f7ee8; --b5: #3fa14a; --b6: #e0612b; --b7: #8a5fd1;
+
+    --r-sm: 5px;
+    --r-md: 8px;
+    --r-lg: 12px;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-6: 24px;
+    --space-8: 32px;
+
+    --titlebar-height: 44px;
+    /* room for the macOS traffic lights in the overlay title bar */
+    --traffic-lights-width: 84px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0c0c10;
+      --surface: #121217;
+      --titlebar: #0f0f14;
+      --sidebar: rgb(18 18 24 / 0.2);
+      --border: #22222b;
+      --border-strong: #30303c;
+      --text: #ececf2;
+      --text-2: #a3a3b4;
+      --text-3: #6d6d7f;
+      --accent: #9b83ff;
+      --accent-soft: rgb(155 131 255 / 0.14);
+      --accent-text: #b5a2ff;
+      --accent-contrast: #14101f;
+      --hover: #181820;
+      --subtle: #1c1c25;
+      --danger: #ff7a86;
+      --danger-soft: rgb(255 122 134 / 0.11);
+      --canvas: #0d0d12;
+      --dot: #2b2b37;
+      --node: #1f1f29;
+      --add: #4cc38a;
+      --add-bg: rgb(76 195 138 / 0.12);
+      --del-bg: rgb(255 122 134 / 0.11);
+
+      --shiki-foreground: #ececf2;
+      --shiki-token-constant: #f2b072;
+      --shiki-token-string: #7fdcb8;
+      --shiki-token-comment: #6d6d7f;
+      --shiki-token-keyword: #c79bff;
+      --shiki-token-parameter: #a3a3b4;
+      --shiki-token-function: #7cb4ff;
+      --shiki-token-string-expression: #7fdcb8;
+      --shiki-token-punctuation: #6d6d7f;
+      --shiki-token-link: #7cb4ff;
+
+      --b0: #9b83ff; --b1: #3ed0b8; --b2: #f0b040; --b3: #ff6fa3;
+      --b4: #5aa2ff; --b5: #6fd07a; --b6: #ff8a54; --b7: #bb92ff;
+    }
+  }
+}
