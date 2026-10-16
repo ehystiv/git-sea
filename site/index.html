@@ -125,41 +125,66 @@
     .btn svg { width: 18px; height: 18px; }
     .note { margin-top: 14px; font-size: 13px; color: var(--text-3); }
 
-    /* app window */
+    /* app window: always dark, like the app's own screenshots */
     .window {
+      --w-bg: #0c0c10;
+      --w-panel: #101015;
+      --w-border: #22222b;
+      --w-border-2: #30303c;
+      --w-text: #ececf2;
+      --w-text-2: #a3a3b4;
+      --w-text-3: #6d6d7f;
+      --w-accent: #9b83ff;
+      color-scheme: dark;
       margin: 56px auto 0;
-      max-width: 1040px;
-      border: 1px solid var(--border-strong);
+      max-width: 1080px;
+      border: 1px solid var(--w-border-2);
       border-bottom: none;
       border-radius: 14px 14px 0 0;
-      background: var(--surface);
-      box-shadow: 0 30px 80px rgb(30 20 90 / 0.18);
+      background: var(--w-bg);
+      color: var(--w-text);
+      box-shadow: 0 30px 90px rgb(30 20 90 / 0.28);
       overflow: hidden;
       text-align: left;
+      font-size: 12px;
+      line-height: 1.4;
     }
     .titlebar {
-      height: 44px; display: flex; align-items: center; gap: 16px;
-      padding: 0 16px; background: var(--titlebar); border-bottom: 1px solid var(--border);
+      height: 38px; display: flex; align-items: center; gap: 14px;
+      padding: 0 14px; border-bottom: 1px solid var(--w-border);
     }
     .lights { display: flex; gap: 8px; }
     .lights i { width: 12px; height: 12px; border-radius: 50%; display: block; }
     .lights i:nth-child(1) { background: #ff5f57; }
     .lights i:nth-child(2) { background: #febc2e; }
     .lights i:nth-child(3) { background: #28c840; }
-    .tab {
-      font-size: 12.5px; font-weight: 500; color: var(--text);
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 7px; padding: 3px 12px;
-    }
-    .tab.off { background: none; border-color: transparent; color: var(--text-3); }
-    .body { display: grid; grid-template-columns: 200px 1fr; height: 400px; }
-    .side { border-right: 1px solid var(--border); padding: 14px 10px; font-size: 12.5px; overflow: hidden; }
-    .side h4 { margin: 10px 8px 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); font-weight: 600; }
-    .side h4:first-child { margin-top: 0; }
-    .side div { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; color: var(--text-2); white-space: nowrap; }
-    .side div.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 500; }
-    .side div::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--text-3)); flex: none; }
-    #graph { width: 100%; height: 100%; display: block; background: var(--canvas); }
+    .wtab { display: flex; align-items: center; gap: 7px; padding: 3px 10px; border-radius: 6px; background: #1c1c25; font-weight: 500; }
+    .wtab::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--w-accent); }
+    .wtab span { color: var(--w-text-3); margin-left: 6px; }
+    .wplus { color: var(--w-text-3); font-size: 15px; }
+    .wbody { display: grid; grid-template-columns: 190px 1fr; height: 520px; }
+    .side { background: var(--w-panel); border-right: 1px solid var(--w-border); padding: 10px 8px; overflow: hidden; }
+    .filter { border: 1px solid var(--w-border); border-radius: 6px; padding: 4px 8px; color: var(--w-text-3); margin-bottom: 12px; display: flex; gap: 6px; align-items: center; }
+    .filter svg { width: 11px; height: 11px; }
+    .side h4 { display: flex; justify-content: space-between; margin: 12px 6px 4px; font-size: 9.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--w-text-3); font-weight: 600; }
+    .side h4:first-of-type { margin-top: 0; }
+    .ref { display: flex; align-items: center; gap: 7px; padding: 3px 6px; border-radius: 5px; color: var(--w-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ref::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c, var(--w-text-3)); flex: none; }
+    .ref.on { color: var(--w-text); }
+    .ref b { margin-left: auto; font: 600 8.5px var(--font-mono); color: var(--w-accent); }
+    .main { display: grid; grid-template-rows: 36px 1fr 24px; min-width: 0; }
+    .toolbar { display: flex; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--w-border); white-space: nowrap; overflow: hidden; }
+    .chip { font: 500 10px var(--font-mono); padding: 1px 6px; border-radius: 4px; background: rgb(155 131 255 / 0.16); color: #b5a2ff; }
+    .mono { font-family: var(--font-mono); font-size: 10.5px; color: var(--w-text-3); }
+    .seg { display: flex; gap: 2px; padding: 2px; border-radius: 7px; background: #16161d; margin-left: 8px; }
+    .seg span { padding: 2px 9px; border-radius: 5px; color: var(--w-text-2); }
+    .seg span.on { background: #24242f; color: var(--w-text); }
+    .toolbar .path { margin-left: auto; }
+    .wbtn { border: 1px solid var(--w-border-2); border-radius: 6px; padding: 2px 9px; color: var(--w-text-2); }
+    .stage { position: relative; min-height: 0; }
+    #graph { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    .zoom { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 10px; align-items: center; padding: 5px 10px; border: 1px solid var(--w-border); border-radius: 7px; background: var(--w-panel); color: var(--w-text-2); }
+    .status { display: flex; gap: 16px; align-items: center; padding: 0 12px; border-top: 1px solid var(--w-border); color: var(--w-text-3); font-size: 10.5px; }
 
     /* sections */
     section { padding: 96px 0; }
@@ -191,7 +216,7 @@
     .view h3 { margin: 0 0 4px; font-size: 15.5px; }
     .view p { margin: 0; color: var(--text-2); font-size: 14px; }
 
-    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: start; }
     .keys { display: grid; gap: 2px; }
     .keys div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14.5px; color: var(--text-2); }
     kbd {
@@ -217,15 +242,18 @@
 
     @media (max-width: 900px) {
       .grid, .views { grid-template-columns: repeat(2, 1fr); }
-      .split { grid-template-columns: 1fr; }
+      .split { grid-template-columns: minmax(0, 1fr); }
+      .toolbar .path { display: none; }
+      .wbtn { margin-left: auto; }
     }
     @media (max-width: 640px) {
       .wrap { padding: 0 16px; }
       nav .links a:not(.gh) { display: none; }
       .grid, .views, .stats { grid-template-columns: 1fr; }
-      .body { grid-template-columns: 1fr; height: 300px; }
+      .wbody { grid-template-columns: 1fr; height: 440px; }
       .side { display: none; }
-      .tab.off { display: none; }
+      .seg, .toolbar .path, .wbtn { display: none; }
+      pre { font-size: 12px; padding: 14px 16px; }
       section { padding: 72px 0; }
     }
   </style>
@@ -263,26 +291,44 @@
       <div class="window" aria-hidden="true">
         <div class="titlebar">
           <div class="lights"><i></i><i></i><i></i></div>
-          <span class="tab">git-sea</span>
-          <span class="tab off">tauri</span>
-          <span class="tab off">node</span>
+          <span class="wtab">git-sea<span>×</span></span>
+          <span class="wplus">+</span>
         </div>
-        <div class="body">
+        <div class="wbody">
           <div class="side">
-            <h4>Branches</h4>
-            <div class="on" style="--c: var(--b0)">main</div>
-            <div style="--c: var(--b1)">feat/timeline</div>
-            <div style="--c: var(--b2)">fix/lane-gaps</div>
-            <div style="--c: var(--b3)">feat/minimap</div>
-            <h4>Remotes</h4>
-            <div>origin/main</div>
-            <div>origin/develop</div>
-            <h4>Tags</h4>
-            <div>v0.1.0</div>
-            <h4>Stashes</h4>
-            <div>WIP on develop</div>
+            <div class="filter"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="5"/><path d="m11 11 3.5 3.5"/></svg>Filter…</div>
+            <h4>Local branches <span>5</span></h4>
+            <div class="ref on" style="--c:#9b83ff">main <b>HEAD</b></div>
+            <div class="ref" style="--c:#2cc7b0">feat/timeline</div>
+            <div class="ref" style="--c:#f0a83a">fix/zoom-clamp</div>
+            <div class="ref" style="--c:#f06a9f">feat/minimap</div>
+            <div class="ref" style="--c:#5aa0ff">refactor/draw</div>
+            <h4>Remotes <span>9</span></h4>
+            <div class="ref" style="--c:#9b83ff">origin/main</div>
+            <div class="ref" style="--c:#2cc7b0">origin/feat/timeline</div>
+            <div class="ref" style="--c:#f0a83a">origin/fix/zoom-clamp</div>
+            <div class="ref" style="--c:#f06a9f">origin/feat/minimap</div>
+            <div class="ref" style="--c:#5aa0ff">origin/refactor/draw</div>
+            <div class="ref" style="--c:#4cc38a">origin/feat/search</div>
+            <h4>Tags <span>2</span></h4>
+            <div class="ref">v0.1.0</div>
+            <div class="ref">v0.0.1</div>
           </div>
-          <canvas id="graph"></canvas>
+          <div class="main">
+            <div class="toolbar">
+              <span class="chip">main</span>
+              <span class="mono">0cc21a9</span>
+              <span>42 refs</span>
+              <div class="seg"><span class="on">Graph</span><span>Topology</span><span>Timeline</span><span>List</span></div>
+              <span class="mono path">~/Projects/git-sea</span>
+              <span class="wbtn">Close</span>
+            </div>
+            <div class="stage">
+              <canvas id="graph"></canvas>
+              <div class="zoom"><span>⛶</span><span>+</span><span>−</span><span class="mono">100%</span></div>
+            </div>
+            <div class="status"><span>1,284 commits</span><span>6 lanes</span><span>Remote updated just now</span></div>
+          </div>
         </div>
       </div>
     </div>
@@ -441,184 +487,261 @@ pnpm tauri build</pre>
   </footer>
 
   <script>
-    // Hero animation: an endless commit graph drifting left, with fish behind it.
+    // Hero: a hand-placed graph drawn the way git-sea draws it (tiles, ports, ref badges,
+    // flow dots on the edges), plus a few fish in the background.
     (() => {
       const canvas = document.getElementById("graph");
       const ctx = canvas.getContext("2d");
       const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-      // Seeded RNG so the graph is the same on every visit.
-      let seed = 7;
-      const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+      const LANES = ["#9b83ff", "#2cc7b0", "#f0a83a"];
+      const LANE_Y = [100, 220, 340];
+      const VW = 1100, VH = 430, TILE = 46;
+      const font = getComputedStyle(document.documentElement).getPropertyValue("--font-ui").trim();
+      const mono = getComputedStyle(document.documentElement).getPropertyValue("--font-mono").trim();
 
-      const MESSAGES = [
-        ["feat", "add minimap"], ["fix", "lane gaps"], ["refactor", "split draw"], ["feat", "timeline view"],
-        ["perf", "cache layout"], ["docs", "update readme"], ["test", "lane fixtures"], ["feat", "search refs"],
-        ["fix", "zoom clamp"], ["chore", "bump gix"], ["feat", "stash list"], ["style", "tokens"],
+      const ICON = { feat: "✨", fix: "🐛", docs: "📝", refactor: "♻️", perf: "⚡", style: "🎨", test: "✅" };
+      // x in virtual units; lane picks the row
+      const tiles = [
+        { x: 50, lane: 2, type: "docs", hash: "bca0d45", text: "document the view math helpers" },
+        { x: 160, lane: 2, type: "refactor", hash: "97510e2", text: "extract pan and zoom clamping" },
+        { x: 270, lane: 2, type: "fix", hash: "17570bc", text: "clamp zoom to the fit bounds",
+          refs: [{ name: "fix/zoom-clamp" }, { name: "origin/fix/zoom-clamp" }] },
+        { x: 380, lane: 1, type: "feat", hash: "ea84188", text: "add the timeline layout",
+          refs: [{ name: "feat/timeline" }] },
+        { x: 490, lane: 1, type: "merge", hash: "14ae437", text: "Merge fix/zoom-clamp into feat/timeline" },
+        { x: 600, lane: 0, type: "merge", hash: "548d258", text: "Merge feat/timeline into main" },
+        { x: 710, lane: 0, type: "feat", hash: "26c8050", text: "show CI runs per workflow" },
+        { x: 820, lane: 0, type: "fix", hash: "6fd97ea", text: "keep lanes stable after a fetch" },
+        { x: 930, lane: 0, type: "perf", hash: "22bba13", text: "cache the layout per ref fingerprint" },
+        { x: 1040, lane: 0, type: "feat", hash: "0cc21a9", text: "fish in the background",
+          refs: [{ name: "origin/main" }, { name: "main", head: true }] },
       ];
-      const TYPE_COLOR = { feat: 1, fix: 3, perf: 2, refactor: 4, docs: 0, test: 2, chore: 0, style: 4 };
-      const COL_W = 128, LANE_H = 70, N = 36;
 
-      // One tile of history that starts and ends with only main open, so it loops seamlessly.
-      const commits = [];
-      const last = { 0: -1 };
-      const open = new Set();
-      for (let i = 0; i < N; i++) {
-        const free = [1, 2, 3].filter((l) => !open.has(l));
-        const closing = i >= N - 4;
-        const r = rand();
-        let c;
-        if (open.size && (closing || r < 0.22)) {
-          const lane = [...open][Math.floor(rand() * open.size)];
-          c = { lane: 0, parents: [{ col: last[0], lane: 0 }, { col: last[lane], lane }], merge: lane };
-          open.delete(lane);
-        } else if (!closing && free.length && r < 0.42) {
-          const lane = free[0];
-          c = { lane, parents: [{ col: last[0], lane: 0 }] };
-          open.add(lane);
-        } else if (open.size && r < 0.75) {
-          const lane = [...open][Math.floor(rand() * open.size)];
-          c = { lane, parents: [{ col: last[lane], lane }] };
-        } else {
-          c = { lane: 0, parents: [{ col: last[0], lane: 0 }] };
-        }
-        c.msg = MESSAGES[i % MESSAGES.length];
-        c.hash = Math.floor(rand() * 0xfffffff).toString(16).padStart(7, "0");
-        last[c.lane] = i;
-        commits.push(c);
-      }
+      // edges as polylines in virtual units
+      const port = (t, side) => [t.x + side * (TILE / 2 + 3), LANE_Y[t.lane]];
+      const T = (x, lane) => tiles.find((t) => t.x === x && t.lane === lane);
+      const straight = (a, b) => ({ lane: a.lane, pts: [port(a, 1), port(b, -1)] });
+      const merge = (from, into) => {
+        const [x1, y1] = port(from, 1), [x2, y2] = port(into, -1);
+        const xc = x2 - 22;
+        return { lane: from.lane, pts: [[x1, y1], [xc, y1], [xc, y2], [x2, y2]] };
+      };
+      const edges = [
+        { lane: 0, pts: [[-400, LANE_Y[0]], port(T(600, 0), -1)] },
+        { lane: 1, pts: [[-400, LANE_Y[1]], port(T(380, 1), -1)] },
+        { lane: 2, pts: [[-400, LANE_Y[2]], port(T(50, 2), -1)] },
+        straight(T(50, 2), T(160, 2)), straight(T(160, 2), T(270, 2)),
+        straight(T(380, 1), T(490, 1)),
+        merge(T(270, 2), T(490, 1)),
+        merge(T(490, 1), T(600, 0)),
+        straight(T(600, 0), T(710, 0)), straight(T(710, 0), T(820, 0)),
+        straight(T(820, 0), T(930, 0)), straight(T(930, 0), T(1040, 0)),
+      ];
 
-      const fish = Array.from({ length: 9 }, () => ({
-        x: rand(), y: rand(), s: 8 + rand() * 18, v: 0.012 + rand() * 0.02, p: rand() * 6.28,
+      const fish = Array.from({ length: 10 }, (_, i) => ({
+        x: (i * 0.137) % 1, y: 0.08 + ((i * 0.31) % 0.86), s: 3 + (i % 4) * 1.6, v: 0.004 + (i % 3) * 0.003, p: i,
       }));
 
-      let colors = {}, w = 0, h = 0;
-      const readColors = () => {
-        const cs = getComputedStyle(document.documentElement);
-        const v = (n) => cs.getPropertyValue(n).trim();
-        colors = {
-          dot: v("--dot"), node: v("--node"), border: v("--border-strong"), text: v("--text"), text3: v("--text-3"),
-          fish: v("--fish"), lanes: ["--b0", "--b1", "--b2", "--b3", "--b4"].map(v),
-          font: v("--font-ui"), mono: v("--font-mono"),
-        };
-      };
+      let w = 0, h = 0, scale = 1, ox = 0, oy = 0;
       const resize = () => {
         const dpr = Math.min(devicePixelRatio || 1, 2);
         w = canvas.clientWidth; h = canvas.clientHeight;
         canvas.width = w * dpr; canvas.height = h * dpr;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (w < 600) {
+          // phones: keep a readable size and frame the merges, where all three lanes meet
+          scale = Math.min(0.85, h / VH);
+          ox = w / 2 - 520 * scale;
+        } else {
+          scale = Math.min(1, h / VH, w / VW);
+          ox = (w - VW * scale) / 2;
+        }
+        oy = (h - VH * scale) / 2;
       };
 
-      const roundRect = (x, y, rw, rh, r) => {
+      const polyline = (pts, r) => {
         ctx.beginPath();
-        ctx.roundRect(x, y, rw, rh, r);
+        ctx.moveTo(...pts[0]);
+        for (let i = 1; i < pts.length - 1; i++) ctx.arcTo(...pts[i], ...pts[i + 1], r);
+        ctx.lineTo(...pts[pts.length - 1]);
+      };
+
+      const mergeIcon = (x, y, color) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(x - 5, y - 6, 2.6, 0, Math.PI * 2);
+        ctx.moveTo(x - 5 + 2.6 + 5.6, y + 5); ctx.arc(x + 5.6, y + 5, 2.6, 0, Math.PI * 2);
+        ctx.moveTo(x - 5, y - 3.4); ctx.lineTo(x - 5, y + 9);
+        ctx.moveTo(x - 5, y - 1); ctx.quadraticCurveTo(x - 5, y + 5, x + 3, y + 5);
+        ctx.stroke();
+      };
+
+      const wrap = (text, max) => {
+        const words = text.split(" ");
+        const lines = [""];
+        for (const word of words) {
+          const next = lines[lines.length - 1] ? lines[lines.length - 1] + " " + word : word;
+          if (ctx.measureText(next).width <= max || !lines[lines.length - 1]) lines[lines.length - 1] = next;
+          else lines.push(word);
+        }
+        if (lines.length > 2) {
+          let l = lines[1];
+          while (ctx.measureText(l + "…").width > max && l.length) l = l.slice(0, -1);
+          return [lines[0], l + "…"];
+        }
+        return lines;
       };
 
       const draw = (t) => {
         ctx.clearRect(0, 0, w, h);
 
         // dotted canvas
-        ctx.fillStyle = colors.dot;
-        for (let x = 10; x < w; x += 20) for (let y = 10; y < h; y += 20) ctx.fillRect(x, y, 1.4, 1.4);
+        ctx.fillStyle = "#1d1d26";
+        for (let x = 12; x < w; x += 24) for (let y = 12; y < h; y += 24) ctx.fillRect(x, y, 1.3, 1.3);
 
-        // fish
+        // fish, faint, under everything
+        ctx.fillStyle = "rgb(150 160 255 / 0.12)";
         for (const f of fish) {
-          const x = ((f.x - t * f.v * 0.02) % 1.2 + 1.2) % 1.2 * (w + 80) - 40;
-          const y = f.y * h + Math.sin(t * 0.0012 + f.p) * 6;
-          ctx.fillStyle = `rgb(${colors.fish} / 0.13)`;
+          const x = ((f.x - t * f.v * 0.001) % 1 + 1) % 1 * (w + 40) - 20;
+          const y = f.y * h + Math.sin(t * 0.001 + f.p) * 4;
           ctx.beginPath();
-          ctx.ellipse(x, y, f.s, f.s * 0.45, 0, 0, Math.PI * 2);
+          ctx.ellipse(x, y, f.s, f.s * 0.42, 0, 0, Math.PI * 2);
           ctx.moveTo(x + f.s * 0.8, y);
-          ctx.lineTo(x + f.s * 1.6, y - f.s * 0.45);
-          ctx.lineTo(x + f.s * 1.6, y + f.s * 0.45);
+          ctx.lineTo(x + f.s * 1.7, y - f.s * 0.5);
+          ctx.lineTo(x + f.s * 1.7, y + f.s * 0.5);
           ctx.fill();
         }
 
-        const scale = w < 600 ? 0.72 : 1;
-        const colW = COL_W * scale, laneH = LANE_H * scale;
-        const top = (h - laneH * 3) / 2;
-        const tileW = N * colW;
-        const offset = reduced ? 0 : (t * 0.018) % tileW;
-        const pos = (col, lane, tile) => [40 + (col + tile * N) * colW - offset, top + lane * laneH];
-        const tiles = [0, 1, 2].filter((k) => k * tileW - offset < w + colW && (k + 1) * tileW - offset > -colW);
+        ctx.save();
+        ctx.translate(ox, oy);
+        ctx.scale(scale, scale);
 
         // edges
-        ctx.lineWidth = 2.5 * scale;
-        ctx.lineCap = "round";
-        for (const k of tiles) {
-          commits.forEach((c, i) => {
-            const [x2, y2] = pos(i, c.lane, k);
-            for (const p of c.parents) {
-              const [x1, y1] = pos(p.col, p.lane, k);
-              ctx.strokeStyle = colors.lanes[p.lane === 0 ? c.lane : p.lane];
-              ctx.beginPath();
-              ctx.moveTo(x1, y1);
-              if (y1 === y2) ctx.lineTo(x2, y2);
-              else if (c.lane === 0) {
-                // merge: run along the branch lane, bend into main just before the merge
-                const sx = Math.max(x1, x2 - colW);
-                ctx.lineTo(sx, y1);
-                ctx.bezierCurveTo(sx + colW * 0.5, y1, sx + colW * 0.5, y2, x2, y2);
-              } else {
-                // branch: bend out of main right after the fork
-                const ex = Math.min(x2, x1 + colW);
-                ctx.bezierCurveTo(x1 + colW * 0.5, y1, x1 + colW * 0.5, y2, ex, y2);
-                ctx.lineTo(x2, y2);
-              }
-              ctx.stroke();
-            }
-          });
+        ctx.lineWidth = 2;
+        for (const e of edges) {
+          ctx.strokeStyle = LANES[e.lane];
+          polyline(e.pts, 10);
+          ctx.stroke();
         }
 
-        // cards
-        const cw = 112 * scale, ch = 40 * scale;
-        for (const k of tiles) {
-          commits.forEach((c, i) => {
-            const [x, y] = pos(i, c.lane, k);
-            if (x < -cw || x > w + cw) return;
-            const lane = colors.lanes[c.lane];
-            ctx.shadowColor = "rgb(0 0 0 / 0.08)";
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetY = 2;
-            roundRect(x - cw / 2, y - ch / 2, cw, ch, 8 * scale);
-            ctx.fillStyle = colors.node;
-            ctx.fill();
-            ctx.shadowColor = "transparent";
-            ctx.strokeStyle = c.merge !== undefined ? lane : colors.border;
-            ctx.lineWidth = 1.2;
-            ctx.stroke();
-            ctx.fillStyle = lane;
-            roundRect(x - cw / 2, y - ch / 2 + 8 * scale, 3 * scale, ch - 16 * scale, 2);
-            ctx.fill();
+        // flow dots moving along the horizontal runs
+        for (const e of edges) {
+          ctx.fillStyle = LANES[e.lane];
+          for (let i = 0; i < e.pts.length - 1; i++) {
+            const [x1, y1] = e.pts[i], [x2, y2] = e.pts[i + 1];
+            if (y1 !== y2 || x2 - x1 < 40) continue;
+            const gap = 75, shift = reduced ? 30 : (t * 0.02) % gap;
+            for (let x = x1 + 12 + shift; x < x2 - 12; x += gap) {
+              ctx.beginPath(); ctx.arc(x, y1, 3, 0, Math.PI * 2); ctx.fill();
+            }
+          }
+        }
 
-            const [type, text] = c.msg;
-            ctx.fillStyle = colors.lanes[TYPE_COLOR[type]];
+        // tiles
+        for (const tile of tiles) {
+          const color = LANES[tile.lane];
+          const x = tile.x, y = LANE_Y[tile.lane], s = TILE;
+
+          // ports
+          ctx.fillStyle = "#5c5c6b";
+          ctx.fillRect(x - s / 2 - 4, y - 5, 4, 10);
+          ctx.fillRect(x + s / 2, y - 5, 4, 10);
+
+          ctx.beginPath();
+          ctx.roundRect(x - s / 2, y - s / 2, s, s, 10);
+          ctx.fillStyle = tile.type === "merge" ? "#14262a" : "#16161d";
+          if (tile.type === "merge" && tile.lane === 0) ctx.fillStyle = "#1c1830";
+          ctx.fill();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = tile.refs?.some((r) => r.head) ? 2.4 : 1.6;
+          ctx.stroke();
+
+          if (tile.type === "merge") mergeIcon(x, y - 2, tile.lane === 0 ? "#b5a2ff" : "#7fe3d2");
+          else {
+            ctx.font = `20px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(ICON[tile.type], x, y + 1);
+          }
+
+          // label
+          ctx.textAlign = "center";
+          ctx.textBaseline = "alphabetic";
+          ctx.font = `600 10.5px ${font}`;
+          ctx.fillStyle = "#ececf2";
+          const lines = wrap(tile.text, 100);
+          lines.forEach((l, i) => ctx.fillText(l, x, y + s / 2 + 16 + i * 13));
+          ctx.font = `9px ${mono}`;
+          ctx.fillStyle = "#6d6d7f";
+          ctx.fillText(`${tile.type}  ·  ${tile.hash}`, x, y + s / 2 + 18 + lines.length * 13);
+
+          // ref badges
+          (tile.refs ?? []).forEach((r, i) => {
+            const by = y - s / 2 - 14 - (tile.refs.length - 1 - i) * 18;
+            ctx.font = `500 9.5px ${font}`;
+            const tw = ctx.measureText(r.name).width;
+            const headW = r.head ? 28 : 0;
+            const bw = tw + 12 + headW;
+            const bx = x - bw / 2;
             ctx.beginPath();
-            ctx.arc(x - cw / 2 + 16 * scale, y - 6 * scale, 4 * scale, 0, Math.PI * 2);
+            ctx.roundRect(bx, by - 7, bw, 14, 3);
+            ctx.fillStyle = r.head ? "rgb(155 131 255 / 0.14)" : "rgb(12 12 16 / 0.9)";
             ctx.fill();
-            ctx.fillStyle = colors.text;
-            ctx.font = `500 ${11.5 * scale}px ${colors.font}`;
-            ctx.fillText(c.merge !== undefined ? "Merge branch" : text, x - cw / 2 + 26 * scale, y - 2 * scale);
-            ctx.fillStyle = colors.text3;
-            ctx.font = `${10 * scale}px ${colors.mono}`;
-            ctx.fillText(c.hash, x - cw / 2 + 12 * scale, y + 13 * scale);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            if (r.head) {
+              ctx.beginPath();
+              ctx.roundRect(bx + 3, by - 4.5, 24, 9, 2);
+              ctx.fillStyle = color;
+              ctx.fill();
+              ctx.font = `700 7px ${font}`;
+              ctx.fillStyle = "#14101f";
+              ctx.textBaseline = "middle";
+              ctx.fillText("HEAD", bx + 15, by + 0.5);
+              ctx.font = `500 9.5px ${font}`;
+            }
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = r.head ? "#ececf2" : color;
+            ctx.fillText(r.name, bx + headW + bw / 2 - headW / 2, by + 0.5);
           });
+        }
+        ctx.restore();
+
+        // minimap
+        if (w > 520) {
+          const mw = 150, mh = 58, mx = w - mw - 12, my = h - mh - 12;
+          ctx.fillStyle = "#101015";
+          ctx.strokeStyle = "#22222b";
+          ctx.beginPath(); ctx.roundRect(mx, my, mw, mh, 6); ctx.fill(); ctx.stroke();
+          let seed = 3;
+          const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+          const palette = ["#9b83ff", "#2cc7b0", "#f0a83a", "#f06a9f", "#5aa0ff"];
+          for (let i = 0; i < 180; i++) {
+            const px = mx + 6 + rnd() * (mw - 12);
+            const depth = Math.pow(rnd(), 2.4) * (mh - 14) * ((px - mx) / mw);
+            ctx.fillStyle = palette[Math.floor(rnd() * palette.length)];
+            ctx.fillRect(px, my + 7 + depth, 2, 1.4);
+          }
+          ctx.strokeStyle = "#9b83ff";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(mx + mw - 18, my + 5, 10, mh - 10);
         }
       };
 
       let visible = true;
       const loop = (t) => {
         if (visible) draw(t);
-        if (!reduced) requestAnimationFrame(loop);
+        requestAnimationFrame(loop);
       };
 
-      readColors();
       resize();
       new ResizeObserver(() => { resize(); if (reduced) draw(0); }).observe(canvas);
       new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(canvas);
-      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { readColors(); if (reduced) draw(0); });
-      document.fonts.ready.then(() => reduced && draw(0));
-      requestAnimationFrame(loop);
+      document.fonts.ready.then(() => draw(0));
+      if (reduced) draw(0); else requestAnimationFrame(loop);
     })();
   </script>
 </body>
