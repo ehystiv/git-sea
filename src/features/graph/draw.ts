@@ -15,7 +15,7 @@ import { DIM_ALPHA, emphasisFits, type Emphasis } from "./emphasis";
 import type { CommitGroup, GraphIndex } from "./GraphIndex";
 import { iconPath } from "./icons";
 import { drawFlow, FlowLinks } from "./flow";
-import { firstAtLeast } from "./morph";
+import { ARRIVAL, arrivalProgress, firstAtLeast } from "./morph";
 import type { Palette } from "./palette";
 
 export interface View {
@@ -55,10 +55,27 @@ export interface Scene {
   /** Commits and links to keep bright while the rest fades (search, ancestors); null for none. */
   emphasis: Emphasis | null;
   /**
-   * A run opening or closing: where each column of `index` is right now (in columns, sorted) and
-   * which commits fade in (1) or out (-1), at progress `t`. Null when nothing moves.
+   * A run opening or closing, or new commits arriving: where each column of `index` is right now
+   * (in columns, sorted) and which commits fade in (1) or out (-1), at progress `t`. Null when
+   * nothing moves.
    */
-  morph: { positions: Float64Array; fade: Int8Array; t: number } | null;
+  morph: { positions: Float64Array; fade: Int8Array; t: number; arrival: Arrival | null } | null;
+  /** Local changes on top of a commit (HEAD's), shown as a badge on its node; null for none. */
+  worktree: WorktreeMarker | null;
+}
+
+/** How many files have local changes, and the commit they sit on. */
+export interface WorktreeMarker {
+  id: string;
+  files: number;
+}
+
+/** New commits entering: their order (see `Morph.order`) and the milliseconds since it started. */
+export interface Arrival {
+  order: Int16Array;
+  elapsed: number;
+  /** Reduced motion: the new commits only fade in, nothing grows, traces or rings. */
+  gentle: boolean;
 }
 
 /** Screen x of the centre of column `r`, following a running morph. */
@@ -72,7 +89,24 @@ function morphAlpha(scene: Scene, r: number): number {
   const morph = scene.morph;
   const fade = morph?.fade[r] ?? 0;
   if (!morph || fade === 0) return 1;
+  const pop = arrivalStage(scene, ARRIVAL.pop, r);
+  if (pop !== null) return morph.arrival?.gentle ? pop : Math.min(1, pop * 2);
   return fade > 0 ? morph.t : 1 - morph.t;
+}
+
+/** Progress of a stage for a new commit, or null when column `r` is not arriving. */
+function arrivalStage(scene: Scene, stage: { at: number; ms: number }, r: number): number | null {
+  const arrival = scene.morph?.arrival;
+  const order = arrival?.order[r] ?? -1;
+  return arrival && order >= 0 ? arrivalProgress(stage, arrival.elapsed, order) : null;
+}
+
+/** Size of a new commit's node as it pops in, overshooting a little before it settles. */
+function arrivalScale(scene: Scene, r: number): number {
+  const pop = arrivalStage(scene, ARRIVAL.pop, r);
+  if (pop === null || scene.morph?.arrival?.gentle) return 1;
+  const back = 1.70158;
+  return 1 + (back + 1) * (pop - 1) ** 3 + back * (pop - 1) ** 2;
 }
 
 type Ctx = CanvasRenderingContext2D;
@@ -104,6 +138,7 @@ export function draw(ctx: Ctx, input: Scene): boolean {
 
   // Dots travel along the links only where the links are drawn one by one.
   const links = scene.flowTime !== null && stride === 1 && z >= LOD_TILE ? new FlowLinks() : null;
+  const clipped = clipUntraced(ctx, scene, last);
   drawEdges(ctx, scene, first, last, stride, links);
   let moving = false;
   if (links && scene.flowTime !== null) {
@@ -119,10 +154,115 @@ export function draw(ctx: Ctx, input: Scene): boolean {
         palette,
       }) > 0;
   }
+  if (clipped) ctx.restore();
   if (z < LOD_TILE) drawDots2(ctx, scene, first, last, stride);
   else drawNodes(ctx, scene, first, last);
+  drawWorktree(ctx, scene);
   scene.cache.trim();
   return moving;
+}
+
+/**
+ * Hides the part of each new commit's link that is not traced yet: the line grows from the parent
+ * towards the new node. Returns true when a clip was set (and must be restored).
+ */
+function clipUntraced(ctx: Ctx, scene: Scene, last: number): boolean {
+  const arrival = scene.morph?.arrival;
+  if (!arrival || arrival.gentle) return false;
+  const { index, view, width, height } = scene;
+  const pad = Math.max(4, 4 * view.z);
+  const hidden = new Path2D();
+  hidden.rect(0, 0, width, height);
+  let any = false;
+  // New commits sit near the tip, but their links reach left, so start from the first column.
+  for (let r = 0; r <= last; r++) {
+    const trace = arrivalStage(scene, ARRIVAL.trace, r);
+    if (trace === null || trace >= 1) continue;
+    const parent = index.parentIndex(r) ?? (r + 1 < index.length ? r + 1 : null);
+    const nodeX = columnX(scene, r);
+    const parentX = parent === null ? nodeX - COLUMN_W * view.z : columnX(scene, parent);
+    const reached = parentX + (nodeX - parentX) * (1 - (1 - trace) ** 3);
+    const y = (index.rows[r]?.lane ?? 0) * LANE_H * view.z + view.ty;
+    if (nodeX <= reached) continue;
+    hidden.rect(reached, y - pad, nodeX - reached, pad * 2);
+    any = true;
+  }
+  if (!any) return false;
+  ctx.save();
+  ctx.clip(hidden, "evenodd");
+  return true;
+}
+
+/**
+ * Where the badge of local changes sits: a circle on the top right corner of the node of the
+ * commit they are on. `x` gives a column's screen x. Null when there is nothing to show.
+ */
+function worktreeBadge(
+  index: GraphIndex,
+  view: View,
+  marker: WorktreeMarker | null,
+  x: (column: number) => number,
+): { x: number; y: number; radius: number } | null {
+  if (!marker || marker.files <= 0) return null;
+  const column = index.indexOf(marker.id);
+  const row = column === null ? undefined : index.rows[column];
+  if (column === null || !row) return null;
+  const z = view.z;
+  // Far out the node is a small square (see drawDots2); the badge keeps a readable size.
+  const size = z >= LOD_TILE ? NODE * z : Math.max(2, Math.min(9, NODE * z * 1.2));
+  return { x: x(column) + size / 2, y: row.lane * LANE_H * z + view.ty - size / 2, radius: Math.max(8, 11 * z) };
+}
+
+/** Whether a point (CSS pixels) is on the badge of local changes. */
+export function hitWorktree(index: GraphIndex, view: View, marker: WorktreeMarker | null, px: number, py: number): boolean {
+  const badge = worktreeBadge(index, view, marker, (r) => -r * COLUMN_W * view.z + view.tx);
+  return badge !== null && Math.hypot(px - badge.x, py - badge.y) <= badge.radius + 3;
+}
+
+function drawWorktree(ctx: Ctx, scene: Scene): void {
+  const { palette, worktree } = scene;
+  const badge = worktreeBadge(scene.index, scene.view, worktree, (r) => columnX(scene, r));
+  if (!badge || !worktree) return;
+  const { x, y, radius } = badge;
+  const text = worktree.files > 99 ? "99+" : String(worktree.files);
+  ctx.font = `600 ${radius * 1.05}px ${palette.fontUi}`;
+  // Wider counts stretch the circle into a pill rather than shrink the text.
+  const half = Math.max(0, ctx.measureText(text).width / 2 + radius * 0.45 - radius);
+  ctx.beginPath();
+  ctx.roundRect(x - radius - half, y - radius, (radius + half) * 2, radius * 2, radius);
+  ctx.fillStyle = palette.accent;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1.5, radius * 0.18);
+  ctx.strokeStyle = palette.canvas;
+  ctx.stroke();
+  ctx.fillStyle = palette.accentContrast;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x, y + radius * 0.05);
+}
+
+/** A ring spreading out of a new commit's node once it has popped in, then fading. */
+function drawPing(ctx: Ctx, scene: Scene, r: number, cx: number, cy: number, color: string, leftRound: boolean): void {
+  if (scene.morph?.arrival?.gentle) return;
+  const ping = arrivalStage(scene, ARRIVAL.ping, r);
+  if (ping === null || ping <= 0 || ping >= 1) return;
+  const z = scene.view.z;
+  const size = NODE * z;
+  const radius = 12 * z;
+  const gap = (4 + 22 * (1 - (1 - ping) ** 3)) * z;
+  const leftRadius = leftRound ? size / 2 : radius;
+  ctx.beginPath();
+  ctx.roundRect(cx - size / 2 - gap, cy - size / 2 - gap, size + gap * 2, size + gap * 2, [
+    leftRadius + gap,
+    radius + gap,
+    radius + gap,
+    leftRadius + gap,
+  ]);
+  ctx.globalAlpha = 0.55 * (1 - ping);
+  ctx.lineWidth = Math.max(1, 2 * z);
+  ctx.strokeStyle = color;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
 }
 
 function drawDots(ctx: Ctx, { width, height, view, palette }: Scene): void {
@@ -278,20 +418,17 @@ function hasBright(nodes: Uint8Array, r: number, stride: number): boolean {
 }
 
 function drawNodes(ctx: Ctx, scene: Scene, first: number, last: number): void {
-  const { view, index, palette, width, height, selected, hovered } = scene;
-  const nodes = scene.emphasis?.nodes ?? null;
+  const { view, index, palette, width, height, selected } = scene;
   const { ty, z } = view;
   const size = NODE * z;
-  const card = z >= LOD_CARD;
-  const radius = 12 * z;
   // During a morph, nodes still stacked on the one drawn before them on their lane are skipped:
-  // a run of thousands of commits would otherwise be drawn thousands of times on one spot.
-  const lastX = scene.morph ? new Float64Array(index.maxLane + 1).fill(Infinity) : null;
+  // a run of thousands of commits would otherwise be drawn thousands of times on one spot. New
+  // commits arriving start on top of the commit they push aside, and both must show.
+  const lastX = scene.morph && !scene.morph.arrival ? new Float64Array(index.maxLane + 1).fill(Infinity) : null;
 
   for (let r = first; r <= last; r++) {
     const row = index.rows[r];
-    const commit = index.commits[r];
-    if (!row || !commit) continue;
+    if (!row || !index.commits[r]) continue;
     const cx = columnX(scene, r);
     const cy = row.lane * LANE_H * z + ty;
     if (cx < -COLUMN_W * z || cx > width + COLUMN_W * z || cy < -size * 2 || cy > height + size * 2) {
@@ -302,51 +439,76 @@ function drawNodes(ctx: Ctx, scene: Scene, first: number, last: number): void {
       lastX[row.lane] = cx;
     }
 
+    const scale = arrivalScale(scene, r);
+    if (scale <= 0) continue;
+    if (scale !== 1) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(scale, scale);
+      ctx.translate(-cx, -cy);
+    }
+    drawNode(ctx, scene, r, cx, cy);
+    if (scale !== 1) ctx.restore();
     const color = palette.branch[row.color % BRANCH_COLORS] ?? palette.text3;
-    const hasChildren = row.edges.some((e) => e.kind === "In" || e.kind === "MergeIn");
-    const left = cx - size / 2;
-    const top = cy - size / 2;
-
-    ctx.globalAlpha = (nodes && !nodes[r] ? DIM_ALPHA : 1) * morphAlpha(scene, r);
-    const group = index.groups.get(r);
-    const leftRadius = hasChildren ? radius : size / 2;
-    if (group && z >= LOD_TILE) drawStack(ctx, palette, color, left, top, size, z, radius);
-    ctx.beginPath();
-    ctx.roundRect(left, top, size, size, [leftRadius, radius, radius, leftRadius]);
-    ctx.fillStyle = palette.node;
-    ctx.fill();
-    ctx.lineWidth = Math.max(1, (r === hovered ? 2.4 : 1.5) * z);
-    ctx.strokeStyle = color;
-    ctx.stroke();
-
-    if (r === selected) {
-      ctx.beginPath();
-      const gap = 4 * z;
-      ctx.roundRect(left - gap, top - gap, size + gap * 2, size + gap * 2, [
-        leftRadius + gap,
-        radius + gap,
-        radius + gap,
-        leftRadius + gap,
-      ]);
-      ctx.lineWidth = Math.max(1.5, 2 * z);
-      ctx.strokeStyle = palette.accent;
-      ctx.stroke();
-    }
-
-    if (!card) continue;
-
-    drawPorts(ctx, palette, cx, cy, size, z, commit.parents.length > 0, hasChildren);
-    if (group) {
-      drawGroup(ctx, palette, group, r === selected, color, cx, cy, size, z, commit.id);
-      continue;
-    }
-    const described = describe(scene, r);
-    if (described.emoji) drawEmoji(ctx, described.emoji, cx, cy, z);
-    else drawIcon(ctx, palette, described.kind, row.color, cx, cy, z);
-    drawLabel(ctx, scene, r, described, cx, cy + size / 2 + 8 * z);
-    drawBadges(ctx, scene, index.refs.get(commit.id), row.color, cx, top - 8 * z);
+    drawPing(ctx, scene, r, cx, cy, color, !row.edges.some((e) => e.kind === "In" || e.kind === "MergeIn"));
   }
   ctx.globalAlpha = 1;
+}
+
+function drawNode(ctx: Ctx, scene: Scene, r: number, cx: number, cy: number): void {
+  const { view, index, palette, selected, hovered } = scene;
+  const row = index.rows[r];
+  const commit = index.commits[r];
+  if (!row || !commit) return;
+  const nodes = scene.emphasis?.nodes ?? null;
+  const { z } = view;
+  const size = NODE * z;
+  const card = z >= LOD_CARD;
+  const radius = 12 * z;
+
+  const color = palette.branch[row.color % BRANCH_COLORS] ?? palette.text3;
+  const hasChildren = row.edges.some((e) => e.kind === "In" || e.kind === "MergeIn");
+  const left = cx - size / 2;
+  const top = cy - size / 2;
+
+  ctx.globalAlpha = (nodes && !nodes[r] ? DIM_ALPHA : 1) * morphAlpha(scene, r);
+  const group = index.groups.get(r);
+  const leftRadius = hasChildren ? radius : size / 2;
+  if (group && z >= LOD_TILE) drawStack(ctx, palette, color, left, top, size, z, radius);
+  ctx.beginPath();
+  ctx.roundRect(left, top, size, size, [leftRadius, radius, radius, leftRadius]);
+  ctx.fillStyle = palette.node;
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, (r === hovered ? 2.4 : 1.5) * z);
+  ctx.strokeStyle = color;
+  ctx.stroke();
+
+  if (r === selected) {
+    ctx.beginPath();
+    const gap = 4 * z;
+    ctx.roundRect(left - gap, top - gap, size + gap * 2, size + gap * 2, [
+      leftRadius + gap,
+      radius + gap,
+      radius + gap,
+      leftRadius + gap,
+    ]);
+    ctx.lineWidth = Math.max(1.5, 2 * z);
+    ctx.strokeStyle = palette.accent;
+    ctx.stroke();
+  }
+
+  if (!card) return;
+
+  drawPorts(ctx, palette, cx, cy, size, z, commit.parents.length > 0, hasChildren);
+  if (group) {
+    drawGroup(ctx, palette, group, r === selected, color, cx, cy, size, z, commit.id);
+    return;
+  }
+  const described = describe(scene, r);
+  if (described.emoji) drawEmoji(ctx, described.emoji, cx, cy, z);
+  else drawIcon(ctx, palette, described.kind, row.color, cx, cy, z);
+  drawLabel(ctx, scene, r, described, cx, cy + size / 2 + 8 * z);
+  drawBadges(ctx, scene, index.refs.get(commit.id), row.color, cx, top - 8 * z);
 }
 
 /** Two outlines peeking out behind a node that stands for several commits. */

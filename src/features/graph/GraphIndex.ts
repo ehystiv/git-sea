@@ -1,12 +1,15 @@
 import type { CommitSummary, GraphRow, RefLabel } from "../../lib/bindings";
 
 /**
- * Called around `replaceWith`, so a view can keep its place while the data underneath changes.
- * `animate` asks the view to move from the old contents to the new ones (a run opened or closed).
+ * How a view moves from the old contents to the new ones: not at all, as a run opening or closing,
+ * or as new commits arriving after a reload.
  */
+export type ReplaceMotion = "none" | "run" | "arrival";
+
+/** Called around `replaceWith`, so a view can keep its place while the data underneath changes. */
 export interface ReplaceListener {
-  before: (animate: boolean) => void;
-  after: (animate: boolean) => void;
+  before: (motion: ReplaceMotion) => void;
+  after: (motion: ReplaceMotion) => void;
 }
 
 /** A run of linear commits shown as one node in the compressed view. */
@@ -67,10 +70,10 @@ export class GraphIndex {
   }
 
   /** Takes over everything `other` holds (which must not be used afterwards). */
-  replaceWith(other: GraphIndex, animate = false): void {
-    this.replaceListeners.forEach((l) => l.before(animate));
+  replaceWith(other: GraphIndex, motion: ReplaceMotion = "none"): void {
+    this.replaceListeners.forEach((l) => l.before(motion));
     this.take(other);
-    this.replaceListeners.forEach((l) => l.after(animate));
+    this.replaceListeners.forEach((l) => l.after(motion));
   }
 
   /** The arrays and maps are shared, never copied: neither side mutates them after a swap. */

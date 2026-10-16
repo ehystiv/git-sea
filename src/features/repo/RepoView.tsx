@@ -6,7 +6,10 @@ import { CommitList } from "../commits/CommitList";
 import { LoadStatus } from "../commits/LoadStatus";
 import { useCommitStream } from "../commits/useCommitStream";
 import { DetailsPanel } from "../details/DetailsPanel";
+import { useWorktreeStatus } from "../details/useWorktree";
+import { WorktreePanel } from "../details/WorktreePanel";
 import { ancestorEmphasis, ancestorMask, matchEmphasis, type Emphasis } from "../graph/emphasis";
+import type { WorktreeMarker } from "../graph/draw";
 import { GraphCanvas, type GraphCanvasHandle } from "../graph/GraphCanvas";
 import { useCompressedIndex } from "../graph/useCompressedIndex";
 import { usePalette, usePaletteSource } from "../palette/paletteStore";
@@ -19,6 +22,7 @@ import { Sidebar } from "../sidebar/Sidebar";
 import { useFlow } from "../../lib/flow";
 import { shortHash } from "../../lib/format";
 import { headCommitId } from "./head";
+import { useFetchStatus } from "./useFetchStatus";
 import { useRepoChanges } from "./useRepoChanges";
 import { useRepoCommands, type RepoCommandActions, type ViewMode } from "./useRepoCommands";
 import type { CommitSummary, HeadInfo, RefFilter, RepoInfo } from "../../lib/bindings";
@@ -71,6 +75,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   const [searchFocus, setSearchFocus] = useState(0);
   const [ancestors, setAncestors] = useState(false);
   const [selected, setSelected] = useState<CommitSummary | null>(null);
+  /** The details panel shows the local changes instead of the selected commit. */
+  const [showWorktree, setShowWorktree] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT);
   const graphRef = useRef<GraphCanvasHandle>(null);
@@ -92,8 +98,39 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
       reload();
       void queryClient.invalidateQueries({ queryKey: ["stashes", repo.sessionId] });
       void queryClient.invalidateQueries({ queryKey: ["search", repo.sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["worktree", repo.sessionId] });
     }, [reload, queryClient, repo.sessionId]),
   );
+
+  // Remote branches are fetched in the background; new commits arrive through the refs.
+  const remote = useFetchStatus(repo.sessionId);
+
+  // Files edited, staged or unstaged: count the local changes again.
+  const worktree = useWorktreeStatus(repo.sessionId, !repo.isBare);
+  useRepoChanges(
+    repo.sessionId,
+    useCallback(() => {
+      void queryClient.invalidateQueries({ queryKey: ["worktree", repo.sessionId] });
+    }, [queryClient, repo.sessionId]),
+    "worktree-changed",
+  );
+  const worktreeMarker = useMemo((): WorktreeMarker | null => {
+    const data = worktree.data;
+    return data?.head && data.files > 0 ? { id: data.head, files: data.files } : null;
+  }, [worktree.data]);
+  const openWorktree = useCallback(() => {
+    setShowWorktree(true);
+    setPanelOpen(true);
+  }, []);
+
+  // Picking another commit brings its details back. Views report their selection again when they
+  // are created, so only a different commit counts.
+  const selectedIdRef = useRef<string | null>(null);
+  const selectCommit = useCallback((commit: CommitSummary | null) => {
+    if (commit && commit.id !== selectedIdRef.current) setShowWorktree(false);
+    selectedIdRef.current = commit?.id ?? null;
+    setSelected(commit);
+  }, []);
 
   // A branch of the filter was deleted: drop it, rather than keep an empty or partial graph.
   useEffect(() => {
@@ -146,9 +183,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
       }
       const at = index.indexOf(id);
       const commit = at === null ? undefined : index.commits[at];
-      if (commit) setSelected(commit);
+      if (commit) selectCommit(commit);
     },
-    [mode, index],
+    [mode, index, selectCommit],
   );
 
   // ---- search, ancestors and filter ------------------------------------------------------
@@ -419,7 +456,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               active={active}
               flow={flow}
               emphasis={emphasis}
-              onSelect={setSelected}
+              onSelect={selectCommit}
             />
           ) : mode !== "list" ? (
             <GraphCanvas
@@ -430,12 +467,14 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               active={active}
               flow={flow}
               emphasis={emphasis}
-              onSelect={setSelected}
+              onSelect={selectCommit}
               onExpandGroup={mode === "topology" ? compressed.expand : undefined}
               onCollapseGroup={mode === "topology" ? compressed.collapse : undefined}
+              worktree={worktreeMarker}
+              onOpenWorktree={openWorktree}
             />
           ) : (
-            <CommitList commits={listCommits} selectedId={selected?.id ?? null} onSelect={setSelected} />
+            <CommitList commits={listCommits} selectedId={selected?.id ?? null} onSelect={selectCommit} />
           )}
           {searchOpen && (
             <SearchBar
@@ -456,12 +495,22 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         {panelOpen && (
           <div className={styles.panel}>
             <div className={styles.resizer} onPointerDown={startResize} role="separator" aria-orientation="vertical" aria-label="Ridimensiona il pannello" />
-            <DetailsPanel sessionId={repo.sessionId} commit={selected} index={index} onSelectCommit={selectById} />
+            {showWorktree ? (
+              <WorktreePanel
+                sessionId={repo.sessionId}
+                onSelectCommit={(id) => {
+                  setShowWorktree(false);
+                  selectById(id);
+                }}
+              />
+            ) : (
+              <DetailsPanel sessionId={repo.sessionId} commit={selected} index={index} onSelectCommit={selectById} />
+            )}
           </div>
         )}
       </div>
 
-      <LoadStatus stream={stream} selected={selected} />
+      <LoadStatus stream={stream} selected={selected} fetch={remote.state} onFetchNow={remote.fetchNow} />
       </div>
     </div>
   );

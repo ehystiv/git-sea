@@ -10,7 +10,7 @@
 
 | Area | Decisione |
 |---|---|
-| Scope | **Solo visualizzazione (read-only).** Nessuna operazione di scrittura su Git. |
+| Scope | **Solo visualizzazione (read-only).** Nessuna operazione di scrittura su Git, con un'unica eccezione: un `git fetch --all` in background (all'apertura e ogni 3 minuti) che aggiorna solo branch remoti, tag e oggetti, mai branch locali, index o file. |
 | Piattaforma | **Solo macOS.** |
 | Scala | Repo da **5.000 a 50.000 commit**. |
 | Repo | **Più repo aperti in tab.** |

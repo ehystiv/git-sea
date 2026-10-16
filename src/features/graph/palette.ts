@@ -10,6 +10,7 @@ export interface Palette {
   text3: string;
   accent: string;
   accentText: string;
+  accentContrast: string;
   branch: string[];
   fontUi: string;
   fontMono: string;
@@ -27,6 +28,7 @@ export function readPalette(): Palette {
     text3: get("--text-3"),
     accent: get("--accent"),
     accentText: get("--accent-text"),
+    accentContrast: get("--accent-contrast"),
     branch: Array.from({ length: BRANCH_COLORS }, (_, i) => get(`--b${i}`)),
     fontUi: get("--font-ui"),
     fontMono: get("--font-mono"),

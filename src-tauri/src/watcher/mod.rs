@@ -1,4 +1,5 @@
-//! Tells the app when a repository's refs change, so the graph can be refreshed.
+//! Tells the app when a repository's refs change, so the graph can be refreshed, and when its
+//! working copy changes, so the local changes can be counted again.
 
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, RecvTimeoutError};
@@ -24,22 +25,47 @@ impl RepoWatcher {
         common_dir: &Path,
         on_change: impl Fn() + Send + 'static,
     ) -> notify::Result<Self> {
-        // Events report real paths (macOS: /private/var, not /var), so compare against those.
-        let mut roots: Vec<PathBuf> = [git_dir, common_dir]
-            .iter()
-            .map(|dir| dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf()))
-            .collect();
+        let mut roots: Vec<PathBuf> = [git_dir, common_dir].iter().map(|d| real(d)).collect();
         roots.dedup();
-
-        let (tx, rx) = mpsc::channel::<()>();
         let filter_roots = roots.clone();
+        Self::watch(
+            roots,
+            move |path| is_ref_path(path, &filter_roots),
+            on_change,
+        )
+    }
+
+    /// Watches the working copy `workdir` and calls `on_change` once changes to its files, or to
+    /// the index in `git_dir` (staging), have settled. Ignored files count too: telling them
+    /// apart would cost more than counting the changes again.
+    pub fn start_worktree(
+        workdir: &Path,
+        git_dir: &Path,
+        on_change: impl Fn() + Send + 'static,
+    ) -> notify::Result<Self> {
+        let (workdir, git_dir) = (real(workdir), real(git_dir));
+        // A linked worktree keeps its index outside its files, in `.git/worktrees/<name>`.
+        let mut roots = vec![workdir.clone()];
+        if !git_dir.starts_with(&workdir) {
+            roots.push(git_dir.clone());
+        }
+        Self::watch(
+            roots,
+            move |path| is_worktree_path(path, &workdir, &git_dir),
+            on_change,
+        )
+    }
+
+    fn watch(
+        roots: Vec<PathBuf>,
+        relevant: impl Fn(&Path) -> bool + Send + 'static,
+        on_change: impl Fn() + Send + 'static,
+    ) -> notify::Result<Self> {
+        let (tx, rx) = mpsc::channel::<()>();
         let mut watcher =
             notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
                 if let Ok(event) = event
-                    && event
-                        .paths
-                        .iter()
-                        .any(|path| is_ref_path(path, &filter_roots))
+                    && event.paths.iter().any(|path| relevant(path))
                 {
                     let _ = tx.send(());
                 }
@@ -64,6 +90,23 @@ impl RepoWatcher {
 
         Ok(Self { _watcher: watcher })
     }
+}
+
+/// Events report real paths (macOS: /private/var, not /var), so compare against those.
+fn real(dir: &Path) -> PathBuf {
+    dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf())
+}
+
+/// Whether a changed path can change the local changes: any file of the working copy, or the
+/// index. The rest of the git directory (objects, logs, lock files) is noise; refs are reported
+/// by the other watcher.
+pub fn is_worktree_path(path: &Path, workdir: &Path, git_dir: &Path) -> bool {
+    if let Ok(relative) = path.strip_prefix(git_dir) {
+        return relative == Path::new("index");
+    }
+    // The `.git` of the main working copy, or of another worktree nested in this one.
+    path.strip_prefix(workdir)
+        .is_ok_and(|relative| !relative.components().any(|c| c.as_os_str() == ".git"))
 }
 
 /// Whether a changed path can change what the graph shows: `HEAD`, `packed-refs`, or any ref
@@ -121,6 +164,29 @@ mod tests {
             "/elsewhere/refs/heads/main",
         ] {
             assert!(!is_ref_path(Path::new(path), &roots()), "{path}");
+        }
+    }
+
+    #[test]
+    fn working_copy_files_and_the_index_count_for_local_changes() {
+        let (workdir, git_dir) = (Path::new("/repo"), Path::new("/repo/.git"));
+        for path in ["/repo/src/main.rs", "/repo/README.md", "/repo/.git/index"] {
+            assert!(
+                is_worktree_path(Path::new(path), workdir, git_dir),
+                "{path}"
+            );
+        }
+        for path in [
+            "/repo/.git/index.lock",
+            "/repo/.git/objects/ab/cdef",
+            "/repo/.git/refs/heads/main",
+            "/repo/sub/.git/index",
+            "/elsewhere/file",
+        ] {
+            assert!(
+                !is_worktree_path(Path::new(path), workdir, git_dir),
+                "{path}"
+            );
         }
     }
 

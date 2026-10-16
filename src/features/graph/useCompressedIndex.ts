@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { compressIndex } from "./compress";
-import { GraphIndex } from "./GraphIndex";
+import { GraphIndex, type ReplaceMotion } from "./GraphIndex";
 
 export interface CompressedIndex {
   /** The compressed projection; a stable object whose contents are swapped as the history changes. */
@@ -25,16 +25,25 @@ export function useCompressedIndex(base: GraphIndex, baseVersion: number, enable
   const [version, setVersion] = useState(0);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
-  // Opening or closing a run animates; new chunks, reloads and switching views do not.
+  // Opening or closing a run animates, and so do the new commits a reload brings; new chunks of
+  // the first load and switching views do not.
   const shownExpanded = useRef<ReadonlySet<string> | null>(null);
+  // A reload swaps the base's arrays for fresh ones, while chunks are appended to the same ones.
+  const shownCommits = useRef<unknown[] | null>(null);
   useEffect(() => {
     if (!enabled) {
       shownExpanded.current = null;
+      shownCommits.current = null;
       return;
     }
-    const animate = shownExpanded.current !== null && shownExpanded.current !== expanded;
+    let motion: ReplaceMotion = "none";
+    if (shownExpanded.current !== null) {
+      if (shownExpanded.current !== expanded) motion = "run";
+      else if (shownCommits.current !== base.commits) motion = "arrival";
+    }
     shownExpanded.current = expanded;
-    index.replaceWith(compressIndex(base, expanded), animate);
+    shownCommits.current = base.commits;
+    index.replaceWith(compressIndex(base, expanded), motion);
     setVersion((v) => v + 1);
   }, [base, baseVersion, enabled, expanded, index]);
 

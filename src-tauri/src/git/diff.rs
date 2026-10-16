@@ -9,9 +9,9 @@ use specta::Type;
 use crate::error::AppError;
 
 /// Line statistics are computed for at most this many files of a commit.
-const MAX_STATS_FILES: usize = 400;
+pub(crate) const MAX_STATS_FILES: usize = 400;
 /// Blobs bigger than this are not diffed line by line.
-const MAX_BLOB_BYTES: usize = 2 * 1024 * 1024;
+pub(crate) const MAX_BLOB_BYTES: usize = 2 * 1024 * 1024;
 /// A file diff is cut after this many lines.
 const MAX_DIFF_LINES: usize = 20_000;
 const CONTEXT: usize = 3;
@@ -106,7 +106,7 @@ pub struct FileDiff {
     pub hunks: Vec<Hunk>,
 }
 
-fn git<E: std::fmt::Display>(e: E) -> AppError {
+pub(crate) fn git<E: std::fmt::Display>(e: E) -> AppError {
     AppError::Git(e.to_string())
 }
 
@@ -282,13 +282,18 @@ fn line_stats(repo: &gix::Repository, change: &ChangeDetached) -> Option<(u32, u
     let new = new_id
         .map(|id| repo.find_object(id).ok().map(|o| o.data.clone()))
         .unwrap_or(Some(Vec::new()))?;
-    if is_binary(&old) || is_binary(&new) {
+    content_stats(&old, &new)
+}
+
+/// (additions, deletions, is_binary) between two contents, or `None` when one is too big.
+pub(crate) fn content_stats(old: &[u8], new: &[u8]) -> Option<(u32, u32, bool)> {
+    if is_binary(old) || is_binary(new) {
         return Some((0, 0, true));
     }
     if old.len() > MAX_BLOB_BYTES || new.len() > MAX_BLOB_BYTES {
         return None;
     }
-    let (old, new) = (String::from_utf8_lossy(&old), String::from_utf8_lossy(&new));
+    let (old, new) = (String::from_utf8_lossy(old), String::from_utf8_lossy(new));
     let input = InternedInput::new(old.as_ref(), new.as_ref());
     let diff = gix::diff::blob::diff_with_slider_heuristics(Algorithm::Histogram, &input);
     Some((diff.count_additions(), diff.count_removals(), false))
@@ -315,8 +320,15 @@ pub fn file_diff(
         Some((_, tree)) => blob_at(repo, tree, old_path.unwrap_or(path))?,
         None => None,
     };
-    let (old, new) = (old.unwrap_or_default(), new.unwrap_or_default());
+    Ok(content_diff(
+        path,
+        &old.unwrap_or_default(),
+        &new.unwrap_or_default(),
+    ))
+}
 
+/// Line diff between two contents of the file at `path`.
+pub(crate) fn content_diff(path: &str, old: &[u8], new: &[u8]) -> FileDiff {
     let mut result = FileDiff {
         path: path.to_owned(),
         binary: false,
@@ -324,21 +336,21 @@ pub fn file_diff(
         truncated: false,
         hunks: Vec::new(),
     };
-    if is_binary(&old) || is_binary(&new) {
+    if is_binary(old) || is_binary(new) {
         result.binary = true;
-        return Ok(result);
+        return result;
     }
     if old.len() > MAX_BLOB_BYTES || new.len() > MAX_BLOB_BYTES {
         result.too_large = true;
-        return Ok(result);
+        return result;
     }
 
-    let (old, new) = (String::from_utf8_lossy(&old), String::from_utf8_lossy(&new));
+    let (old, new) = (String::from_utf8_lossy(old), String::from_utf8_lossy(new));
     (result.hunks, result.truncated) = build_hunks(&old, &new);
-    Ok(result)
+    result
 }
 
-fn blob_at(
+pub(crate) fn blob_at(
     repo: &gix::Repository,
     tree: &gix::Tree<'_>,
     path: &str,

@@ -27,6 +27,14 @@ export const commands = {
 	 *  the previous one, which then returns early with `cancelled` set.
 	 */
 	searchCommits: (sessionId: string, field: SearchField, text: string) => typedError<SearchResult, AppError>(__TAURI_INVOKE("search_commits", { sessionId, field, text })),
+	/**  Local changes of the working copy: staged and not, like `git status`. */
+	worktreeStatus: (sessionId: string) => typedError<WorktreeStatus, AppError>(__TAURI_INVOKE("worktree_status", { sessionId })),
+	/**  Line diff of one locally changed file: HEAD → index when `staged`, else index → disk. */
+	worktreeDiff: (sessionId: string, path: string, oldPath: string | null, staged: boolean) => typedError<FileDiff, AppError>(__TAURI_INVOKE("worktree_diff", { sessionId, path, oldPath, staged })),
+	/**  How the background fetch of the remote branches is going. */
+	fetchStatus: (sessionId: string) => typedError<FetchState, AppError>(__TAURI_INVOKE("fetch_status", { sessionId })),
+	/**  Fetches the remote branches now instead of waiting for the next round. */
+	fetchNow: (sessionId: string) => typedError<null, AppError>(__TAURI_INVOKE("fetch_now", { sessionId })),
 };
 
 /* Types */
@@ -95,6 +103,16 @@ export type EdgeKind =
 "MergeIn" | 
 /**  The commit's lane (`from_lane`) reaching the lane (`to_lane`) of a non-first parent. */
 "ForkOut";
+
+export type FetchState = {
+	/**  False when the repository has no remotes: there is nothing to fetch. */
+	hasRemotes: boolean,
+	running: boolean,
+	/**  When the last fetch ended well, in milliseconds since the Unix epoch. */
+	lastSuccessMs: number | null,
+	/**  Why the last fetch failed; cleared by the next one that works. */
+	lastError: string | null,
+};
 
 export type FileChange = {
 	path: string,
@@ -228,6 +246,17 @@ export type StashEntry = {
 	commit: string,
 	/**  The commit the stash was made on, which is in the graph. */
 	base: string | null,
+};
+
+export type WorktreeStatus = {
+	/**  The commit the changes sit on; `None` before the first commit and in a bare repository. */
+	head: string | null,
+	/**  HEAD compared with the index, ordered by path. */
+	staged: FileChange[],
+	/**  The index compared with the files on disk, untracked files included, ordered by path. */
+	unstaged: FileChange[],
+	/**  Files with any change, staged or not, each counted once. */
+	files: number,
 };
 
 /* Tauri Specta runtime */

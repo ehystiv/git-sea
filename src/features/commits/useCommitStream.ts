@@ -88,7 +88,7 @@ export function useCommitStream(sessionId: string, only: RefFilter[] | null = nu
         }));
       } else {
         const { setupMs, firstChunkMs, totalMs, maxLanes, fromCache } = event.data;
-        if (refreshing) index.replaceWith(target);
+        if (refreshing) index.replaceWith(target, "arrival");
         setState((prev) => ({
           ...prev,
           version: refreshing ? prev.version + 1 : prev.version,

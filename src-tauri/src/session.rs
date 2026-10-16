@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::error::AppError;
+use crate::git::fetch::Fetcher;
 use crate::watcher::RepoWatcher;
 
 /// Backend state of one open repository (one per tab).
@@ -14,17 +15,20 @@ pub struct RepoSession {
     load_generation: AtomicU64,
     /// Same as `load_generation`, for searches: a new search stops the one still running.
     search_generation: AtomicU64,
-    /// Keeps watching the repository's refs for as long as the session lives.
-    _watcher: Option<RepoWatcher>,
+    /// Keep watching the repository's refs and working copy for as long as the session lives.
+    _watchers: Vec<RepoWatcher>,
+    /// Keeps the remote branches up to date for as long as the session lives.
+    pub fetcher: Fetcher,
 }
 
 impl RepoSession {
-    fn new(repo: gix::ThreadSafeRepository, watcher: Option<RepoWatcher>) -> Self {
+    fn new(repo: gix::ThreadSafeRepository, watchers: Vec<RepoWatcher>, fetcher: Fetcher) -> Self {
         Self {
             repo,
             load_generation: AtomicU64::new(0),
             search_generation: AtomicU64::new(0),
-            _watcher: watcher,
+            _watchers: watchers,
+            fetcher,
         }
     }
 
@@ -80,10 +84,11 @@ impl AppState {
         &self,
         id: String,
         repo: gix::ThreadSafeRepository,
-        watcher: Option<RepoWatcher>,
+        watchers: Vec<RepoWatcher>,
+        fetcher: Fetcher,
     ) {
         self.lock()
-            .insert(id, Arc::new(RepoSession::new(repo, watcher)));
+            .insert(id, Arc::new(RepoSession::new(repo, watchers, fetcher)));
     }
 
     pub fn get(&self, id: &str) -> Result<Arc<RepoSession>, AppError> {

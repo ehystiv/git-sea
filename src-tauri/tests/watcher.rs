@@ -101,3 +101,52 @@ fn stops_when_dropped() {
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A linked worktree's index lives in the main repository's `.git/worktrees/<name>`, outside the
+/// worktree's own files: staging there must still be reported.
+#[test]
+fn reports_staging_in_a_linked_worktree() {
+    let dir = scratch("watch-linked-main");
+    let linked = scratch("watch-linked");
+    let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/basic.sh");
+    assert!(
+        Command::new("sh")
+            .arg(script)
+            .arg(&dir)
+            .status()
+            .unwrap()
+            .success()
+    );
+    git(
+        &dir,
+        &[
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "linked",
+            linked.to_str().unwrap(),
+        ],
+    );
+    let path = linked.join("staged.txt");
+    std::fs::write(&path, "new\n").unwrap();
+
+    let repo = gix::open(&linked).unwrap();
+    let (tx, rx) = mpsc::channel();
+    let _watcher =
+        RepoWatcher::start_worktree(repo.workdir().unwrap(), repo.git_dir(), move || {
+            let _ = tx.send(());
+        })
+        .expect("watcher");
+    std::thread::sleep(Duration::from_millis(800));
+    while rx.recv_timeout(Duration::from_millis(600)).is_ok() {}
+
+    // Only the index changes: the file was written before watching started.
+    git(&linked, &["add", "staged.txt"]);
+    assert!(
+        rx.recv_timeout(Duration::from_secs(5)).is_ok(),
+        "staging in the linked worktree was not reported"
+    );
+    let _ = std::fs::remove_dir_all(&linked);
+    let _ = std::fs::remove_dir_all(&dir);
+}

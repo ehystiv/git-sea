@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { CommitSummary } from "../../lib/bindings";
-import { GraphController } from "./GraphController";
+import { GraphController, type Unseen } from "./GraphController";
+import type { WorktreeMarker } from "./draw";
 import type { Emphasis } from "./emphasis";
 import type { GraphIndex } from "./GraphIndex";
 import { Minimap } from "./MinimapOverlay";
@@ -26,7 +27,13 @@ interface GraphCanvasProps {
   onExpandGroup?: (id: string) => void;
   /** Compressed view: a selected commit of an opened run was clicked again. */
   onCollapseGroup?: (id: string) => void;
+  /** Local changes to show as a badge on their commit; null for none. */
+  worktree: WorktreeMarker | null;
+  /** The badge of local changes was clicked. */
+  onOpenWorktree?: () => void;
 }
+
+const ARROW = { left: "←", right: "→", up: "↑", down: "↓" } as const;
 
 export interface GraphCanvasHandle {
   /** Selects the commit and brings it to the centre of the view. */
@@ -38,7 +45,7 @@ export interface GraphCanvasHandle {
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onExpandGroup, onCollapseGroup },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -50,7 +57,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const emphasisRef = useRef(emphasis);
   const onExpandRef = useRef(onExpandGroup);
   const onCollapseRef = useRef(onCollapseGroup);
+  const worktreeRef = useRef(worktree);
+  const onOpenWorktreeRef = useRef(onOpenWorktree);
   const [zoom, setZoom] = useState(1);
+  const [unseen, setUnseen] = useState<Unseen | null>(null);
   /** A selection that could not be applied yet because the (derived) index was still empty. */
   const pendingSelectRef = useRef<string | null>(null);
 
@@ -58,7 +68,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onSelectRef.current = onSelect;
     onExpandRef.current = onExpandGroup;
     onCollapseRef.current = onCollapseGroup;
-  }, [onSelect, onExpandGroup, onCollapseGroup]);
+    onOpenWorktreeRef.current = onOpenWorktree;
+  }, [onSelect, onExpandGroup, onCollapseGroup, onOpenWorktree]);
 
   useImperativeHandle(
     ref,
@@ -85,10 +96,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onZoom: setZoom,
       onExpandGroup: (id) => onExpandRef.current?.(id),
       onCollapseGroup: (id) => onCollapseRef.current?.(id),
+      onOpenWorktree: () => onOpenWorktreeRef.current?.(),
+      onUnseen: setUnseen,
     });
     controllerRef.current = controller;
     controller.setFlow(flowRef.current);
     controller.setEmphasis(emphasisRef.current);
+    controller.setWorktree(worktreeRef.current);
     const minimap = new Minimap(minimapCanvas, index, controller);
 
     const observer = new ResizeObserver(() => {
@@ -108,6 +122,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       minimap.destroy();
       controller.destroy();
       controllerRef.current = null;
+      setUnseen(null);
     };
   }, [index]);
 
@@ -135,6 +150,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     controllerRef.current?.setEmphasis(emphasis);
   }, [emphasis]);
 
+  useEffect(() => {
+    worktreeRef.current = worktree;
+    controllerRef.current?.setWorktree(worktree);
+  }, [worktree]);
+
   return (
     <div ref={wrapRef} className={styles.wrap}>
       <canvas ref={canvasRef} className={styles.canvas} />
@@ -146,6 +166,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         aria-label="Minimappa"
         title="Minimappa: clic o trascina per spostarti"
       />
+      {unseen && (
+        <button type="button" className={styles.unseen} onClick={() => controllerRef.current?.showUnseen()}>
+          {unseen.side === "left" && <span aria-hidden="true">←</span>}
+          {unseen.count} {unseen.count === 1 ? "nuovo commit" : "nuovi commit"}
+          {unseen.side !== "left" && <span aria-hidden="true">{ARROW[unseen.side]}</span>}
+        </button>
+      )}
       <ZoomControls
         zoom={zoom}
         onFit={() => controllerRef.current?.fit()}

@@ -18,7 +18,11 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::commit_details,
         commands::file_diff,
         commands::list_stashes,
-        commands::search_commits
+        commands::search_commits,
+        commands::worktree_status,
+        commands::worktree_diff,
+        commands::fetch_status,
+        commands::fetch_now
     ])
 }
 

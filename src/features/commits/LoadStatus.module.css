@@ -13,6 +13,9 @@
   .status span + span::before { content: "·"; margin-right: var(--space-3); }
   .count { color: var(--text-2); font-variant-numeric: tabular-nums; }
   .error { color: var(--danger); }
+  .fetch { color: inherit; font: inherit; }
+  .fetch:hover { color: var(--text); text-decoration: underline; }
+  .fetch.error:hover { color: var(--danger); }
   .selected { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
   .selected::before { content: none !important; }
 }

@@ -1,11 +1,12 @@
 import { THEME_CHANGED } from "../../lib/theme";
 import { COLUMN_W, LANE_H } from "./constants";
-import { draw, hitTest, RenderCache, type View } from "./draw";
+import { draw, hitTest, hitWorktree, RenderCache, type View, type WorktreeMarker } from "./draw";
 import type { Emphasis } from "./emphasis";
-import type { GraphIndex } from "./GraphIndex";
-import { buildMorph, morphPositions, type Morph } from "./morph";
+import type { GraphIndex, ReplaceMotion } from "./GraphIndex";
+import { ARRIVAL, arrivalDuration, buildArrival, buildMorph, morphPositions, type Morph } from "./morph";
 import type { MinimapFrame } from "./MinimapOverlay";
 import { readPalette, type Palette } from "./palette";
+import { newCommitIds, newestColumn, sideOf, type Side } from "./unseen";
 import { anchorAtCentre, centeredOn, clampView, clampZoom, fitView, homeView, viewAfterReplace, zoomAt, type ViewAnchor } from "./view";
 
 export interface GraphCallbacks {
@@ -15,6 +16,15 @@ export interface GraphCallbacks {
   onExpandGroup?: (id: string) => void;
   /** An already selected commit inside an opened run was clicked; the argument is the run's newest commit's id. */
   onCollapseGroup?: (id: string) => void;
+  /** The badge of local changes was clicked. */
+  onOpenWorktree?: () => void;
+  /** New commits arrived off screen (how many, and which way); null once they were seen. */
+  onUnseen?: (unseen: Unseen | null) => void;
+}
+
+export interface Unseen {
+  count: number;
+  side: Side;
 }
 
 interface Animation {
@@ -31,6 +41,11 @@ interface RunningMorph {
   positions: Float64Array;
   /** The selected commit's column in `data.index`. */
   selected: number | null;
+  /** Milliseconds the whole transition lasts, and the part of it the commits slide. */
+  duration: number;
+  slide: number;
+  /** Reduced motion: an arrival without movement, the new commits only fade in. */
+  gentle: boolean;
 }
 
 const DRAG_THRESHOLD = 4;
@@ -63,10 +78,17 @@ export class GraphController {
   private active = true;
   private flow = false;
   private emphasis: Emphasis | null = null;
+  private worktree: WorktreeMarker | null = null;
+  private overBadge = false;
   private anchor: ViewAnchor | null = null;
-  private morphFrom: { index: GraphIndex; tx: number } | null = null;
+  private morphFrom: { index: GraphIndex; tx: number; motion: ReplaceMotion } | null = null;
   private morph: RunningMorph | null = null;
   private selectedBeforeReplace: string | null = null;
+  /** The history before a reload, to tell which commits it brought. */
+  private arrivalFrom: GraphIndex | null = null;
+  /** Ids of new commits not seen yet (they arrived off screen), and what was last reported. */
+  private unseen: string[] = [];
+  private unseenReported: Unseen | null = null;
   private frameListeners: Array<(frame: MinimapFrame) => void> = [];
   private readonly disposers: Array<() => void> = [];
 
@@ -85,7 +107,7 @@ export class GraphController {
     this.attach();
     this.disposers.push(
       index.onReplace({
-        before: (animate) => this.beforeReplace(animate),
+        before: (motion) => this.beforeReplace(motion),
         after: () => this.afterReplace(),
       }),
     );
@@ -121,6 +143,8 @@ export class GraphController {
   dataChanged(): void {
     if (this.index.length === 0) {
       this.placed = false;
+      this.unseen = [];
+      this.updateUnseen();
       this.selected = null;
       this.hovered = null;
       this.cache.described.clear();
@@ -134,13 +158,16 @@ export class GraphController {
   }
 
   /** The history is about to be swapped for a fresh one: remember what the user is looking at. */
-  private beforeReplace(animate: boolean): void {
+  private beforeReplace(motion: ReplaceMotion): void {
     this.anchor = this.placed ? anchorAtCentre(this.index, this.view, this.width) : null;
     this.morph = null;
+    // Reduced motion still lets new commits fade in, but nothing slides.
+    const allowed = motion === "arrival" || !prefersReducedMotion();
     this.morphFrom =
-      animate && this.placed && COLUMN_W * this.view.z >= MORPH_MIN_COLUMN_PX && !prefersReducedMotion()
-        ? { index: this.index.snapshot(), tx: this.view.tx }
+      motion !== "none" && allowed && this.placed && COLUMN_W * this.view.z >= MORPH_MIN_COLUMN_PX
+        ? { index: this.index.snapshot(), tx: this.view.tx, motion }
         : null;
+    this.arrivalFrom = motion === "arrival" && this.placed ? (this.morphFrom?.index ?? this.index.snapshot()) : null;
     this.selectedBeforeReplace = this.selected === null ? null : (this.index.commits[this.selected]?.id ?? null);
   }
 
@@ -162,24 +189,59 @@ export class GraphController {
     this.anchor = null;
     this.selectedBeforeReplace = null;
     this.startMorph();
+    if (this.arrivalFrom) {
+      // Earlier unseen commits stay unseen; a commit can come back after being amended away.
+      const added = newCommitIds(this.arrivalFrom, this.index);
+      this.unseen = [...new Set([...added, ...this.unseen])];
+      this.arrivalFrom = null;
+    }
+    this.updateUnseen();
     this.requestDraw();
   }
 
-  /** Slides the commits from where they were to where the swap put them (a run opened or closed). */
+  /** Forgets new commits once the view shows them, and tells which way they are until then. */
+  private updateUnseen(): void {
+    let next: Unseen | null = null;
+    const column = this.unseen.length > 0 ? newestColumn(this.index, this.unseen) : null;
+    const side = column === null ? null : sideOf(this.index, this.view, this.width, this.height, column);
+    if (side === null) this.unseen = [];
+    else next = { count: this.unseen.filter((id) => this.index.indexOf(id) !== null).length, side };
+    const last = this.unseenReported;
+    if (next?.count === last?.count && next?.side === last?.side) return;
+    this.unseenReported = next;
+    this.callbacks.onUnseen?.(next);
+  }
+
+  /** Brings the newest of the new commits off screen into view. */
+  showUnseen(): void {
+    const column = newestColumn(this.index, this.unseen);
+    if (column !== null) this.centerOn(column);
+  }
+
+  /**
+   * Slides the commits from where they were to where the swap put them (a run opened or closed,
+   * new commits pushed the others aside) and brings the new commits in.
+   */
   private startMorph(): void {
     const from = this.morphFrom;
     this.morphFrom = null;
     if (!from) return;
     // The view moved to keep its anchor in place; the motion starts from what was on screen.
     const shift = (this.view.tx - from.tx) / (COLUMN_W * this.view.z);
-    const data = buildMorph(from.index, this.index, shift);
+    const arrival = from.motion === "arrival";
+    const data = arrival ? buildArrival(from.index, this.index, shift) : buildMorph(from.index, this.index, shift);
     if (!data) return;
+    const gentle = arrival && prefersReducedMotion();
+    if (gentle) data.from.set(data.to);
     const selectedId = this.selected === null ? null : (this.index.commits[this.selected]?.id ?? null);
     this.morph = {
       data,
       start: performance.now(),
       positions: new Float64Array(data.index.length),
       selected: selectedId === null ? null : data.index.indexOf(selectedId),
+      duration: arrival ? arrivalDuration(data.arrivals) : MORPH_MS,
+      slide: arrival ? ARRIVAL.slide : MORPH_MS,
+      gentle,
     };
   }
 
@@ -250,7 +312,7 @@ export class GraphController {
     // Dots moving along the links need a new frame every time; a still view does not.
     const moving = this.render(now);
     if (this.morph) {
-      if (now - this.morph.start >= MORPH_MS) {
+      if (now - this.morph.start >= this.morph.duration) {
         this.morph = null;
         // Row numbers meant the other projection while it ran.
         this.cache.described.clear();
@@ -267,9 +329,16 @@ export class GraphController {
     const morph = this.morph;
     let morphScene = null;
     if (morph) {
-      const linear = Math.min(1, Math.max(0, (time - morph.start) / MORPH_MS));
+      const elapsed = time - morph.start;
+      const linear = Math.min(1, Math.max(0, elapsed / morph.slide));
       const t = linear < 0.5 ? 4 * linear ** 3 : 1 - (-2 * linear + 2) ** 3 / 2;
-      morphScene = { positions: morphPositions(morph.data, t, morph.positions), fade: morph.data.fade, t };
+      const order = morph.data.order;
+      morphScene = {
+        positions: morphPositions(morph.data, t, morph.positions),
+        fade: morph.data.fade,
+        t,
+        arrival: order ? { order, elapsed, gentle: morph.gentle } : null,
+      };
     }
     const moving = draw(this.ctx, {
       width: this.width,
@@ -284,7 +353,9 @@ export class GraphController {
       flowTime: this.flow ? time : null,
       emphasis: this.emphasis,
       morph: morphScene,
+      worktree: this.worktree,
     });
+    if (this.unseen.length > 0) this.updateUnseen();
     this.frameTimes.push(performance.now() - started);
     if (this.frameTimes.length > 300) this.frameTimes.shift();
     if (this.frameListeners.length > 0) {
@@ -297,6 +368,12 @@ export class GraphController {
   /** Keeps these commits bright and fades the rest; null shows everything normally. */
   setEmphasis(emphasis: Emphasis | null): void {
     this.emphasis = emphasis;
+    this.requestDraw();
+  }
+
+  /** Shows a badge with the number of locally changed files on a commit; null hides it. */
+  setWorktree(marker: WorktreeMarker | null): void {
+    this.worktree = marker;
     this.requestDraw();
   }
 
@@ -406,7 +483,13 @@ export class GraphController {
   private onPointerMove(e: PointerEvent): void {
     const { x, y } = this.local(e);
     if (!this.drag) {
-      this.setHover(hitTest(this.index, this.view, x, y));
+      const badge = hitWorktree(this.index, this.view, this.worktree, x, y);
+      const hit = badge ? null : hitTest(this.index, this.view, x, y);
+      if (badge !== this.overBadge) {
+        this.overBadge = badge;
+        this.canvas.style.cursor = badge || hit !== null ? "pointer" : "grab";
+      }
+      this.setHover(hit);
       return;
     }
     const dx = x - this.drag.x;
@@ -420,9 +503,13 @@ export class GraphController {
   private onPointerUp(e: PointerEvent): void {
     const drag = this.drag;
     this.drag = null;
-    this.canvas.style.cursor = this.hovered === null ? "grab" : "pointer";
+    this.canvas.style.cursor = this.hovered === null && !this.overBadge ? "grab" : "pointer";
     if (!drag || drag.moved) return;
     const { x, y } = this.local(e);
+    if (hitWorktree(this.index, this.view, this.worktree, x, y)) {
+      this.callbacks.onOpenWorktree?.();
+      return;
+    }
     const hit = hitTest(this.index, this.view, x, y);
     const wasSelected = hit !== null && hit === this.selected;
     this.select(hit, false);
