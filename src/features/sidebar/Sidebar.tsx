@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import type { RefFilter } from "../../lib/bindings";
+import type { CiProvider, RefFilter } from "../../lib/bindings";
+import { CiSection } from "../ci/CiSection";
+import type { CiState } from "../ci/useCi";
 import type { GraphIndex } from "../graph/GraphIndex";
 import { inFilter } from "./refFilter";
 import { buildSections, type SidebarItem } from "./sections";
@@ -16,6 +18,13 @@ interface SidebarProps {
   /** Refs the graph is limited to, or null for the whole history. */
   branchFilter: RefFilter[] | null;
   onToggleFilter: (ref: NonNullable<SidebarItem["ref"]>) => void;
+  ci: CiState;
+  /** The workflow whose markers alone are shown on the graph, or null for all. */
+  ciFocus: number | null;
+  onCiFocus: (id: number | null) => void;
+  /** The CI service whose token field is open. */
+  tokenFor: CiProvider | null;
+  onTokenFor: (provider: CiProvider | null) => void;
 }
 
 const icon = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
@@ -24,7 +33,20 @@ const TAG = "M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .5
 const FUNNEL = "M22 3H2l8 9.46V19l4 2v-8.54z";
 const STASH = "M2 3h20v5H2z M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8 M10 12h4";
 
-export function Sidebar({ sessionId, index, version, selectedId, onSelectCommit, branchFilter, onToggleFilter }: SidebarProps) {
+export function Sidebar({
+  sessionId,
+  index,
+  version,
+  selectedId,
+  onSelectCommit,
+  branchFilter,
+  onToggleFilter,
+  ci,
+  ciFocus,
+  onCiFocus,
+  tokenFor,
+  onTokenFor,
+}: SidebarProps) {
   const stashes = useStashes(sessionId);
   const [filter, setFilter] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -50,7 +72,7 @@ export function Sidebar({ sessionId, index, version, selectedId, onSelectCommit,
         <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtra…" spellCheck={false} aria-label="Filtra i riferimenti" />
       </div>
 
-      {sections.length === 0 && <p className={styles.none}>{filter ? "Nessun risultato." : "Nessun riferimento."}</p>}
+      {sections.length === 0 && !ci.overview?.workflows.length && <p className={styles.none}>{filter ? "Nessun risultato." : "Nessun riferimento."}</p>}
 
       {sections.map((section) => {
         const open = !collapsed.has(section.id);
@@ -113,6 +135,18 @@ export function Sidebar({ sessionId, index, version, selectedId, onSelectCommit,
           </section>
         );
       })}
+
+      <CiSection
+        ci={ci}
+        filter={filter}
+        // Asking for a token opens the group, wherever it comes from (the palette, too).
+        open={!collapsed.has("workflows") || tokenFor !== null}
+        onToggle={() => toggle("workflows")}
+        focus={ciFocus}
+        onFocus={onCiFocus}
+        tokenFor={tokenFor}
+        onTokenFor={onTokenFor}
+      />
     </nav>
   );
 }

@@ -35,6 +35,14 @@ export const commands = {
 	fetchStatus: (sessionId: string) => typedError<FetchState, AppError>(__TAURI_INVOKE("fetch_status", { sessionId })),
 	/**  Fetches the remote branches now instead of waiting for the next round. */
 	fetchNow: (sessionId: string) => typedError<null, AppError>(__TAURI_INVOKE("fetch_now", { sessionId })),
+	/**  The workflows defined in HEAD and the refs a push or a pull request would start them on. */
+	ciOverview: (sessionId: string) => typedError<CiOverview, AppError>(__TAURI_INVOKE("ci_overview", { sessionId })),
+	/**  Recent runs of the CI services the repository's workflows belong to. Calls their APIs. */
+	ciRuns: (sessionId: string) => typedError<CiRunsReport, AppError>(__TAURI_INVOKE("ci_runs", { sessionId })),
+	/**  Saves the token for a CI service in the Keychain; None removes it. */
+	ciSetToken: (provider: CiProvider, token: string | null) => typedError<null, AppError>(__TAURI_INVOKE("ci_set_token", { provider, token })),
+	/**  Opens a web page (a CI run) in the default browser. Only `https` links are opened. */
+	openUrl: (url: string) => typedError<null, AppError>(__TAURI_INVOKE("open_url", { url })),
 };
 
 /* Types */
@@ -47,6 +55,99 @@ export type AppError = { kind: "PathNotFound"; message: string } | { kind: "NotA
 export type ChangeStatus = "Added" | "Modified" | "Deleted" | "Renamed" | 
 /**  The kind of entry changed (file, symlink, submodule). */
 "TypeChange";
+
+export type CiAccess = { kind: "ok"; via: CiAuthSource; runs: number } | 
+/**  The project is not readable without a (valid) token. */
+{ kind: "needsToken"; message: string } | 
+/**  Runs cannot be read for this repository at all. */
+{ kind: "unavailable"; message: string } | { kind: "failed"; message: string };
+
+export type CiAuthSource = 
+/**  The provider's command line tool (`gh`, `glab`). */
+"Cli" | "Keychain" | 
+/**  No token: only public projects can be read. */
+"Anonymous";
+
+export type CiOverview = {
+	workflows: CiWorkflow[],
+	/**  Refs whose push would start at least one workflow. */
+	push: CiRefTrigger[],
+	/**  Branches a pull request or merge request into would start at least one workflow. */
+	mergeTargets: CiRefTrigger[],
+	/**  Files that could not be read. */
+	problems: CiProblem[],
+	defaultBranch: string | null,
+};
+
+export type CiProblem = {
+	path: string,
+	message: string,
+};
+
+export type CiProvider = "GitHub" | "GitLab" | "CircleCi" | "Azure" | "Bitbucket" | "Travis" | "Jenkins";
+
+export type CiProviderState = {
+	provider: CiProvider,
+	access: CiAccess,
+	/**  A token for it is saved in the Keychain. */
+	hasSavedToken: boolean,
+	/**  The provider's command line tool is installed (`gh`, `glab`). */
+	hasCli: boolean,
+};
+
+/**  A ref and the workflows a push of it (or a merge into it) would start. */
+export type CiRefTrigger = {
+	kind: RefKind,
+	/**  Name as shown in the graph (`origin/main` for a remote branch). */
+	name: string,
+	/**  Name as the CI service sees it (`main`). */
+	branch: string,
+	commit: string,
+	workflows: number[],
+};
+
+export type CiRun = {
+	provider: CiProvider,
+	/**  Workflow (or pipeline) name, as the service shows it. */
+	workflow: string,
+	/**  File of the workflow, when the service says it. */
+	path: string | null,
+	/**  Full hex id of the commit it ran on. */
+	commit: string,
+	branch: string | null,
+	event: string | null,
+	status: CiRunStatus,
+	url: string | null,
+	/**  When it was created, as the service writes it (ISO 8601). */
+	created: string | null,
+};
+
+export type CiRunStatus = "Queued" | "Running" | "Success" | "Failure" | "Cancelled" | "Skipped" | 
+/**  Finished without a pass or a fail (manual, neutral, partially succeeded…). */
+"Neutral";
+
+export type CiRunsReport = {
+	runs: CiRun[],
+	providers: CiProviderState[],
+};
+
+export type CiWorkflow = {
+	/**  Position in `CiOverview::workflows`; triggers refer to workflows by it. */
+	id: number,
+	provider: CiProvider,
+	name: string,
+	/**  File it is defined in, from the root of the repository. */
+	path: string,
+	/**  Events that start it, as the provider names them (`push`, `pull_request`, `schedule`…). */
+	events: string[],
+	/**
+	 *  Some of its conditions (changed files, variables) were not evaluated: the markers on the
+	 *  graph are a best guess.
+	 */
+	approximate: boolean,
+	/**  Page of the workflow on the CI service, when the remote tells where it is. */
+	webUrl: string | null,
+};
 
 export type CommitDetails = {
 	id: string,

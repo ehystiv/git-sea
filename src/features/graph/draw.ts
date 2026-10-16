@@ -10,6 +10,7 @@ import {
   MIN_COLUMN_PX,
   NODE,
 } from "./constants";
+import { drawCi, type CiScene } from "./ciDraw";
 import { describeCommit, type CommitKind, type Described } from "./describe";
 import { DIM_ALPHA, emphasisFits, type Emphasis } from "./emphasis";
 import type { CommitGroup, GraphIndex } from "./GraphIndex";
@@ -62,6 +63,8 @@ export interface Scene {
   morph: { positions: Float64Array; fade: Int8Array; t: number; arrival: Arrival | null } | null;
   /** Local changes on top of a commit (HEAD's), shown as a badge on its node; null for none. */
   worktree: WorktreeMarker | null;
+  /** CI runs and the places a workflow would start; null for none. */
+  ci: CiScene | null;
 }
 
 /** How many files have local changes, and the commit they sit on. */
@@ -162,6 +165,8 @@ export function draw(ctx: Ctx, input: Scene): FlowFrame | null {
       : null;
   if (z < LOD_TILE) drawDots2(ctx, scene, first, last, stride);
   else drawNodes(ctx, scene, first, last);
+  // Markers would lag behind columns that move.
+  if (!scene.morph) drawCi(ctx, scene, first, last);
   drawWorktree(ctx, scene);
   scene.cache.trim();
   return flow;

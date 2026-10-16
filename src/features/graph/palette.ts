@@ -11,6 +11,11 @@ export interface Palette {
   accent: string;
   accentText: string;
   accentContrast: string;
+  /** Outcomes of CI runs, and the symbols drawn on them. */
+  success: string;
+  failure: string;
+  pending: string;
+  onStatus: string;
   branch: string[];
   fontUi: string;
   fontMono: string;
@@ -29,6 +34,10 @@ export function readPalette(): Palette {
     accent: get("--accent"),
     accentText: get("--accent-text"),
     accentContrast: get("--accent-contrast"),
+    success: get("--add"),
+    failure: get("--danger"),
+    pending: get("--b2"),
+    onStatus: get("--node"),
     branch: Array.from({ length: BRANCH_COLORS }, (_, i) => get(`--b${i}`)),
     fontUi: get("--font-ui"),
     fontMono: get("--font-mono"),

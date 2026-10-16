@@ -2,6 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "../../components/Badge/Badge";
 import { Button } from "../../components/Button/Button";
+import { CiPanel } from "../ci/CiPanel";
+import { buildCiMarkers, latestRun } from "../ci/markers";
+import { openUrl, useCi } from "../ci/useCi";
 import { CommitList } from "../commits/CommitList";
 import { LoadStatus } from "../commits/LoadStatus";
 import { useCommitStream } from "../commits/useCommitStream";
@@ -9,6 +12,7 @@ import { DetailsPanel } from "../details/DetailsPanel";
 import { useWorktreeStatus } from "../details/useWorktree";
 import { WorktreePanel } from "../details/WorktreePanel";
 import { ancestorEmphasis, ancestorMask, matchEmphasis, type Emphasis } from "../graph/emphasis";
+import type { CiScene } from "../graph/ciDraw";
 import type { WorktreeMarker } from "../graph/draw";
 import { GraphCanvas, type GraphCanvasHandle } from "../graph/GraphCanvas";
 import { useCompressedIndex } from "../graph/useCompressedIndex";
@@ -27,7 +31,7 @@ import { useDrawer } from "./useDrawer";
 import { useFetchStatus } from "./useFetchStatus";
 import { useRepoChanges } from "./useRepoChanges";
 import { useRepoCommands, type RepoCommandActions, type ViewMode } from "./useRepoCommands";
-import type { CommitSummary, HeadInfo, RefFilter, RepoInfo } from "../../lib/bindings";
+import type { CiProvider, CommitSummary, HeadInfo, RefFilter, RepoInfo } from "../../lib/bindings";
 import styles from "./RepoView.module.css";
 
 const PANEL_MIN = 320;
@@ -81,6 +85,12 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   const [selected, setSelected] = useState<CommitSummary | null>(null);
   /** The details panel shows the local changes instead of the selected commit. */
   const [showWorktree, setShowWorktree] = useState(false);
+  /** The details panel shows the CI of this commit instead of its details. */
+  const [ciCommit, setCiCommit] = useState<string | null>(null);
+  /** The only workflow whose markers are shown, or null for all. */
+  const [ciFocus, setCiFocus] = useState<number | null>(null);
+  /** The CI service whose token field is open in the sidebar. */
+  const [tokenFor, setTokenFor] = useState<CiProvider | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT);
   const graphRef = useRef<GraphCanvasHandle>(null);
@@ -126,6 +136,26 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   }, [worktree.data]);
   const openWorktree = useCallback(() => {
     setShowWorktree(true);
+    setCiCommit(null);
+    setPanelOpen(true);
+  }, []);
+
+  // CI: workflows in HEAD, runs from the services, and where both go on the graph.
+  const ci = useCi(repo.sessionId, active);
+  const ciRuns = ci.report?.runs;
+  const ciMarkers = useMemo(() => buildCiMarkers(index, ci.overview, ciRuns ?? [], null), [index, stream.version, ci.overview, ciRuns]);
+  const ciScene = useMemo((): CiScene | null => {
+    if (!ci.overview || ci.overview.workflows.length === 0) return null;
+    const markers = ciFocus === null ? ciMarkers : buildCiMarkers(index, ci.overview, ciRuns ?? [], ciFocus);
+    return { markers, workflows: ci.overview.workflows };
+  }, [ci.overview, ciMarkers, ciFocus, index, ciRuns]);
+  // A workflow that is gone (HEAD changed) cannot stay focused.
+  useEffect(() => {
+    if (ciFocus !== null && !ci.overview?.workflows.some((w) => w.id === ciFocus)) setCiFocus(null);
+  }, [ci.overview, ciFocus]);
+  const openCi = useCallback((id: string) => {
+    setShowWorktree(false);
+    setCiCommit(id);
     setPanelOpen(true);
   }, []);
 
@@ -133,7 +163,10 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   // are created, so only a different commit counts.
   const selectedIdRef = useRef<string | null>(null);
   const selectCommit = useCallback((commit: CommitSummary | null) => {
-    if (commit && commit.id !== selectedIdRef.current) setShowWorktree(false);
+    if (commit && commit.id !== selectedIdRef.current) {
+      setShowWorktree(false);
+      setCiCommit(null);
+    }
     selectedIdRef.current = commit?.id ?? null;
     setSelected(commit);
   }, []);
@@ -277,7 +310,21 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     toggleFilter,
     showOnly: (ref) => setBranchFilter([ref]),
     clearFilter: () => setBranchFilter(null),
+    focusWorkflow: setCiFocus,
+    openUrl,
+    refreshCi: ci.refreshRuns,
+    askToken: setTokenFor,
   });
+  const ciCommands = useMemo(() => {
+    const workflows = ci.overview?.workflows ?? [];
+    const latest = new Map<number, string>();
+    for (const workflow of workflows) {
+      const run = latestRun(ciRuns ?? [], workflow, workflows);
+      if (run && index.indexOf(run.commit) !== null) latest.set(workflow.id, run.commit);
+    }
+    const providers = (ci.report?.providers ?? []).filter((p) => p.provider !== "Jenkins" && p.access.kind !== "unavailable").map((p) => p.provider);
+    return { workflows, focus: ciFocus, latest, providers };
+  }, [ci.overview, ci.report, ciRuns, ciFocus, index, stream.version]);
   usePaletteSource(
     `repo:${repo.sessionId}`,
     useRepoCommands(
@@ -293,6 +340,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         hasSelection: selected !== null,
         canCollapse: mode === "topology" && compressed.expandedCount > 0,
         branchFilter,
+        ci: ciCommands,
       },
       actions,
     ),
@@ -345,6 +393,11 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         onSelectCommit={selectById}
         branchFilter={branchFilter}
         onToggleFilter={toggleFilter}
+        ci={ci}
+        ciFocus={ciFocus}
+        onCiFocus={setCiFocus}
+        tokenFor={tokenFor}
+        onTokenFor={setTokenFor}
       />
 
       <div className={styles.content}>
@@ -504,6 +557,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               onCollapseGroup={mode === "topology" ? compressed.collapse : undefined}
               worktree={worktreeMarker}
               onOpenWorktree={openWorktree}
+              ci={ciScene}
+              onOpenCi={openCi}
               insetRight={insetRight}
               sea={sea}
             />
@@ -541,6 +596,13 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
                   setShowWorktree(false);
                   selectById(id);
                 }}
+              />
+            ) : ciCommit !== null ? (
+              <CiPanel
+                commit={index.commits[index.indexOf(ciCommit) ?? -1] ?? null}
+                marker={ciMarkers.get(ciCommit) ?? null}
+                ci={ci}
+                onShowCommit={() => setCiCommit(null)}
               />
             ) : (
               <DetailsPanel sessionId={repo.sessionId} commit={selected} index={index} onSelectCommit={selectById} />

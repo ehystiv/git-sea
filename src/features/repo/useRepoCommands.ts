@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import type { RefFilter, RefLabel } from "../../lib/bindings";
+import type { CiProvider, CiWorkflow, RefFilter, RefLabel } from "../../lib/bindings";
+import { PROVIDER_LABEL } from "../ci/labels";
 import { shortHash } from "../../lib/format";
 import type { GraphIndex } from "../graph/GraphIndex";
 import type { PaletteSource } from "../palette/paletteStore";
@@ -33,6 +34,14 @@ export interface RepoCommandState {
   hasSelection: boolean;
   canCollapse: boolean;
   branchFilter: RefFilter[] | null;
+  ci: {
+    workflows: CiWorkflow[];
+    focus: number | null;
+    /** Workflow id -> commit of its latest run, when that commit is loaded. */
+    latest: Map<number, string>;
+    /** Services a token can be saved for. */
+    providers: CiProvider[];
+  };
 }
 
 export interface RepoCommandActions {
@@ -51,11 +60,15 @@ export interface RepoCommandActions {
   toggleFilter: (ref: RefFilter) => void;
   showOnly: (ref: RefFilter) => void;
   clearFilter: () => void;
+  focusWorkflow: (id: number | null) => void;
+  openUrl: (url: string) => void;
+  refreshCi: () => void;
+  askToken: (provider: CiProvider) => void;
 }
 
 /** What the active repository offers to the command palette. Null for a tab in the background. */
 export function useRepoCommands(active: boolean, state: RepoCommandState, actions: RepoCommandActions): PaletteSource | null {
-  const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter } = state;
+  const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter, ci } = state;
 
   return useMemo(() => {
     if (!active) return null;
@@ -92,6 +105,21 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
         "Navigazione",
       );
     }
+    if (ci.focus !== null) add({ id: "ci:all", title: "Mostra tutti i workflow", keywords: "ci workflow azioni pipeline", run: () => actions.focusWorkflow(null) }, "CI");
+    for (const workflow of ci.workflows) {
+      const keywords = `ci workflow pipeline ${workflow.path} ${PROVIDER_LABEL[workflow.provider]}`;
+      if (ci.focus !== workflow.id) {
+        add({ id: `ci:focus:${workflow.id}`, title: `Mostra solo il workflow ${workflow.name}`, detail: PROVIDER_LABEL[workflow.provider], keywords, run: () => actions.focusWorkflow(workflow.id) }, "CI");
+      }
+      const latest = ci.latest.get(workflow.id);
+      if (latest) add({ id: `ci:latest:${workflow.id}`, title: `Vai all'ultima run di ${workflow.name}`, keywords, run: () => actions.selectCommit(latest) }, "CI");
+      const url = workflow.webUrl;
+      if (url) add({ id: `ci:web:${workflow.id}`, title: `Apri ${workflow.name} nel browser`, detail: PROVIDER_LABEL[workflow.provider], keywords, run: () => actions.openUrl(url) }, "CI");
+    }
+    if (ci.workflows.length > 0) add({ id: "ci:refresh", title: "Aggiorna lo stato della CI", keywords: "ci run workflow ricarica", run: actions.refreshCi }, "CI");
+    for (const provider of ci.providers) {
+      add({ id: `ci:token:${provider}`, title: `Imposta il token di ${PROVIDER_LABEL[provider]}`, keywords: "ci token portachiavi accesso api", run: () => actions.askToken(provider) }, "CI");
+    }
     if (branchFilter) add({ id: "filter:clear", title: "Mostra tutti i branch", keywords: "filtro togli rimuovi", run: actions.clearFilter }, "Filtro");
 
     const labels = [...index.refs.values()].flat();
@@ -126,5 +154,5 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
 
     return { commands, search };
     // `version` is what tells us the (mutable) index changed.
-  }, [active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter, actions]);
+  }, [active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter, ci, actions]);
 }

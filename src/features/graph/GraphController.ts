@@ -1,5 +1,7 @@
 import { THEME_CHANGED } from "../../lib/theme";
 import { COLUMN_W, LANE_H } from "./constants";
+import { describeMarker } from "../ci/markers";
+import { hitCi, type CiScene } from "./ciDraw";
 import { draw, hitTest, hitWorktree, RenderCache, type View, type WorktreeMarker } from "./draw";
 import type { Emphasis } from "./emphasis";
 import { drawFlow, FlowOverlay, type FlowFrame } from "./flow";
@@ -19,6 +21,8 @@ export interface GraphCallbacks {
   onCollapseGroup?: (id: string) => void;
   /** The badge of local changes was clicked. */
   onOpenWorktree?: () => void;
+  /** A CI marker was clicked; the argument is its commit's id. */
+  onOpenCi?: (id: string) => void;
   /** New commits arrived; where they are on screen (for the sea). */
   onNewCommits?: (points: Array<{ x: number; y: number }>) => void;
   /** New commits arrived off screen (how many, and which way); null once they were seen. */
@@ -92,6 +96,7 @@ export class GraphController {
   private focused = true;
   private emphasis: Emphasis | null = null;
   private worktree: WorktreeMarker | null = null;
+  private ci: CiScene | null = null;
   private overBadge = false;
   private anchor: ViewAnchor | null = null;
   private morphFrom: { index: GraphIndex; tx: number; motion: ReplaceMotion } | null = null;
@@ -428,6 +433,7 @@ export class GraphController {
       emphasis: this.emphasis,
       morph: morphScene,
       worktree: this.worktree,
+      ci: this.ci,
     });
     this.flowFrame = flow;
     const moving = flow !== null && (this.flowOverlay !== null || drawFlow(this.ctx, flow.links, { ...flow.style, time }) > 0);
@@ -450,6 +456,12 @@ export class GraphController {
   /** Shows a badge with the number of locally changed files on a commit; null hides it. */
   setWorktree(marker: WorktreeMarker | null): void {
     this.worktree = marker;
+    this.requestDraw();
+  }
+
+  /** Shows CI runs and the places a workflow would start; null hides them. */
+  setCi(ci: CiScene | null): void {
+    this.ci = ci;
     this.requestDraw();
   }
 
@@ -572,7 +584,10 @@ export class GraphController {
   private onPointerMove(e: PointerEvent): void {
     const { x, y } = this.local(e);
     if (!this.drag) {
-      const badge = hitWorktree(this.index, this.view, this.worktree, x, y);
+      const ci = hitCi(this.index, this.view, this.ci, x, y);
+      const tooltip = ci && this.ci ? describeMarker(ci.marker, ci.slot, this.ci.workflows) : "";
+      if (this.canvas.title !== tooltip) this.canvas.title = tooltip;
+      const badge = ci !== null || hitWorktree(this.index, this.view, this.worktree, x, y);
       const hit = badge ? null : hitTest(this.index, this.view, x, y);
       if (badge !== this.overBadge) {
         this.overBadge = badge;
@@ -597,6 +612,13 @@ export class GraphController {
     const { x, y } = this.local(e);
     if (hitWorktree(this.index, this.view, this.worktree, x, y)) {
       this.callbacks.onOpenWorktree?.();
+      return;
+    }
+    const ci = hitCi(this.index, this.view, this.ci, x, y);
+    if (ci) {
+      const at = this.index.indexOf(ci.id);
+      if (at !== null) this.select(at, false);
+      this.callbacks.onOpenCi?.(ci.id);
       return;
     }
     const hit = hitTest(this.index, this.view, x, y);

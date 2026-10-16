@@ -1,0 +1,16 @@
+@layer components {
+  .refresh { margin-left: auto; font-weight: 500; }
+  .refresh:disabled { opacity: 0.6; }
+
+  .runs, .hypotheses { padding: 0 var(--space-4) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+  .run { display: flex; align-items: center; gap: 10px; }
+  .status { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+  .text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .outcome { font-weight: 400; color: var(--text-3); }
+  .meta { font-size: 11.5px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .hypotheses li { display: flex; align-items: baseline; gap: 10px; color: var(--text-2); }
+  .hypotheses b { font-weight: 600; color: var(--text); }
+  .ring { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 1.5px dashed var(--text-2); box-sizing: border-box; transform: translateY(1px); }
+}

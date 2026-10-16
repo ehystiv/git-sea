@@ -11,7 +11,7 @@ import "../styles/global.css";
 import { App } from "../app/App";
 import { useTabs } from "../app/tabsStore";
 import { initTheme } from "../lib/theme";
-import type { CommitSummary, GraphRow, LoadEvent, RefFilter, RefLabel } from "../lib/bindings";
+import type { CiOverview, CiRun, CiRunsReport, CommitSummary, GraphRow, LoadEvent, RefFilter, RefLabel } from "../lib/bindings";
 
 interface Dump {
   commits: CommitSummary[];
@@ -59,6 +59,49 @@ function load(args: { only: RefFilter[] | null; onEvent: { id: number } }): null
   return null;
 }
 
+/** A made-up CI: "CI" on pushes and pull requests to main, "Release" on v* tags, runs along main. */
+function fakeCi(): { overview: CiOverview; runs: CiRunsReport } {
+  const branchName = (r: RefLabel) => (r.kind === "Remote" ? r.name.replace(/^[^/]+\//, "") : r.name);
+  const main = dump.refs.find((r) => r.kind === "Head") ?? dump.refs[0];
+  const mainName = main ? branchName(main) : "main";
+  const overview: CiOverview = {
+    workflows: [
+      { id: 0, provider: "GitHub", name: "CI", path: ".github/workflows/ci.yml", events: ["push", "pull_request"], approximate: false, webUrl: "https://github.com/example/repo/actions/workflows/ci.yml" },
+      { id: 1, provider: "GitHub", name: "Release", path: ".github/workflows/release.yml", events: ["push"], approximate: false, webUrl: null },
+      { id: 2, provider: "CircleCi", name: "nightly", path: ".circleci/config.yml", events: ["schedule"], approximate: true, webUrl: null },
+    ],
+    push: dump.refs.flatMap((r) => {
+      const workflows = r.kind === "Tag" ? [1] : branchName(r) === mainName ? [0] : [];
+      return workflows.length > 0 ? [{ kind: r.kind, name: r.name, branch: branchName(r), commit: r.commit, workflows }] : [];
+    }),
+    mergeTargets: dump.refs.filter((r) => r.kind !== "Tag" && branchName(r) === mainName).map((r) => ({ kind: r.kind, name: r.name, branch: mainName, commit: r.commit, workflows: [0] })),
+    problems: [{ path: ".travis.yml", message: "did not find expected node content" }],
+    defaultBranch: mainName,
+  };
+  // Runs on main's first parents, newest first, with a mix of outcomes.
+  const position = new Map(dump.commits.map((c, i) => [c.id, i]));
+  const statuses: CiRun["status"][] = ["Running", "Success", "Failure", "Success", "Cancelled", "Success", "Queued", "Success"];
+  const runs: CiRun[] = [];
+  let at = main ? position.get(main.commit) : undefined;
+  for (let n = 0; at !== undefined && n < statuses.length; n++) {
+    const commit = dump.commits[at];
+    if (!commit) break;
+    runs.push({ provider: "GitHub", workflow: "CI", path: ".github/workflows/ci.yml", commit: commit.id, branch: mainName, event: "push", status: statuses[n] ?? "Success", url: "https://github.com/example/repo/actions/runs/1", created: new Date(Date.now() - n * 3_600_000).toISOString() });
+    at = commit.parents[0] === undefined ? undefined : position.get(commit.parents[0]);
+  }
+  return {
+    overview,
+    runs: {
+      runs,
+      providers: [
+        { provider: "GitHub", access: { kind: "ok", via: "Cli", runs: runs.length }, hasSavedToken: false, hasCli: true },
+        { provider: "CircleCi", access: { kind: "needsToken", message: "Serve un token per leggere le run di questo progetto" }, hasSavedToken: false, hasCli: false },
+      ],
+    },
+  };
+}
+const ci = fakeCi();
+
 (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {
   metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main", windowLabel: "main" } },
   transformCallback: (callback: (message: unknown) => void) => {
@@ -84,6 +127,11 @@ function load(args: { only: RefFilter[] | null; onEvent: { id: number } }): null
         const person = { name: commit?.author ?? "", email: "dev@example.com", time: commit?.time ?? 0 };
         return { id: args.commitId, summary: commit?.summary ?? "", body: "", author: person, committer: person, parents: commit?.parents ?? [], comparedWith: null, files: [], statsTruncated: false };
       }
+      case "ci_overview":
+        return ci.overview;
+      case "ci_runs":
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return ci.runs;
       case "close_repo":
       case "plugin:event|unlisten":
         return null;

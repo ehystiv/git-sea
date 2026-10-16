@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import type { CommitSummary } from "../../lib/bindings";
 import { useWindowFocused } from "../../lib/windowFocus";
 import { GraphController, type Unseen } from "./GraphController";
+import type { CiScene } from "./ciDraw";
 import type { WorktreeMarker } from "./draw";
 import type { Emphasis } from "./emphasis";
 import type { GraphIndex } from "./GraphIndex";
@@ -33,6 +34,10 @@ interface GraphCanvasProps {
   worktree: WorktreeMarker | null;
   /** The badge of local changes was clicked. */
   onOpenWorktree?: () => void;
+  /** CI runs and hypothetical workflow starts to show on the links; null for none. */
+  ci: CiScene | null;
+  /** A CI marker was clicked. */
+  onOpenCi?: (id: string) => void;
   /** Pixels on the right covered by the floating details panel; the canvas keeps its size. */
   insetRight: number;
   /** Fish swimming in the background. */
@@ -51,7 +56,7 @@ export interface GraphCanvasHandle {
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree, insetRight, sea },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree, ci, onOpenCi, insetRight, sea },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -72,6 +77,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const worktreeRef = useRef(worktree);
   const insetRef = useRef(insetRight);
   const onOpenWorktreeRef = useRef(onOpenWorktree);
+  const ciRef = useRef(ci);
+  const onOpenCiRef = useRef(onOpenCi);
   const [zoom, setZoom] = useState(1);
   const [unseen, setUnseen] = useState<Unseen | null>(null);
   /** A selection that could not be applied yet because the (derived) index was still empty. */
@@ -82,7 +89,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     onExpandRef.current = onExpandGroup;
     onCollapseRef.current = onCollapseGroup;
     onOpenWorktreeRef.current = onOpenWorktree;
-  }, [onSelect, onExpandGroup, onCollapseGroup, onOpenWorktree]);
+    onOpenCiRef.current = onOpenCi;
+  }, [onSelect, onExpandGroup, onCollapseGroup, onOpenWorktree, onOpenCi]);
 
   useImperativeHandle(
     ref,
@@ -117,6 +125,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onExpandGroup: (id) => onExpandRef.current?.(id),
       onCollapseGroup: (id) => onCollapseRef.current?.(id),
       onOpenWorktree: () => onOpenWorktreeRef.current?.(),
+      onOpenCi: (id) => onOpenCiRef.current?.(id),
       onUnseen: setUnseen,
       onNewCommits: (points) => seaLayer.scare(points),
     });
@@ -125,6 +134,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     controller.setFlow(flowRef.current);
     controller.setEmphasis(emphasisRef.current);
     controller.setWorktree(worktreeRef.current);
+    controller.setCi(ciRef.current);
     controller.setInsetRight(insetRef.current);
     const minimap = new Minimap(minimapCanvas, index, controller);
     const stopFollowing = controller.onFrame((frame) => seaLayer.follow(frame.view));
@@ -208,6 +218,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     worktreeRef.current = worktree;
     controllerRef.current?.setWorktree(worktree);
   }, [worktree]);
+
+  useEffect(() => {
+    ciRef.current = ci;
+    controllerRef.current?.setCi(ci);
+  }, [ci]);
 
   return (
     <div ref={wrapRef} className={styles.wrap}>

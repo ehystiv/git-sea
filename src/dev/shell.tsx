@@ -53,7 +53,14 @@ createRoot(document.getElementById("root") as HTMLElement).render(
       <div style={{ display: "grid", gridTemplateRows: "44px 1fr", height: "100%" }}>
         <TitleBar tabs={tabs.tabs} activeId="s2" onActivate={() => undefined} onClose={() => undefined} onNew={() => undefined} onPalette={() => undefined} />
         <div style={{ display: "grid", gridTemplateColumns: "232px 1fr", minHeight: 0 }}>
-          <Sidebar sessionId="s2" index={index} version={1} selectedId={selected} onSelectCommit={() => undefined} branchFilter={null} onToggleFilter={() => undefined} />
+          <Sidebar sessionId="s2" index={index} version={1} selectedId={selected} onSelectCommit={() => undefined} branchFilter={null}
+            onToggleFilter={() => undefined}
+            ci={{ overview: null, overviewError: null, report: null, runsLoading: false, refreshRuns: () => undefined, setToken: async () => undefined }}
+            ciFocus={null}
+            onCiFocus={() => undefined}
+            tokenFor={null}
+            onTokenFor={() => undefined}
+          />
           <div style={{ background: "var(--surface)" }} />
         </div>
       </div>

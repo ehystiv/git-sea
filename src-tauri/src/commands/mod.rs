@@ -4,6 +4,8 @@ use tauri::ipc::Channel;
 use tauri::{Emitter, State};
 
 use crate::cache::{self, CachedGraph, Fingerprint, MIN_CACHED_COMMITS};
+use crate::ci::runs::CiRunsReport;
+use crate::ci::{self, CiOverview, CiProvider};
 use crate::error::AppError;
 use crate::git::commits::{self, LoadEvent, RefFilter};
 use crate::git::diff::{self, CommitDetails, FileDiff};
@@ -327,4 +329,69 @@ pub fn fetch_status(
 pub fn fetch_now(state: State<'_, AppState>, session_id: String) -> Result<(), AppError> {
     state.get(&session_id)?.fetcher.fetch_now();
     Ok(())
+}
+
+/// The workflows defined in HEAD and the refs a push or a pull request would start them on.
+#[tauri::command]
+#[specta::specta]
+pub async fn ci_overview(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<CiOverview, AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = session.repo.to_thread_local();
+        let refs = commits::collect_refs(&repo)?;
+        ci::overview(&repo, &refs.labels)
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// Recent runs of the CI services the repository's workflows belong to. Calls their APIs.
+#[tauri::command]
+#[specta::specta]
+pub async fn ci_runs(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<CiRunsReport, AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = session.repo.to_thread_local();
+        let (definitions, _) = ci::read_definitions(&repo)?;
+        let providers: Vec<CiProvider> = definitions.iter().map(|d| d.provider).collect();
+        let remote = ci::remote::main_remote(&repo);
+        Ok(ci::runs::fetch_runs(&providers, remote.as_ref()))
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// Saves the token for a CI service in the Keychain; None removes it.
+#[tauri::command]
+#[specta::specta]
+pub async fn ci_set_token(provider: CiProvider, token: Option<String>) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let result = match token.as_deref().map(str::trim) {
+            Some(token) if !token.is_empty() => ci::auth::keychain_set(provider, token),
+            _ => ci::auth::keychain_delete(provider),
+        };
+        result.map_err(AppError::Internal)
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// Opens a web page (a CI run) in the default browser. Only `https` links are opened.
+#[tauri::command]
+#[specta::specta]
+pub fn open_url(url: String) -> Result<(), AppError> {
+    if !url.starts_with("https://") || url.contains(char::is_whitespace) {
+        return Err(AppError::Internal(format!("not an https link: {url}")));
+    }
+    std::process::Command::new("/usr/bin/open")
+        .arg(&url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|err| AppError::Internal(err.to_string()))
 }

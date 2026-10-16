@@ -1,4 +1,5 @@
 pub mod cache;
+pub mod ci;
 pub mod commands;
 pub mod error;
 pub mod git;
@@ -22,7 +23,11 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::worktree_status,
         commands::worktree_diff,
         commands::fetch_status,
-        commands::fetch_now
+        commands::fetch_now,
+        commands::ci_overview,
+        commands::ci_runs,
+        commands::ci_set_token,
+        commands::open_url
     ])
 }
 
