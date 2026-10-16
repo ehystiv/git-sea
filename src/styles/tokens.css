@@ -2,7 +2,7 @@
 
 @layer tokens {
   :root {
-    color-scheme: light dark;
+    color-scheme: light;
 
     --font-ui: "Inter Variable", ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
     --font-mono: "JetBrains Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
@@ -64,45 +64,45 @@
     --traffic-lights-width: 84px;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0c0c10;
-      --surface: #121217;
-      --titlebar: #0f0f14;
-      --sidebar: rgb(18 18 24 / 0.2);
-      --border: #22222b;
-      --border-strong: #30303c;
-      --text: #ececf2;
-      --text-2: #a3a3b4;
-      --text-3: #6d6d7f;
-      --accent: #9b83ff;
-      --accent-soft: rgb(155 131 255 / 0.14);
-      --accent-text: #b5a2ff;
-      --accent-contrast: #14101f;
-      --hover: #181820;
-      --subtle: #1c1c25;
-      --danger: #ff7a86;
-      --danger-soft: rgb(255 122 134 / 0.11);
-      --canvas: #0d0d12;
-      --dot: #2b2b37;
-      --node: #1f1f29;
-      --add: #4cc38a;
-      --add-bg: rgb(76 195 138 / 0.12);
-      --del-bg: rgb(255 122 134 / 0.11);
+  /* `data-theme` is always set by `initTheme` (lib/theme.ts), which resolves "system" itself. */
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0c0c10;
+    --surface: #121217;
+    --titlebar: #0f0f14;
+    --sidebar: rgb(18 18 24 / 0.2);
+    --border: #22222b;
+    --border-strong: #30303c;
+    --text: #ececf2;
+    --text-2: #a3a3b4;
+    --text-3: #6d6d7f;
+    --accent: #9b83ff;
+    --accent-soft: rgb(155 131 255 / 0.14);
+    --accent-text: #b5a2ff;
+    --accent-contrast: #14101f;
+    --hover: #181820;
+    --subtle: #1c1c25;
+    --danger: #ff7a86;
+    --danger-soft: rgb(255 122 134 / 0.11);
+    --canvas: #0d0d12;
+    --dot: #2b2b37;
+    --node: #1f1f29;
+    --add: #4cc38a;
+    --add-bg: rgb(76 195 138 / 0.12);
+    --del-bg: rgb(255 122 134 / 0.11);
 
-      --shiki-foreground: #ececf2;
-      --shiki-token-constant: #f2b072;
-      --shiki-token-string: #7fdcb8;
-      --shiki-token-comment: #6d6d7f;
-      --shiki-token-keyword: #c79bff;
-      --shiki-token-parameter: #a3a3b4;
-      --shiki-token-function: #7cb4ff;
-      --shiki-token-string-expression: #7fdcb8;
-      --shiki-token-punctuation: #6d6d7f;
-      --shiki-token-link: #7cb4ff;
+    --shiki-foreground: #ececf2;
+    --shiki-token-constant: #f2b072;
+    --shiki-token-string: #7fdcb8;
+    --shiki-token-comment: #6d6d7f;
+    --shiki-token-keyword: #c79bff;
+    --shiki-token-parameter: #a3a3b4;
+    --shiki-token-function: #7cb4ff;
+    --shiki-token-string-expression: #7fdcb8;
+    --shiki-token-punctuation: #6d6d7f;
+    --shiki-token-link: #7cb4ff;
 
-      --b0: #9b83ff; --b1: #3ed0b8; --b2: #f0b040; --b3: #ff6fa3;
-      --b4: #5aa2ff; --b5: #6fd07a; --b6: #ff8a54; --b7: #bb92ff;
-    }
+    --b0: #9b83ff; --b1: #3ed0b8; --b2: #f0b040; --b3: #ff6fa3;
+    --b4: #5aa2ff; --b5: #6fd07a; --b6: #ff8a54; --b7: #bb92ff;
   }
 }

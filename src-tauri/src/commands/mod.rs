@@ -5,9 +5,10 @@ use tauri::{Emitter, State};
 
 use crate::cache::{self, CachedGraph, Fingerprint, MIN_CACHED_COMMITS};
 use crate::error::AppError;
-use crate::git::commits::{self, LoadEvent};
+use crate::git::commits::{self, LoadEvent, RefFilter};
 use crate::git::diff::{self, CommitDetails, FileDiff};
 use crate::git::repo::{self, RepoInfo};
+use crate::git::search::{self, SearchField, SearchResult};
 use crate::git::stash::{self, StashEntry};
 use crate::session::AppState;
 use crate::watcher::RepoWatcher;
@@ -64,13 +65,15 @@ pub fn close_repo(state: State<'_, AppState>, session_id: String) {
 }
 
 /// Streams every commit of the repository, in topological order, through `on_event`.
-/// The graph comes from the on-disk cache when the repository's refs are unchanged since it was
-/// written. Starting a new load on the same session cancels the previous one.
+/// With `only`, just the commits reachable from those refs (the branch filter); every ref is still
+/// sent. The full graph comes from the on-disk cache when the repository's refs are unchanged
+/// since it was written. Starting a new load on the same session cancels the previous one.
 #[tauri::command]
 #[specta::specta]
 pub async fn load_commits(
     state: State<'_, AppState>,
     session_id: String,
+    only: Option<Vec<RefFilter>>,
     on_event: Channel<LoadEvent>,
 ) -> Result<(), AppError> {
     let session = state.get(&session_id)?;
@@ -81,6 +84,7 @@ pub async fn load_commits(
         let repo = commits::repo_for_walk(&session.repo);
         let snapshot = commits::collect_refs(&repo)?;
         let fingerprint = Fingerprint::of(&snapshot.labels);
+        let tips = snapshot.tips_for(only.as_deref());
         if on_event
             .send(LoadEvent::Refs {
                 refs: snapshot.labels,
@@ -96,7 +100,13 @@ pub async fn load_commits(
             on_event.send(LoadEvent::Chunk { commits, rows }).is_ok()
         };
 
-        let (stats, to_cache) = match cache::load(&cache_file, &fingerprint) {
+        // A filtered graph is quick to rebuild and would only push the full one out of the cache.
+        let cached = if only.is_none() {
+            cache::load(&cache_file, &fingerprint)
+        } else {
+            None
+        };
+        let (stats, to_cache) = match cached {
             Some(graph) => (commits::stream_cached(&graph, &cancelled, &mut send), None),
             None => {
                 let mut collected = CachedGraph {
@@ -104,18 +114,14 @@ pub async fn load_commits(
                     rows: Vec::new(),
                     max_lanes: 0,
                 };
-                let stats = commits::stream_commits(
-                    &repo,
-                    snapshot.tips,
-                    &cancelled,
-                    &mut |commits, rows| {
+                let stats =
+                    commits::stream_commits(&repo, tips, &cancelled, &mut |commits, rows| {
                         collected.commits.extend(commits.iter().cloned());
                         collected.rows.extend(rows.iter().cloned());
                         send(commits, rows)
-                    },
-                )?;
+                    })?;
                 collected.max_lanes = stats.max_lanes;
-                (stats, Some(collected))
+                (stats, only.is_none().then_some(collected))
             }
         };
 
@@ -194,6 +200,29 @@ pub async fn list_stashes(
     let session = state.get(&session_id)?;
     tauri::async_runtime::spawn_blocking(move || {
         stash::list_stashes(&session.repo.to_thread_local())
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// Commits whose whole message contains `text`, or that changed the path `text`. Searches every
+/// ref (the frontend drops what the branch filter hides). A new search on the same session stops
+/// the previous one, which then returns early with `cancelled` set.
+#[tauri::command]
+#[specta::specta]
+pub async fn search_commits(
+    state: State<'_, AppState>,
+    session_id: String,
+    field: SearchField,
+    text: String,
+) -> Result<SearchResult, AppError> {
+    let session = state.get(&session_id)?;
+    let generation = session.begin_search();
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = commits::repo_for_walk(&session.repo);
+        let tips = commits::collect_refs(&repo)?.tips;
+        let cancelled = || !session.is_current_search(generation);
+        search::search_commits(&repo, tips, field, &text, &cancelled)
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?

@@ -32,4 +32,25 @@ describe("describeCommit", () => {
     expect(describeCommit("feat: first", 0).kind).toBe("init");
     expect(describeCommit("Initial commit", 0).kind).toBe("init");
   });
+
+  it("takes a leading emoji out of the label, before or after the prefix", () => {
+    expect(describeCommit("✨ feat(auth): add login", 1)).toEqual({ kind: "feat", label: "add login", emoji: "✨" });
+    expect(describeCommit("fix: 🐛 crash on start", 1)).toEqual({ kind: "fix", label: "crash on start", emoji: "🐛" });
+    expect(describeCommit("🎉 Initial commit", 0)).toEqual({ kind: "init", label: "Initial commit", emoji: "🎉" });
+    expect(describeCommit("♻️ simplify the walk", 1)).toEqual({ kind: "commit", label: "simplify the walk", emoji: "♻️" });
+  });
+
+  it("reads gitmoji shortcodes and ignores unknown ones", () => {
+    expect(describeCommit(":sparkles: add search", 1)).toEqual({ kind: "commit", label: "add search", emoji: "✨" });
+    expect(describeCommit(":bug: fix: typo", 1)).toEqual({ kind: "fix", label: "typo", emoji: "🐛" });
+    expect(describeCommit(":nope: hello", 1)).toEqual({ kind: "commit", label: ":nope: hello" });
+  });
+
+  it("keeps whole emoji sequences, and leaves merges and emoji-free messages alone", () => {
+    expect(describeCommit("🧑‍💻 better dev tools", 1).emoji).toBe("🧑‍💻");
+    expect(describeCommit("👍🏽 thanks", 1).emoji).toBe("👍🏽");
+    expect(describeCommit("Merge branch 'x'", 2).emoji).toBeUndefined();
+    expect(describeCommit("add 2 files", 1).emoji).toBeUndefined();
+    expect(describeCommit("#123 fix", 1).emoji).toBeUndefined();
+  });
 });

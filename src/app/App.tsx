@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { CommandPalette } from "../features/palette/CommandPalette";
+import { usePalette, usePaletteSource, type PaletteSource } from "../features/palette/paletteStore";
 import { OpenRepoPanel } from "../features/repo/OpenRepoPanel";
 import { RepoView } from "../features/repo/RepoView";
 import { useOpenRepo } from "../features/repo/useOpenRepo";
@@ -7,6 +9,7 @@ import { useRepoDrop } from "../features/repo/useRepoDrop";
 import { commands } from "../lib/bindings";
 import { pickRepoFolder } from "../lib/dialog";
 import { describeError } from "../lib/errors";
+import { useTheme } from "../lib/theme";
 import { findTabByPath, normalizePath } from "./tabsLogic";
 import { useTabs } from "./tabsStore";
 import { TitleBar } from "./TitleBar";
@@ -88,12 +91,51 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activateAt]);
 
+  // What the window offers to the command palette (the active repository adds its own).
+  const setTheme = useTheme((s) => s.setMode);
+  const themeMode = useTheme((s) => s.mode);
+  const paletteSource = useMemo((): PaletteSource => {
+    const openPaths = new Set(tabs.map((t) => t.repo.path));
+    return {
+      commands: [
+        { id: "app:open", group: "Repository", title: "Apri repository…", shortcut: "⌘O", keywords: "open cartella folder", run: () => void browse() },
+        ...(activeId ? [{ id: "app:close", group: "Repository", title: "Chiudi la tab", shortcut: "⌘W", keywords: "close", run: closeActive }] : []),
+        ...tabs
+          .filter((t) => t.id !== activeId)
+          .map((t, i) => ({
+            id: `app:tab:${t.id}`,
+            group: "Repository",
+            title: `Passa a ${t.repo.name}`,
+            detail: t.repo.path,
+            shortcut: i < 8 ? `⌘${tabs.indexOf(t) + 1}` : undefined,
+            keywords: "tab switch",
+            run: () => activate(t.id),
+          })),
+        ...recents
+          .filter((r) => !openPaths.has(r.path))
+          .map((r) => ({ id: `app:recent:${r.path}`, group: "Recenti", title: `Apri ${r.name}`, detail: r.path, keywords: "recent", run: () => openPath(r.path) })),
+        ...(["system", "light", "dark"] as const)
+          .filter((mode) => mode !== themeMode)
+          .map((mode) => ({
+            id: `app:theme:${mode}`,
+            group: "Aspetto",
+            title: mode === "system" ? "Tema: segui il sistema" : mode === "light" ? "Tema chiaro" : "Tema scuro",
+            keywords: "theme dark light aspetto",
+            run: () => setTheme(mode),
+          })),
+      ],
+    };
+  }, [tabs, activeId, recents, themeMode, browse, closeActive, activate, openPath, setTheme]);
+  usePaletteSource("app", paletteSource);
+  const openPalette = usePalette((s) => s.setOpen);
+
   const hasTabs = tabs.length > 0;
   const errorText = error ? describeError(error) : null;
 
   return (
     <div className={styles.window}>
-      <TitleBar tabs={tabs} activeId={activeId} onActivate={activate} onClose={closeById} onNew={() => void browse()} />
+      <TitleBar tabs={tabs} activeId={activeId} onActivate={activate} onClose={closeById} onNew={() => void browse()} onPalette={() => openPalette(true)} />
+      <CommandPalette />
 
       {hasTabs && errorText && (
         <div className={styles.banner} role="alert">

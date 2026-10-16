@@ -12,6 +12,8 @@ pub struct RepoSession {
     /// Bumped on every commit load (and on close); a running load stops when its
     /// generation is no longer the current one.
     load_generation: AtomicU64,
+    /// Same as `load_generation`, for searches: a new search stops the one still running.
+    search_generation: AtomicU64,
     /// Keeps watching the repository's refs for as long as the session lives.
     _watcher: Option<RepoWatcher>,
 }
@@ -21,6 +23,7 @@ impl RepoSession {
         Self {
             repo,
             load_generation: AtomicU64::new(0),
+            search_generation: AtomicU64::new(0),
             _watcher: watcher,
         }
     }
@@ -34,8 +37,18 @@ impl RepoSession {
         self.load_generation.load(Ordering::SeqCst) == generation
     }
 
+    /// Starts a new search, stopping any search already running on this session.
+    pub fn begin_search(&self) -> u64 {
+        self.search_generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    pub fn is_current_search(&self, generation: u64) -> bool {
+        self.search_generation.load(Ordering::SeqCst) == generation
+    }
+
     fn cancel_loads(&self) {
         self.load_generation.fetch_add(1, Ordering::SeqCst);
+        self.search_generation.fetch_add(1, Ordering::SeqCst);
     }
 }
 

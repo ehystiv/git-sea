@@ -51,9 +51,9 @@ createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <QueryClientProvider client={new QueryClient()}>
       <div style={{ display: "grid", gridTemplateRows: "44px 1fr", height: "100%" }}>
-        <TitleBar tabs={tabs.tabs} activeId="s2" onActivate={() => undefined} onClose={() => undefined} onNew={() => undefined} />
+        <TitleBar tabs={tabs.tabs} activeId="s2" onActivate={() => undefined} onClose={() => undefined} onNew={() => undefined} onPalette={() => undefined} />
         <div style={{ display: "grid", gridTemplateColumns: "232px 1fr", minHeight: 0 }}>
-          <Sidebar sessionId="s2" index={index} version={1} selectedId={selected} onSelectCommit={() => undefined} />
+          <Sidebar sessionId="s2" index={index} version={1} selectedId={selected} onSelectCommit={() => undefined} branchFilter={null} onToggleFilter={() => undefined} />
           <div style={{ background: "var(--surface)" }} />
         </div>
       </div>

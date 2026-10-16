@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "../../components/Badge/Badge";
 import { Button } from "../../components/Button/Button";
@@ -6,15 +6,23 @@ import { CommitList } from "../commits/CommitList";
 import { LoadStatus } from "../commits/LoadStatus";
 import { useCommitStream } from "../commits/useCommitStream";
 import { DetailsPanel } from "../details/DetailsPanel";
+import { ancestorEmphasis, ancestorMask, matchEmphasis, type Emphasis } from "../graph/emphasis";
 import { GraphCanvas, type GraphCanvasHandle } from "../graph/GraphCanvas";
+import { useCompressedIndex } from "../graph/useCompressedIndex";
+import { usePalette, usePaletteSource } from "../palette/paletteStore";
+import { stepMatch } from "../search/query";
+import { SearchBar } from "../search/SearchBar";
+import { useSearch } from "../search/useSearch";
+import { TimelineCanvas } from "../timeline/TimelineCanvas";
+import { describeFilter, pruneFilter, toggleRef } from "../sidebar/refFilter";
 import { Sidebar } from "../sidebar/Sidebar";
+import { useFlow } from "../../lib/flow";
 import { shortHash } from "../../lib/format";
 import { headCommitId } from "./head";
 import { useRepoChanges } from "./useRepoChanges";
-import type { CommitSummary, HeadInfo, RepoInfo } from "../../lib/bindings";
+import { useRepoCommands, type RepoCommandActions, type ViewMode } from "./useRepoCommands";
+import type { CommitSummary, HeadInfo, RefFilter, RepoInfo } from "../../lib/bindings";
 import styles from "./RepoView.module.css";
-
-type ViewMode = "graph" | "list";
 
 const PANEL_MIN = 320;
 const PANEL_MAX = 900;
@@ -38,45 +46,101 @@ interface RepoViewProps {
   onClose: () => void;
 }
 
+/** The same object on every render, calling the latest version of each function. */
+function useStableActions<T extends object>(actions: T): T {
+  const ref = useRef(actions);
+  useLayoutEffect(() => {
+    ref.current = actions;
+  });
+  return useMemo(() => {
+    const stable = {} as Record<string, unknown>;
+    for (const key of Object.keys(actions)) {
+      stable[key] = (...args: unknown[]) => (ref.current as Record<string, (...a: unknown[]) => unknown>)[key]?.(...args);
+    }
+    return stable as T;
+    // The keys never change, only the functions behind them.
+  }, []);
+}
+
 export function RepoView({ repo, active, onClose }: RepoViewProps) {
-  const stream = useCommitStream(repo.sessionId);
+  const [branchFilter, setBranchFilter] = useState<RefFilter[] | null>(null);
+  const stream = useCommitStream(repo.sessionId, branchFilter);
   const [mode, setMode] = useState<ViewMode>("graph");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
+  const [searchFocus, setSearchFocus] = useState(0);
+  const [ancestors, setAncestors] = useState(false);
   const [selected, setSelected] = useState<CommitSummary | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT);
   const graphRef = useRef<GraphCanvasHandle>(null);
   const head = describeHead(repo.head);
   const { index, reload } = stream;
+  const flow = useFlow((s) => s.enabled);
+  const toggleFlow = useFlow((s) => s.toggle);
+  const compressed = useCompressedIndex(index, stream.version, mode === "topology");
+  const canvasIndex = mode === "topology" ? compressed.index : index;
+  const canvasVersion = mode === "topology" ? compressed.version : stream.version;
   const queryClient = useQueryClient();
+  const search = useSearch(repo.sessionId, index, stream.version, searchOpen ? searchText : "");
 
-  // A commit, fetch, branch or tag changed the refs: reload quietly and refresh the stashes too.
+  // A commit, fetch, branch or tag changed the refs: reload quietly and refresh the stashes and
+  // any search that read the history.
   useRepoChanges(
     repo.sessionId,
     useCallback(() => {
       reload();
       void queryClient.invalidateQueries({ queryKey: ["stashes", repo.sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["search", repo.sessionId] });
     }, [reload, queryClient, repo.sessionId]),
   );
 
-  // Enter shows or hides the details panel.
+  // A branch of the filter was deleted: drop it, rather than keep an empty or partial graph.
+  useEffect(() => {
+    if (branchFilter === null || index.refs.size === 0) return;
+    const pruned = pruneFilter(branchFilter, [...index.refs.values()].flat());
+    if (pruned !== branchFilter) setBranchFilter(pruned);
+  }, [stream.version, index, branchFilter]);
+
+  const openSearch = useCallback(() => {
+    setSearchOpen(true);
+    setSearchFocus((n) => n + 1);
+  }, []);
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchText("");
+  }, []);
+
+  // Enter shows or hides the details panel; 1, 2 and 3 switch between graph, topology and
+  // timeline; / opens the search; a highlights the ancestors of the selected commit.
   useEffect(() => {
     if (!active) return;
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       const typing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
       const onButton = target?.tagName === "BUTTON";
-      if (event.key === "Enter" && !typing && !onButton && !event.metaKey && !event.ctrlKey) {
+      if (typing || event.metaKey || event.ctrlKey || event.altKey || usePalette.getState().open) return;
+      if (event.key === "Enter" && !onButton) {
         event.preventDefault();
         setPanelOpen((open) => !open);
+      } else if (event.key === "1" || event.key === "2" || event.key === "3") {
+        event.preventDefault();
+        setMode(event.key === "1" ? "graph" : event.key === "2" ? "topology" : "timeline");
+      } else if (event.key === "/") {
+        event.preventDefault();
+        openSearch();
+      } else if (event.key === "a") {
+        event.preventDefault();
+        setAncestors((on) => !on);
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [active]);
+  }, [active, openSearch]);
 
   const selectById = useCallback(
     (id: string) => {
-      if (mode === "graph") {
+      if (mode !== "list") {
         graphRef.current?.selectById(id);
         return;
       }
@@ -85,6 +149,108 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
       if (commit) setSelected(commit);
     },
     [mode, index],
+  );
+
+  // ---- search, ancestors and filter ------------------------------------------------------
+
+  /** The index the current view draws: the compressed one in topology, else the full one. */
+  const viewIndex = mode === "topology" ? compressed.index : index;
+  const viewVersion = mode === "topology" ? compressed.version : stream.version;
+  const searchIds = searchOpen ? search.ids : null;
+
+  // Stepping goes from place to place in the view: matches hidden in one compressed node count once.
+  const targets = useMemo(() => {
+    if (!searchIds) return [];
+    const seen = new Set<number>();
+    const out: string[] = [];
+    for (const id of searchIds) {
+      const at = viewIndex.indexOf(id);
+      if (at === null || seen.has(at)) continue;
+      seen.add(at);
+      out.push(id);
+    }
+    return out;
+  }, [searchIds, viewIndex, viewVersion]);
+
+  const selectedId = selected?.id ?? null;
+  const currentMatch = useMemo(() => {
+    if (!searchIds || selectedId === null) return null;
+    const at = searchIds.indexOf(selectedId);
+    return at < 0 ? null : at;
+  }, [searchIds, selectedId]);
+
+  const stepSearch = useCallback(
+    (step: 1 | -1) => {
+      if (targets.length === 0) return;
+      const selectedAt = selectedId === null ? null : viewIndex.indexOf(selectedId);
+      const position = selectedAt === null ? -1 : targets.findIndex((id) => viewIndex.indexOf(id) === selectedAt);
+      const next = stepMatch(targets.length, position < 0 ? null : position, step);
+      const id = next === null ? undefined : targets[next];
+      if (id) selectById(id);
+    },
+    [targets, selectedId, viewIndex, selectById],
+  );
+
+  const emphasis = useMemo((): Emphasis | null => {
+    if (mode === "list") return null;
+    if (searchIds && searchIds.length > 0) return matchEmphasis(viewIndex, searchIds);
+    if (!ancestors || selectedId === null) return null;
+    const at = viewIndex.indexOf(selectedId);
+    if (at === null) return null;
+    // The timeline draws its own links between commits, so it only needs the commits.
+    return mode === "timeline" ? { nodes: ancestorMask(viewIndex, at), edges: null, edgeStart: null } : ancestorEmphasis(viewIndex, at);
+  }, [mode, searchIds, ancestors, selectedId, viewIndex, viewVersion]);
+
+  const listCommits = useMemo(() => {
+    if (!searchIds) return index.commits;
+    return searchIds.flatMap((id) => {
+      const commit = index.commits[index.indexOf(id) ?? -1];
+      return commit ? [commit] : [];
+    });
+  }, [searchIds, index, stream.version]);
+
+  const toggleFilter = useCallback((ref: RefFilter) => setBranchFilter((filter) => toggleRef(filter, ref)), []);
+
+  const goHead = useCallback(() => {
+    // The refs are fresher than `repo.head`, which is from when the tab opened.
+    const head = [...index.refs.values()].flat().find((l) => l.kind === "Head");
+    const id = head?.commit ?? headCommitId(repo.head);
+    if (id !== null) selectById(id);
+  }, [index, repo.head, selectById]);
+
+  const actions = useStableActions<RepoCommandActions>({
+    setMode,
+    togglePanel: () => setPanelOpen((open) => !open),
+    toggleFlow,
+    toggleAncestors: () => setAncestors((on) => !on),
+    openSearch,
+    goHead,
+    zoomIn: () => graphRef.current?.zoomIn(),
+    zoomOut: () => graphRef.current?.zoomOut(),
+    fit: () => graphRef.current?.fit(),
+    collapseAll: compressed.collapseAll,
+    selectCommit: selectById,
+    toggleFilter,
+    showOnly: (ref) => setBranchFilter([ref]),
+    clearFilter: () => setBranchFilter(null),
+  });
+  usePaletteSource(
+    `repo:${repo.sessionId}`,
+    useRepoCommands(
+      active,
+      {
+        index,
+        version: stream.version,
+        mode,
+        panelOpen,
+        flow,
+        ancestors,
+        hasSelection: selected !== null,
+        canCollapse: mode === "topology" && compressed.expandedCount > 0,
+        branchFilter,
+      },
+      actions,
+    ),
   );
 
   // Show HEAD's commit as soon as it has been loaded, unless the user picked something first.
@@ -123,7 +289,15 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
 
   return (
     <div className={styles.view}>
-      <Sidebar sessionId={repo.sessionId} index={index} version={stream.version} selectedId={selected?.id ?? null} onSelectCommit={selectById} />
+      <Sidebar
+        sessionId={repo.sessionId}
+        index={index}
+        version={stream.version}
+        selectedId={selected?.id ?? null}
+        onSelectCommit={selectById}
+        branchFilter={branchFilter}
+        onToggleFilter={toggleFilter}
+      />
 
       <div className={styles.content}>
       <div className={styles.toolbar}>
@@ -133,15 +307,89 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         {repo.isBare && <span className={styles.meta}>bare</span>}
 
         <div className={styles.seg} role="tablist" aria-label="Vista">
-          <button type="button" role="tab" aria-selected={mode === "graph"} className={mode === "graph" ? styles.active : undefined} onClick={() => setMode("graph")}>
+          <button type="button" role="tab" aria-selected={mode === "graph"} className={mode === "graph" ? styles.active : undefined} title="Grafo (1)" onClick={() => setMode("graph")}>
             Grafo
+          </button>
+          <button type="button" role="tab" aria-selected={mode === "topology"} className={mode === "topology" ? styles.active : undefined} title="Topologia (2)" onClick={() => setMode("topology")}>
+            Topologia
+          </button>
+          <button type="button" role="tab" aria-selected={mode === "timeline"} className={mode === "timeline" ? styles.active : undefined} title="Timeline (3)" onClick={() => setMode("timeline")}>
+            Timeline
           </button>
           <button type="button" role="tab" aria-selected={mode === "list"} className={mode === "list" ? styles.active : undefined} onClick={() => setMode("list")}>
             Elenco
           </button>
         </div>
 
+        {mode === "topology" && (
+          <span className={styles.meta}>
+            {canvasIndex.length.toLocaleString("it-IT")} nodi
+            {compressed.expandedCount > 0 && (
+              <button type="button" className={styles.link} onClick={compressed.collapseAll}>
+                Comprimi tutto
+              </button>
+            )}
+          </span>
+        )}
+
+        {branchFilter && (
+          <span className={styles.chip} title={branchFilter.map((f) => f.name).join(", ")}>
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
+              <path d="M22 3H2l8 9.46V19l4 2v-8.54z" />
+            </svg>
+            Solo {describeFilter(branchFilter)}
+            <button type="button" aria-label="Mostra tutti i branch" title="Mostra tutti i branch" onClick={() => setBranchFilter(null)}>
+              ×
+            </button>
+          </span>
+        )}
+
         <code className={`${styles.path} selectable`}>{repo.path}</code>
+        <button
+          type="button"
+          className={`${styles.iconButton} ${searchOpen ? styles.active : ""}`}
+          aria-label="Cerca nei commit"
+          aria-pressed={searchOpen}
+          title="Cerca nei commit (/)"
+          onClick={() => (searchOpen ? closeSearch() : openSearch())}
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+        </button>
+        {mode !== "list" && (
+          <button
+            type="button"
+            className={`${styles.iconButton} ${ancestors ? styles.active : ""}`}
+            aria-label="Evidenzia gli antenati"
+            aria-pressed={ancestors}
+            title={ancestors ? "Smetti di evidenziare gli antenati (a)" : "Evidenzia gli antenati del commit selezionato (a)"}
+            onClick={() => setAncestors((on) => !on)}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="6" r="2.5" />
+              <circle cx="6" cy="6" r="2.5" />
+              <circle cx="6" cy="18" r="2.5" />
+              <path d="M6 8.5v7M15.5 6h-7" />
+            </svg>
+          </button>
+        )}
+        {mode !== "list" && (
+          <button
+            type="button"
+            className={`${styles.iconButton} ${flow ? styles.active : ""}`}
+            aria-label="Flusso animato"
+            aria-pressed={flow}
+            title={flow ? "Disattiva i pallini animati sui collegamenti" : "Attiva i pallini animati sui collegamenti"}
+            onClick={toggleFlow}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12h4M10 12h4" />
+              <circle cx="19" cy="12" r="2" fill="currentColor" />
+            </svg>
+          </button>
+        )}
         <button
           type="button"
           className={`${styles.iconButton} ${panelOpen ? styles.active : ""}`}
@@ -162,10 +410,46 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
 
       <div className={styles.body} style={panelOpen ? { gridTemplateColumns: `minmax(0, 1fr) ${panelWidth}px` } : undefined}>
         <div className={styles.main}>
-          {mode === "graph" ? (
-            <GraphCanvas ref={graphRef} index={index} version={stream.version} initialSelectedId={selected?.id ?? null} active={active} onSelect={setSelected} />
+          {mode === "timeline" ? (
+            <TimelineCanvas
+              ref={graphRef}
+              index={index}
+              version={stream.version}
+              initialSelectedId={selected?.id ?? null}
+              active={active}
+              flow={flow}
+              emphasis={emphasis}
+              onSelect={setSelected}
+            />
+          ) : mode !== "list" ? (
+            <GraphCanvas
+              ref={graphRef}
+              index={canvasIndex}
+              version={canvasVersion}
+              initialSelectedId={selected?.id ?? null}
+              active={active}
+              flow={flow}
+              emphasis={emphasis}
+              onSelect={setSelected}
+              onExpandGroup={mode === "topology" ? compressed.expand : undefined}
+              onCollapseGroup={mode === "topology" ? compressed.collapse : undefined}
+            />
           ) : (
-            <CommitList commits={index.commits} selectedId={selected?.id ?? null} onSelect={setSelected} />
+            <CommitList commits={listCommits} selectedId={selected?.id ?? null} onSelect={setSelected} />
+          )}
+          {searchOpen && (
+            <SearchBar
+              value={searchText}
+              onChange={setSearchText}
+              onClose={closeSearch}
+              search={search}
+              index={index}
+              current={currentMatch}
+              targets={targets.length}
+              onStep={stepSearch}
+              onPick={selectById}
+              focusSignal={searchFocus}
+            />
           )}
         </div>
 

@@ -10,16 +10,23 @@ export const commands = {
 	closeRepo: (sessionId: string) => __TAURI_INVOKE<void>("close_repo", { sessionId }),
 	/**
 	 *  Streams every commit of the repository, in topological order, through `on_event`.
-	 *  The graph comes from the on-disk cache when the repository's refs are unchanged since it was
-	 *  written. Starting a new load on the same session cancels the previous one.
+	 *  With `only`, just the commits reachable from those refs (the branch filter); every ref is still
+	 *  sent. The full graph comes from the on-disk cache when the repository's refs are unchanged
+	 *  since it was written. Starting a new load on the same session cancels the previous one.
 	 */
-	loadCommits: (sessionId: string, onEvent: Channel<LoadEvent>) => typedError<null, AppError>(__TAURI_INVOKE("load_commits", { sessionId, onEvent })),
+	loadCommits: (sessionId: string, only: RefFilter[] | null, onEvent: Channel<LoadEvent>) => typedError<null, AppError>(__TAURI_INVOKE("load_commits", { sessionId, only, onEvent })),
 	/**  Metadata and changed files of one commit, compared with its first parent. */
 	commitDetails: (sessionId: string, commitId: string) => typedError<CommitDetails, AppError>(__TAURI_INVOKE("commit_details", { sessionId, commitId })),
 	/**  Line diff of one file of a commit. `old_path` is the previous path of a renamed file. */
 	fileDiff: (sessionId: string, commitId: string, path: string, oldPath: string | null) => typedError<FileDiff, AppError>(__TAURI_INVOKE("file_diff", { sessionId, commitId, path, oldPath })),
 	/**  Stashes of the repository, newest first. */
 	listStashes: (sessionId: string) => typedError<StashEntry[], AppError>(__TAURI_INVOKE("list_stashes", { sessionId })),
+	/**
+	 *  Commits whose whole message contains `text`, or that changed the path `text`. Searches every
+	 *  ref (the frontend drops what the branch filter hides). A new search on the same session stops
+	 *  the previous one, which then returns early with `cancelled` set.
+	 */
+	searchCommits: (sessionId: string, field: SearchField, text: string) => typedError<SearchResult, AppError>(__TAURI_INVOKE("search_commits", { sessionId, field, text })),
 };
 
 /* Types */
@@ -164,6 +171,15 @@ export type Person = {
 	time: number | null,
 };
 
+/**
+ *  A ref chosen in the branch filter. Local branches match whether or not HEAD is on them, so
+ *  a filter survives a checkout.
+ */
+export type RefFilter = {
+	kind: RefKind,
+	name: string,
+};
+
 export type RefKind = 
 /**  The branch HEAD points to, or a detached HEAD. */
 "Head" | "Branch" | "Remote" | "Tag";
@@ -185,6 +201,22 @@ export type RepoInfo = {
 	/**  Number of references under `refs/` (branches, remote branches, tags, stash). */
 	refCount: number,
 	isBare: boolean,
+};
+
+export type SearchField = 
+/**  The whole commit message (subject and body), case-insensitive. */
+"Message" | 
+/**  Commits whose first-parent diff touches a file or directory (path relative to the root). */
+"Path";
+
+export type SearchResult = {
+	/**  Full hex ids of the matching commits, in no particular order. */
+	ids: string[],
+	/**  More commits matched than `MAX_RESULTS`. */
+	truncated: boolean,
+	/**  The search was cancelled by a newer one; `ids` is incomplete. */
+	cancelled: boolean,
+	elapsedMs: number | null,
 };
 
 export type StashEntry = {

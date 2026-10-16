@@ -1,4 +1,4 @@
-import type { RefLabel, StashEntry } from "../../lib/bindings";
+import type { RefKind, RefLabel, StashEntry } from "../../lib/bindings";
 
 export interface SidebarItem {
   key: string;
@@ -7,6 +7,8 @@ export interface SidebarItem {
   commit: string | null;
   isHead?: boolean;
   title?: string;
+  /** The ref behind the item, for the branch filter (not for stashes). */
+  ref?: { kind: RefKind; name: string };
 }
 
 export interface SidebarSection {
@@ -30,7 +32,7 @@ export function buildSections(
 
   for (const labels of refs) {
     for (const ref of labels) {
-      const item: SidebarItem = { key: `${ref.kind}:${ref.name}`, label: ref.name, commit: ref.commit };
+      const item: SidebarItem = { key: `${ref.kind}:${ref.name}`, label: ref.name, commit: ref.commit, ref: { kind: ref.kind, name: ref.name } };
       if (ref.kind === "Tag") tags.push(item);
       else if (ref.kind === "Remote") remotes.push(item);
       else branches.push({ ...item, isHead: ref.kind === "Head" });

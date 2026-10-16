@@ -21,5 +21,22 @@
   .close:hover { background: var(--subtle); color: var(--text); }
 
   .add { width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--r-md); color: var(--text-3); flex: none; }
+  .palette {
+    margin-left: auto;
+    margin-right: var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 26px;
+    padding: 0 5px 0 9px;
+    border-radius: var(--r-md);
+    background: var(--subtle);
+    color: var(--text-3);
+    flex: none;
+  }
+  .palette:hover { color: var(--text); }
+  .palette kbd { font: 500 10px/1 var(--font-mono); padding: 3px 5px; border-radius: 4px; background: var(--surface); border: 0.5px solid var(--border-strong); }
+  .theme { width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--r-md); color: var(--text-3); flex: none; }
+  .theme:hover { background: var(--hover); color: var(--text); }
   .add:hover { background: var(--hover); color: var(--text); }
 }

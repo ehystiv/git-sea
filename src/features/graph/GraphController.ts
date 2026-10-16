@@ -1,12 +1,19 @@
+import { THEME_CHANGED } from "../../lib/theme";
 import { COLUMN_W, LANE_H } from "./constants";
 import { draw, hitTest, RenderCache, type View } from "./draw";
+import type { Emphasis } from "./emphasis";
 import type { GraphIndex } from "./GraphIndex";
+import type { MinimapFrame } from "./MinimapOverlay";
 import { readPalette, type Palette } from "./palette";
 import { anchorAtCentre, centeredOn, clampView, clampZoom, fitView, homeView, viewAfterReplace, zoomAt, type ViewAnchor } from "./view";
 
 export interface GraphCallbacks {
   onSelect: (index: number | null) => void;
   onZoom: (zoom: number) => void;
+  /** A node standing for several commits was clicked; the argument is its newest commit's id. */
+  onExpandGroup?: (id: string) => void;
+  /** An already selected commit inside an opened run was clicked; the argument is the run's newest commit's id. */
+  onCollapseGroup?: (id: string) => void;
 }
 
 interface Animation {
@@ -41,8 +48,11 @@ export class GraphController {
   private gestureStartZoom = 1;
   private pendingG = 0;
   private active = true;
+  private flow = false;
+  private emphasis: Emphasis | null = null;
   private anchor: ViewAnchor | null = null;
   private selectedBeforeReplace: string | null = null;
+  private frameListeners: Array<(frame: MinimapFrame) => void> = [];
   private readonly disposers: Array<() => void> = [];
 
   /** Milliseconds the last frames took to issue their drawing commands (for profiling). */
@@ -148,6 +158,20 @@ export class GraphController {
     if (this.index.length > 0) this.animateTo(fitView(this.index, this.width, this.height));
   }
 
+  /** Registers a listener called after every drawn frame; returns the unsubscribe function. */
+  onFrame(listener: (frame: MinimapFrame) => void): () => void {
+    this.frameListeners.push(listener);
+    return () => {
+      this.frameListeners = this.frameListeners.filter((l) => l !== listener);
+    };
+  }
+
+  /** Moves the view (clamped to the graph), with a short animation or at once. */
+  goTo(view: View, animate: boolean): void {
+    if (animate) this.animateTo(view);
+    else this.setViewNow(view);
+  }
+
   select(index: number | null, center = true): void {
     this.selected = index;
     this.callbacks.onSelect(index);
@@ -184,13 +208,16 @@ export class GraphController {
       if (t >= 1) this.animation = null;
       else this.requestDraw();
     }
-    this.render();
+    // Dots moving along the links need a new frame every time; a still view does not.
+    const moving = this.render(now);
+    if (moving && this.active && !document.hidden) this.requestDraw();
   }
 
-  render(): void {
-    if (this.width === 0 || this.height === 0) return;
+  /** Draws a frame; returns true when something in it is moving. */
+  render(time: number = performance.now()): boolean {
+    if (this.width === 0 || this.height === 0) return false;
     const started = performance.now();
-    draw(this.ctx, {
+    const moving = draw(this.ctx, {
       width: this.width,
       height: this.height,
       dpr: this.dpr,
@@ -200,9 +227,28 @@ export class GraphController {
       cache: this.cache,
       selected: this.selected,
       hovered: this.hovered,
+      flowTime: this.flow ? time : null,
+      emphasis: this.emphasis,
     });
     this.frameTimes.push(performance.now() - started);
     if (this.frameTimes.length > 300) this.frameTimes.shift();
+    if (this.frameListeners.length > 0) {
+      const frame = { view: this.view, width: this.width, height: this.height, palette: this.palette };
+      this.frameListeners.forEach((listener) => listener(frame));
+    }
+    return moving;
+  }
+
+  /** Keeps these commits bright and fades the rest; null shows everything normally. */
+  setEmphasis(emphasis: Emphasis | null): void {
+    this.emphasis = emphasis;
+    this.requestDraw();
+  }
+
+  /** Switches the dots travelling along the links on or off. */
+  setFlow(enabled: boolean): void {
+    this.flow = enabled;
+    this.requestDraw();
   }
 
   /** Sets the view directly (used by profiling scripts). */
@@ -281,13 +327,12 @@ export class GraphController {
     window.addEventListener("keydown", keydown);
     this.disposers.push(() => window.removeEventListener("keydown", keydown));
 
-    const dark = window.matchMedia("(prefers-color-scheme: dark)");
     const themeChanged = () => {
       this.palette = readPalette();
       this.requestDraw();
     };
-    dark.addEventListener("change", themeChanged);
-    this.disposers.push(() => dark.removeEventListener("change", themeChanged));
+    window.addEventListener(THEME_CHANGED, themeChanged);
+    this.disposers.push(() => window.removeEventListener(THEME_CHANGED, themeChanged));
   }
 
   private local(e: MouseEvent): { x: number; y: number } {
@@ -323,7 +368,18 @@ export class GraphController {
     this.canvas.style.cursor = this.hovered === null ? "grab" : "pointer";
     if (!drag || drag.moved) return;
     const { x, y } = this.local(e);
-    this.select(hitTest(this.index, this.view, x, y), false);
+    const hit = hitTest(this.index, this.view, x, y);
+    const wasSelected = hit !== null && hit === this.selected;
+    this.select(hit, false);
+    const commit = hit === null ? undefined : this.index.commits[hit];
+    if (!commit) return;
+    if (this.index.groups.has(hit ?? -1)) {
+      this.callbacks.onExpandGroup?.(commit.id);
+    } else if (wasSelected) {
+      // A second click on a commit of an opened run closes the run again.
+      const run = this.index.openRuns.get(commit.id);
+      if (run !== undefined) this.callbacks.onCollapseGroup?.(run);
+    }
   }
 
   private setHover(index: number | null): void {

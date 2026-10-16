@@ -11,8 +11,10 @@ import {
   NODE,
 } from "./constants";
 import { describeCommit, type CommitKind, type Described } from "./describe";
-import type { GraphIndex } from "./GraphIndex";
+import { DIM_ALPHA, emphasisFits, type Emphasis } from "./emphasis";
+import type { CommitGroup, GraphIndex } from "./GraphIndex";
 import { iconPath } from "./icons";
+import { drawFlow, FlowLinks } from "./flow";
 import type { Palette } from "./palette";
 
 export interface View {
@@ -33,6 +35,10 @@ export class RenderCache {
   }
 }
 
+/** Pixels per second the dots travel at zoom 1, and the distance between them. */
+const FLOW_SPEED = 64;
+const FLOW_SPACING = 96;
+
 export interface Scene {
   width: number;
   height: number;
@@ -43,11 +49,18 @@ export interface Scene {
   cache: RenderCache;
   selected: number | null;
   hovered: number | null;
+  /** Animation time in milliseconds; null when the dots on the links are switched off. */
+  flowTime: number | null;
+  /** Commits and links to keep bright while the rest fades (search, ancestors); null for none. */
+  emphasis: Emphasis | null;
 }
 
 type Ctx = CanvasRenderingContext2D;
 
-export function draw(ctx: Ctx, scene: Scene): void {
+/** Draws a frame. Returns true when something in it moves, so the caller knows to keep animating. */
+export function draw(ctx: Ctx, input: Scene): boolean {
+  // A mask built for an older load would light the wrong commits; better none until it catches up.
+  const scene = emphasisFits(input.emphasis, input.index) ? input : { ...input, emphasis: null };
   const { width, height, view, index, palette } = scene;
   ctx.setTransform(scene.dpr, 0, 0, scene.dpr, 0, 0);
   ctx.fillStyle = palette.canvas;
@@ -55,22 +68,39 @@ export function draw(ctx: Ctx, scene: Scene): void {
   drawDots(ctx, scene);
 
   const count = index.length;
-  if (count === 0) return;
+  if (count === 0) return false;
 
   const z = view.z;
   const xMin = -view.tx / z;
   const xMax = (width - view.tx) / z;
   const first = Math.max(0, Math.floor(-xMax / COLUMN_W) - 1);
   const last = Math.min(count - 1, Math.ceil(-xMin / COLUMN_W) + 1);
-  if (first > last) return;
+  if (first > last) return false;
 
   const columnPx = COLUMN_W * z;
   const stride = columnPx >= MIN_COLUMN_PX ? 1 : Math.ceil(MIN_COLUMN_PX / columnPx);
 
-  drawEdges(ctx, scene, first, last, stride);
+  // Dots travel along the links only where the links are drawn one by one.
+  const links = scene.flowTime !== null && stride === 1 && z >= LOD_TILE ? new FlowLinks() : null;
+  drawEdges(ctx, scene, first, last, stride, links);
+  let moving = false;
+  if (links && scene.flowTime !== null) {
+    moving =
+      drawFlow(ctx, links, {
+        time: scene.flowTime,
+        anchor: view.tx,
+        spacing: FLOW_SPACING * z,
+        speed: FLOW_SPEED * z,
+        radius: Math.max(2, Math.min(4, 3.4 * z)),
+        width,
+        height,
+        palette,
+      }) > 0;
+  }
   if (z < LOD_TILE) drawDots2(ctx, scene, first, last, stride);
   else drawNodes(ctx, scene, first, last);
   scene.cache.trim();
+  return moving;
 }
 
 function drawDots(ctx: Ctx, { width, height, view, palette }: Scene): void {
@@ -86,7 +116,7 @@ function drawDots(ctx: Ctx, { width, height, view, palette }: Scene): void {
   ctx.fill();
 }
 
-function drawEdges(ctx: Ctx, scene: Scene, first: number, last: number, stride: number): void {
+function drawEdges(ctx: Ctx, scene: Scene, first: number, last: number, stride: number, flowLinks: FlowLinks | null): void {
   const { view, index, palette, height } = scene;
   const { tx, ty, z } = view;
   const columnPx = COLUMN_W * z;
@@ -95,6 +125,9 @@ function drawEdges(ctx: Ctx, scene: Scene, first: number, last: number, stride: 
   const rows = index.rows;
   const paths = Array.from({ length: BRANCH_COLORS }, () => new Path2D());
   const used = new Array<boolean>(BRANCH_COLORS).fill(false);
+  const emphasis = scene.emphasis;
+  const dimPaths = Array.from({ length: emphasis ? BRANCH_COLORS : 0 }, () => new Path2D());
+  const dimUsed = new Array<boolean>(BRANCH_COLORS).fill(false);
   const sy = (lane: number) => lane * LANE_H * z + ty;
   const margin = 24;
 
@@ -118,35 +151,47 @@ function drawEdges(ctx: Ctx, scene: Scene, first: number, last: number, stride: 
     const nodeY = sy(row.lane);
     const hasIn = stride > 1 && row.edges.some((e) => e.kind === "In");
 
-    for (const edge of row.edges) {
+    const edgeBase = emphasis?.edgeStart?.[r] ?? 0;
+    for (let k = 0; k < row.edges.length; k++) {
+      const edge = row.edges[k];
+      if (!edge) continue;
       const color = edge.color % BRANCH_COLORS;
-      const path = paths[color];
+      const bright = !emphasis || emphasis.edges?.[edgeBase + k] === 1;
+      const path = bright ? paths[color] : dimPaths[color];
       if (!path) continue;
       const fromY = sy(edge.fromLane);
       const toY = sy(edge.toLane);
       if (Math.max(fromY, toY) < -margin || Math.min(fromY, toY) > height + margin) continue;
-      used[color] = true;
+      if (bright) used[color] = true;
+      else dimUsed[color] = true;
+      // Faded links carry no dots.
+      const links = bright ? flowLinks : null;
 
       switch (edge.kind) {
         case "Through":
           path.moveTo(right, fromY);
           path.lineTo(sampledLeft, fromY);
+          links?.addStraight(sampledLeft, right, fromY, color);
           break;
         case "In":
           path.moveTo(right, nodeY);
           path.lineTo(stride > 1 ? sampledLeft : centerX + halfNode, nodeY);
+          links?.addStraight(centerX + halfNode, right, nodeY, color);
           break;
         case "Out":
           if (stride === 1 || !hasIn) {
             path.moveTo(centerX - halfNode, nodeY);
             path.lineTo(sampledLeft, nodeY);
+            links?.addStraight(sampledLeft, centerX - halfNode, nodeY, color);
           }
           break;
         case "MergeIn":
           curve(path, right, fromY, centerX + halfNode, nodeY);
+          links?.addCurve(right, fromY, centerX + halfNode, nodeY, color);
           break;
         case "ForkOut":
           curve(path, centerX - halfNode, nodeY, left, toY);
+          links?.addCurve(centerX - halfNode, nodeY, left, toY, color);
           break;
       }
     }
@@ -154,6 +199,14 @@ function drawEdges(ctx: Ctx, scene: Scene, first: number, last: number, stride: 
 
   ctx.lineWidth = Math.max(1, Math.min(2.5, 2 * z));
   ctx.lineCap = "round";
+  ctx.globalAlpha = DIM_ALPHA;
+  for (let c = 0; c < dimPaths.length; c++) {
+    const path = dimPaths[c];
+    if (!dimUsed[c] || !path) continue;
+    ctx.strokeStyle = palette.branch[c] ?? palette.text3;
+    ctx.stroke(path);
+  }
+  ctx.globalAlpha = 1;
   for (let c = 0; c < BRANCH_COLORS; c++) {
     const path = paths[c];
     if (!used[c] || !path) continue;
@@ -167,8 +220,10 @@ function drawDots2(ctx: Ctx, scene: Scene, first: number, last: number, stride: 
   const { view, index, palette, height } = scene;
   const { tx, ty, z } = view;
   const size = Math.max(2, Math.min(9, NODE * z * 1.2));
-  const paths = Array.from({ length: BRANCH_COLORS }, () => new Path2D());
-  const used = new Array<boolean>(BRANCH_COLORS).fill(false);
+  const nodes = scene.emphasis?.nodes ?? null;
+  // Bright squares are drawn after the faded ones, so a sampled column never hides a match.
+  const paths = Array.from({ length: BRANCH_COLORS * 2 }, () => new Path2D());
+  const used = new Array<boolean>(BRANCH_COLORS * 2).fill(false);
 
   for (let r = first - (first % stride); r <= last; r += stride) {
     const row = index.rows[r];
@@ -176,20 +231,29 @@ function drawDots2(ctx: Ctx, scene: Scene, first: number, last: number, stride: 
     const x = -r * COLUMN_W * z + tx;
     const y = row.lane * LANE_H * z + ty;
     if (y < -size || y > height + size) continue;
-    const color = row.color % BRANCH_COLORS;
-    paths[color]?.rect(x - size / 2, y - size / 2, size, size);
-    used[color] = true;
+    const slot = (row.color % BRANCH_COLORS) + (nodes && !hasBright(nodes, r, stride) ? 0 : BRANCH_COLORS);
+    paths[slot]?.rect(x - size / 2, y - size / 2, size, size);
+    used[slot] = true;
   }
-  for (let c = 0; c < BRANCH_COLORS; c++) {
-    const path = paths[c];
-    if (!used[c] || !path) continue;
-    ctx.fillStyle = palette.branch[c] ?? palette.text3;
+  for (let slot = 0; slot < paths.length; slot++) {
+    const path = paths[slot];
+    if (!used[slot] || !path) continue;
+    ctx.globalAlpha = nodes && slot < BRANCH_COLORS ? DIM_ALPHA : 1;
+    ctx.fillStyle = palette.branch[slot % BRANCH_COLORS] ?? palette.text3;
     ctx.fill(path);
   }
+  ctx.globalAlpha = 1;
+}
+
+/** A sampled column stands for `stride` columns; it is bright when any of them is. */
+function hasBright(nodes: Uint8Array, r: number, stride: number): boolean {
+  for (let i = r; i < r + stride && i < nodes.length; i++) if (nodes[i]) return true;
+  return false;
 }
 
 function drawNodes(ctx: Ctx, scene: Scene, first: number, last: number): void {
   const { view, index, palette, width, height, selected, hovered } = scene;
+  const nodes = scene.emphasis?.nodes ?? null;
   const { tx, ty, z } = view;
   const size = NODE * z;
   const card = z >= LOD_CARD;
@@ -210,8 +274,11 @@ function drawNodes(ctx: Ctx, scene: Scene, first: number, last: number): void {
     const left = cx - size / 2;
     const top = cy - size / 2;
 
-    ctx.beginPath();
+    ctx.globalAlpha = nodes && !nodes[r] ? DIM_ALPHA : 1;
+    const group = index.groups.get(r);
     const leftRadius = hasChildren ? radius : size / 2;
+    if (group && z >= LOD_TILE) drawStack(ctx, palette, color, left, top, size, z, radius);
+    ctx.beginPath();
     ctx.roundRect(left, top, size, size, [leftRadius, radius, radius, leftRadius]);
     ctx.fillStyle = palette.node;
     ctx.fill();
@@ -235,12 +302,81 @@ function drawNodes(ctx: Ctx, scene: Scene, first: number, last: number): void {
 
     if (!card) continue;
 
-    const described = describe(scene, r);
     drawPorts(ctx, palette, cx, cy, size, z, commit.parents.length > 0, hasChildren);
-    drawIcon(ctx, palette, described.kind, row.color, cx, cy, z);
+    if (group) {
+      drawGroup(ctx, palette, group, r === selected, color, cx, cy, size, z, commit.id);
+      continue;
+    }
+    const described = describe(scene, r);
+    if (described.emoji) drawEmoji(ctx, described.emoji, cx, cy, z);
+    else drawIcon(ctx, palette, described.kind, row.color, cx, cy, z);
     drawLabel(ctx, scene, r, described, cx, cy + size / 2 + 8 * z);
     drawBadges(ctx, scene, index.refs.get(commit.id), row.color, cx, top - 8 * z);
   }
+  ctx.globalAlpha = 1;
+}
+
+/** Two outlines peeking out behind a node that stands for several commits. */
+function drawStack(
+  ctx: Ctx,
+  palette: Palette,
+  color: string,
+  left: number,
+  top: number,
+  size: number,
+  z: number,
+  radius: number,
+): void {
+  ctx.lineWidth = Math.max(1, 1.5 * z);
+  ctx.strokeStyle = withAlpha(color, 0.55);
+  ctx.fillStyle = palette.node;
+  for (const step of [2, 1]) {
+    ctx.beginPath();
+    ctx.roundRect(left - step * 6 * z, top - step * 6 * z, size, size, radius);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+/** "1,2k"-style count that fits inside a node. */
+function compactCount(count: number): string {
+  return count < 1000 ? String(count) : `${(count / 1000).toFixed(count < 10_000 ? 1 : 0)}k`;
+}
+
+/** Content of a node that stands for a run of commits: the count inside, the range below. */
+function drawGroup(
+  ctx: Ctx,
+  palette: Palette,
+  group: CommitGroup,
+  selected: boolean,
+  color: string,
+  cx: number,
+  cy: number,
+  size: number,
+  z: number,
+  newestId: string,
+): void {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = `600 ${20 * z}px ${palette.fontMono}`;
+  ctx.fillStyle = color;
+  ctx.fillText(compactCount(group.count), cx, cy);
+
+  const top = cy + size / 2 + 8 * z;
+  ctx.textBaseline = "top";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 4 * z;
+  ctx.strokeStyle = palette.canvas;
+  ctx.font = `600 ${12 * z}px ${palette.fontUi}`;
+  ctx.fillStyle = selected ? palette.accentText : palette.text;
+  const label = `${group.count} commit`;
+  ctx.strokeText(label, cx, top);
+  ctx.fillText(label, cx, top);
+  ctx.font = `${10.5 * z}px ${palette.fontMono}`;
+  ctx.fillStyle = palette.text3;
+  const range = `${shortHash(newestId)} … ${shortHash(group.oldestId)}`;
+  ctx.strokeText(range, cx, top + 16 * z);
+  ctx.fillText(range, cx, top + 16 * z);
 }
 
 function describe(scene: Scene, r: number): Described {
@@ -296,6 +432,18 @@ function kindColor(palette: Palette, kind: CommitKind): string {
     case "commit":
       return palette.text2;
   }
+}
+
+/** System colour-emoji fonts; the UI fonts have no emoji glyphs. */
+const EMOJI_FONT = `"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+
+/** The commit's own emoji (gitmoji style), in place of the kind icon. */
+function drawEmoji(ctx: Ctx, emoji: string, cx: number, cy: number, z: number): void {
+  ctx.font = `${26 * z}px ${EMOJI_FONT}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  // Emoji glyphs sit a little high on the middle baseline.
+  ctx.fillText(emoji, cx, cy + 1.5 * z);
 }
 
 function drawIcon(
@@ -415,11 +563,11 @@ function drawBadges(
 
   let y = bottom - height;
   for (let i = 0; i < texts.length; i++) {
-    const text = texts[i] ?? "";
     const label = shown[i];
     const isHead = label?.kind === "Head";
     const chip = isHead ? 34 * z : 0;
-    const width = Math.min(COLUMN_W * z * 1.3, ctx.measureText(text).width + 14 * z + chip);
+    const text = fitText(ctx, texts[i] ?? "", COLUMN_W * z * 1.3 - 14 * z - chip);
+    const width = ctx.measureText(text).width + 14 * z + chip;
     const x = cx - width / 2;
 
     ctx.beginPath();
@@ -443,13 +591,26 @@ function drawBadges(
       textX = x + 35 * z;
     }
     ctx.fillStyle = color;
-    ctx.fillText(text, textX, y + height / 2 + 0.5 * z, width - (textX - x) - 5 * z);
+    ctx.fillText(text, textX, y + height / 2 + 0.5 * z);
     y -= height + gap;
   }
 }
 
+/** `text` cut with an ellipsis so it is at most `maxWidth` wide in the current font (never squeezed). */
+export function fitText(ctx: Ctx, text: string, maxWidth: number): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let lo = 0;
+  let hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (ctx.measureText(`${text.slice(0, mid)}…`).width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return `${text.slice(0, lo).trimEnd()}…`;
+}
+
 /** `#rrggbb` or `rgb(...)` to `rgba(..., alpha)`. Other formats are returned unchanged. */
-function withAlpha(color: string, alpha: number): string {
+export function withAlpha(color: string, alpha: number): string {
   if (color.startsWith("#") && color.length === 7) {
     const r = parseInt(color.slice(1, 3), 16);
     const g = parseInt(color.slice(3, 5), 16);

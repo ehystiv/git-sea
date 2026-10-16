@@ -1,0 +1,14 @@
+@layer components {
+  .minimap {
+    position: absolute;
+    right: var(--space-4);
+    bottom: var(--space-4);
+    width: 220px;
+    height: 96px;
+    border-radius: var(--r-md);
+    background: var(--surface);
+    box-shadow: 0 0 0 0.5px var(--border-strong), 0 2px 8px rgb(0 0 0 / 0.1);
+    cursor: pointer;
+    touch-action: none;
+  }
+}

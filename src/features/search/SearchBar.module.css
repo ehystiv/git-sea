@@ -1,0 +1,56 @@
+@layer components {
+  .bar {
+    position: absolute;
+    top: var(--space-3);
+    left: 50%;
+    z-index: 5;
+    width: min(560px, calc(100% - 32px));
+    transform: translateX(-50%);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    border: 0.5px solid var(--border-strong);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.14), 0 1px 3px rgb(0 0 0 / 0.06);
+    overflow: hidden;
+  }
+
+  .field { display: flex; align-items: center; gap: var(--space-2); height: 38px; padding: 0 6px 0 12px; color: var(--text-3); }
+  .field input { flex: 1; min-width: 0; border: 0; outline: none; background: none; color: var(--text); }
+  .field input::placeholder { color: var(--text-3); }
+  .status { flex: none; color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .icon { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--text-2); font-size: 16px; }
+  .icon:not(:disabled):hover { background: var(--hover); }
+  .icon:disabled { opacity: 0.4; }
+  .busy { animation: pulse 900ms ease-in-out infinite alternate; }
+  @keyframes pulse { to { opacity: 0.3; } }
+
+  .help { list-style: none; margin: 0; padding: 6px 12px 10px; border-top: 1px solid var(--border); color: var(--text-2); font-size: 12px; }
+  .help li { display: flex; align-items: center; gap: var(--space-2); height: 24px; }
+  .help kbd, .plain { min-width: 56px; text-align: center; }
+  .plain { color: var(--text-3); font-style: italic; }
+
+  .results { overflow: auto; border-top: 1px solid var(--border); padding: 4px 0; }
+  .canvas { position: relative; width: 100%; }
+  .row {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 120px 52px 64px;
+    align-items: center;
+    column-gap: var(--space-3);
+    padding: 0 12px;
+    text-align: left;
+    color: var(--text);
+  }
+  .row:hover { background: var(--hover); }
+  .selected, .selected:hover { background: var(--accent-soft); }
+  .summary, .author { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .author { color: var(--text-2); }
+  .date { color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .hash { font: 11.5px var(--font-mono); color: var(--text-3); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .busy { animation: none; }
+  }
+}

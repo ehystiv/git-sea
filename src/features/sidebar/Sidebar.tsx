@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
+import type { RefFilter } from "../../lib/bindings";
 import type { GraphIndex } from "../graph/GraphIndex";
-import { buildSections } from "./sections";
+import { inFilter } from "./refFilter";
+import { buildSections, type SidebarItem } from "./sections";
 import { useStashes } from "./useStashes";
 import styles from "./Sidebar.module.css";
 
@@ -11,14 +13,18 @@ interface SidebarProps {
   version: number;
   selectedId: string | null;
   onSelectCommit: (id: string) => void;
+  /** Refs the graph is limited to, or null for the whole history. */
+  branchFilter: RefFilter[] | null;
+  onToggleFilter: (ref: NonNullable<SidebarItem["ref"]>) => void;
 }
 
 const icon = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
 const TAG = "M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z";
+const FUNNEL = "M22 3H2l8 9.46V19l4 2v-8.54z";
 const STASH = "M2 3h20v5H2z M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8 M10 12h4";
 
-export function Sidebar({ sessionId, index, version, selectedId, onSelectCommit }: SidebarProps) {
+export function Sidebar({ sessionId, index, version, selectedId, onSelectCommit, branchFilter, onToggleFilter }: SidebarProps) {
   const stashes = useStashes(sessionId);
   const [filter, setFilter] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -64,13 +70,16 @@ export function Sidebar({ sessionId, index, version, selectedId, onSelectCommit 
                 {section.items.map((item) => {
                   const at = item.commit === null ? null : index.indexOf(item.commit);
                   const color = at === null ? null : index.rows[at]?.color;
+                  const ref = item.ref;
+                  const filtered = ref !== undefined && inFilter(branchFilter, ref);
+                  const missing = branchFilter !== null ? "Fuori dal filtro dei branch" : "Commit non ancora caricato";
                   return (
-                    <li key={item.key}>
+                    <li key={item.key} className={styles.row}>
                       <button
                         type="button"
                         className={`${styles.item} ${item.commit !== null && item.commit === selectedId ? styles.active : ""} ${item.isHead ? styles.head : ""}`}
                         disabled={at === null}
-                        title={item.title ?? (at === null ? "Commit non ancora caricato" : item.label)}
+                        title={item.title ?? (at === null ? missing : item.label)}
                         onClick={() => item.commit !== null && onSelectCommit(item.commit)}
                       >
                         {section.id === "tags" || section.id === "stashes" ? (
@@ -82,6 +91,20 @@ export function Sidebar({ sessionId, index, version, selectedId, onSelectCommit 
                         )}
                         <span className={styles.label}>{item.label}</span>
                       </button>
+                      {ref && (
+                        <button
+                          type="button"
+                          className={`${styles.filter} ${filtered ? styles.on : ""}`}
+                          aria-pressed={filtered}
+                          aria-label={filtered ? `Togli ${ref.name} dal filtro` : `Mostra solo ${ref.name}`}
+                          title={filtered ? "Togli dal filtro" : branchFilter ? "Aggiungi al filtro" : "Mostra solo questo"}
+                          onClick={() => onToggleFilter(ref)}
+                        >
+                          <svg viewBox="0 0 24 24" width="11" height="11" {...icon} fill={filtered ? "currentColor" : "none"}>
+                            <path d={FUNNEL} />
+                          </svg>
+                        </button>
+                      )}
                     </li>
                   );
                 })}

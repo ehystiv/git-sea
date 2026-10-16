@@ -24,7 +24,11 @@
   }
 
   .body { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
-  .main { min-width: 0; min-height: 0; }
+  .main { position: relative; min-width: 0; min-height: 0; }
+
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 2px 0 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-weight: 500; white-space: nowrap; max-width: 260px; overflow: hidden; }
+  .chip button { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; font-size: 14px; color: inherit; }
+  .chip button:hover { background: var(--accent-soft); }
 
   .panel { position: relative; min-width: 0; min-height: 0; border-left: 1px solid var(--border); }
   /* wider hit area than the visible 1px border */
@@ -34,6 +38,9 @@
   .iconButton { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-md); color: var(--text-2); }
   .iconButton:hover { background: var(--hover); }
   .iconButton.active { background: var(--accent-soft); color: var(--accent-text); }
+
+  .link { margin-left: var(--space-2); color: var(--accent-text); font-weight: 500; }
+  .link:hover { text-decoration: underline; }
 
   .seg { display: flex; padding: 2px; gap: 2px; border-radius: var(--r-md); background: var(--subtle); margin-left: var(--space-3); }
   .seg button { height: 24px; padding: 0 10px; border-radius: 6px; color: var(--text-2); font-weight: 500; }

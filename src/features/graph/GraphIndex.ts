@@ -6,6 +6,14 @@ export interface ReplaceListener {
   after: () => void;
 }
 
+/** A run of linear commits shown as one node in the compressed view. */
+export interface CommitGroup {
+  /** How many commits the node stands for. */
+  count: number;
+  /** The oldest of them; the node's own commit is the newest. */
+  oldestId: string;
+}
+
 /**
  * Everything the graph view needs about the loaded history, in arrays and maps that are appended
  * to as chunks arrive. It is mutable on purpose: copying 50k-element arrays on every chunk would
@@ -17,6 +25,12 @@ export class GraphIndex {
   refs = new Map<string, RefLabel[]>();
   /** Highest lane index used anywhere so far. */
   maxLane = 0;
+  /** Compressed view only: column of a node -> the run of commits it stands for. */
+  groups = new Map<number, CommitGroup>();
+  /** Compressed view only: id of a commit hidden inside a node -> column of that node. */
+  aliases = new Map<string, number>();
+  /** Compressed view only: id of a commit in a run that was opened -> id of that run's newest commit. */
+  openRuns = new Map<string, string>();
 
   private idToIndex = new Map<string, number>();
   private childrenOf = new Map<string, number[]>();
@@ -27,6 +41,9 @@ export class GraphIndex {
     this.rows = [];
     this.refs = new Map();
     this.maxLane = 0;
+    this.groups = new Map();
+    this.aliases = new Map();
+    this.openRuns = new Map();
     this.idToIndex = new Map();
     this.childrenOf = new Map();
   }
@@ -46,6 +63,9 @@ export class GraphIndex {
     this.rows = other.rows;
     this.refs = other.refs;
     this.maxLane = other.maxLane;
+    this.groups = other.groups;
+    this.aliases = other.aliases;
+    this.openRuns = other.openRuns;
     this.idToIndex = other.idToIndex;
     this.childrenOf = other.childrenOf;
     this.replaceListeners.forEach((l) => l.after());
@@ -85,9 +105,16 @@ export class GraphIndex {
     return this.commits.length;
   }
 
-  /** Position of a commit in the walk, or null when it is not loaded. */
+  /** Position of a commit in the walk (or of the node that hides it), or null when not loaded. */
   indexOf(id: string): number | null {
-    return this.idToIndex.get(id) ?? null;
+    return this.idToIndex.get(id) ?? this.aliases.get(id) ?? null;
+  }
+
+  /** Index of the only child of a commit, or null when it has none or several. */
+  soleChild(index: number): number | null {
+    const id = this.commits[index]?.id;
+    const children = id === undefined ? undefined : this.childrenOf.get(id);
+    return children?.length === 1 ? (children[0] ?? null) : null;
   }
 
   /** Index of the first parent, or null when it is a root or not loaded yet. */

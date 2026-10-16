@@ -74,7 +74,7 @@ pub struct WalkStats {
     pub from_cache: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Type)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Type)]
 pub enum RefKind {
     /// The branch HEAD points to, or a detached HEAD.
     Head,
@@ -91,6 +91,23 @@ pub struct RefLabel {
     pub commit: String,
     pub name: String,
     pub kind: RefKind,
+}
+
+/// A ref chosen in the branch filter. Local branches match whether or not HEAD is on them, so
+/// a filter survives a checkout.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Type)]
+pub struct RefFilter {
+    pub kind: RefKind,
+    pub name: String,
+}
+
+impl RefFilter {
+    fn matches(&self, label: &RefLabel) -> bool {
+        let local = |k: RefKind| matches!(k, RefKind::Head | RefKind::Branch);
+        self.name == label.name
+            && (self.kind == label.kind
+                || (local(self.kind) && local(label.kind) && label.name != "HEAD"))
+    }
 }
 
 pub struct RefSnapshot {
@@ -175,6 +192,25 @@ pub fn collect_refs(repo: &gix::Repository) -> Result<RefSnapshot, AppError> {
     tips.sort();
     tips.dedup();
     Ok(RefSnapshot { tips, labels })
+}
+
+impl RefSnapshot {
+    /// The tips of the refs in `only`, or every tip when there is no filter. A filter naming no
+    /// existing ref gives no tips (an empty graph), never the whole history.
+    pub fn tips_for(&self, only: Option<&[RefFilter]>) -> Vec<gix::ObjectId> {
+        let Some(only) = only else {
+            return self.tips.clone();
+        };
+        let mut tips: Vec<gix::ObjectId> = self
+            .labels
+            .iter()
+            .filter(|label| only.iter().any(|f| f.matches(label)))
+            .filter_map(|label| gix::ObjectId::from_hex(label.commit.as_bytes()).ok())
+            .collect();
+        tips.sort();
+        tips.dedup();
+        tips
+    }
 }
 
 /// Walks the commits reachable from `tips` in topological order (children before parents) and

@@ -20,6 +20,12 @@
   .head { color: var(--text); font-weight: 500; }
   .head::after { content: "HEAD"; margin-left: auto; font: 600 9.5px/1 var(--font-mono); color: var(--accent-text); }
 
+  .row { display: flex; align-items: center; }
+  .filter { flex: none; width: 22px; height: 22px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--text-3); opacity: 0; }
+  .row:hover .filter, .filter:focus-visible { opacity: 1; }
+  .filter:hover { background: var(--hover); color: var(--text); }
+  .filter.on { opacity: 1; color: var(--accent-text); }
+
   .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
   .glyph { color: var(--text-3); flex: none; }
   .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

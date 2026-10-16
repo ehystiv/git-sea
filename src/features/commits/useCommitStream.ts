@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Channel } from "@tauri-apps/api/core";
-import { commands, type LoadEvent } from "../../lib/bindings";
+import { commands, type LoadEvent, type RefFilter } from "../../lib/bindings";
 import { GraphIndex } from "../graph/GraphIndex";
 
 export interface BackendTimings {
@@ -44,9 +44,14 @@ const INITIAL: StreamState = {
   error: null,
 };
 
-/** Loads every commit of a session into a GraphIndex as the chunks arrive. */
-export function useCommitStream(sessionId: string): CommitStream {
+/**
+ * Loads every commit of a session into a GraphIndex as the chunks arrive. With `only`, just the
+ * history of those refs (the branch filter); changing it reloads like a refresh, in place.
+ */
+export function useCommitStream(sessionId: string, only: RefFilter[] | null = null): CommitStream {
   const index = useMemo(() => new GraphIndex(), [sessionId]);
+  // Compared by value, so a new array with the same refs does not reload.
+  const onlyKey = only === null ? "" : JSON.stringify(only);
   const [state, setState] = useState<StreamState>(INITIAL);
   const [reloads, setReloads] = useState(0);
   const reload = useCallback(() => setReloads((n) => n + 1), []);
@@ -56,9 +61,9 @@ export function useCommitStream(sessionId: string): CommitStream {
     const startedAt = performance.now();
     const elapsed = () => Math.round(performance.now() - startedAt);
 
-    // The first load fills `index` as chunks arrive. A reload fills a fresh one off screen and
-    // swaps it in when complete, so the graph never flashes empty or jumps.
-    const refreshing = reloads > 0;
+    // The first load fills `index` as chunks arrive. A reload (or a new filter) fills a fresh one
+    // off screen and swaps it in when complete, so the graph never flashes empty or jumps.
+    const refreshing = index.length > 0;
     const target = refreshing ? new GraphIndex() : index;
     if (refreshing) {
       setState((prev) => ({ ...prev, refreshing: true, error: null }));
@@ -98,7 +103,7 @@ export function useCommitStream(sessionId: string): CommitStream {
     };
 
     commands
-      .loadCommits(sessionId, channel)
+      .loadCommits(sessionId, onlyKey === "" ? null : (JSON.parse(onlyKey) as RefFilter[]), channel)
       .then((result) => {
         if (active && result.status === "error") {
           setState((prev) => ({ ...prev, status: "error", error: result.error.message }));
@@ -111,7 +116,7 @@ export function useCommitStream(sessionId: string): CommitStream {
     return () => {
       active = false;
     };
-  }, [sessionId, index, reloads]);
+  }, [sessionId, index, reloads, onlyKey]);
 
   return { index, reload, ...state };
 }
