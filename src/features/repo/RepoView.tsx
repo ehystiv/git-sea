@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "../../components/Badge/Badge";
 import { Button } from "../../components/Button/Button";
@@ -22,6 +22,7 @@ import { Sidebar } from "../sidebar/Sidebar";
 import { useFlow } from "../../lib/flow";
 import { shortHash } from "../../lib/format";
 import { headCommitId } from "./head";
+import { useDrawer } from "./useDrawer";
 import { useFetchStatus } from "./useFetchStatus";
 import { useRepoChanges } from "./useRepoChanges";
 import { useRepoCommands, type RepoCommandActions, type ViewMode } from "./useRepoCommands";
@@ -31,6 +32,8 @@ import styles from "./RepoView.module.css";
 const PANEL_MIN = 320;
 const PANEL_MAX = 900;
 const PANEL_DEFAULT = 440;
+/** Space around the floating details panel, as `--space-3` in RepoView.module.css. */
+const PANEL_GAP = 12;
 
 function describeHead(head: HeadInfo): { label: string; detail?: string } {
   switch (head.kind) {
@@ -307,6 +310,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     }
   }, [stream.version, stream.status, repo.head, index, selected, selectById]);
 
+  const insetRight = panelOpen ? panelWidth + PANEL_GAP * 2 : 0;
+  const drawer = useDrawer(panelOpen);
+
   function startResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();
     const startX = event.clientX;
@@ -445,8 +451,12 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         </Button>
       </div>
 
-      <div className={styles.body} style={panelOpen ? { gridTemplateColumns: `minmax(0, 1fr) ${panelWidth}px` } : undefined}>
-        <div className={styles.main}>
+      <div className={styles.body}>
+        {/* The panel floats above the views, which keep their size: resizing it redraws nothing. */}
+        <div
+          className={`${styles.main} ${mode === "list" ? styles.reserve : ""}`}
+          style={{ "--inset-right": `${insetRight}px` } as CSSProperties}
+        >
           {mode === "timeline" ? (
             <TimelineCanvas
               ref={graphRef}
@@ -457,6 +467,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               flow={flow}
               emphasis={emphasis}
               onSelect={selectCommit}
+              insetRight={insetRight}
             />
           ) : mode !== "list" ? (
             <GraphCanvas
@@ -472,6 +483,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               onCollapseGroup={mode === "topology" ? compressed.collapse : undefined}
               worktree={worktreeMarker}
               onOpenWorktree={openWorktree}
+              insetRight={insetRight}
             />
           ) : (
             <CommitList commits={listCommits} selectedId={selected?.id ?? null} onSelect={selectCommit} />
@@ -492,8 +504,13 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
           )}
         </div>
 
-        {panelOpen && (
-          <div className={styles.panel}>
+        {drawer.mounted && (
+          <div
+            className={`${styles.panel} ${drawer.shown ? styles.shown : ""}`}
+            style={{ width: panelWidth }}
+            onTransitionEnd={drawer.onTransitionEnd}
+            inert={!drawer.shown}
+          >
             <div className={styles.resizer} onPointerDown={startResize} role="separator" aria-orientation="vertical" aria-label="Ridimensiona il pannello" />
             {showWorktree ? (
               <WorktreePanel

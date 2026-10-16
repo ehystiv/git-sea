@@ -31,6 +31,8 @@ interface GraphCanvasProps {
   worktree: WorktreeMarker | null;
   /** The badge of local changes was clicked. */
   onOpenWorktree?: () => void;
+  /** Pixels on the right covered by the floating details panel; the canvas keeps its size. */
+  insetRight: number;
 }
 
 const ARROW = { left: "←", right: "→", up: "↑", down: "↓" } as const;
@@ -45,7 +47,7 @@ export interface GraphCanvasHandle {
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree, insetRight },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -58,6 +60,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const onExpandRef = useRef(onExpandGroup);
   const onCollapseRef = useRef(onCollapseGroup);
   const worktreeRef = useRef(worktree);
+  const insetRef = useRef(insetRight);
   const onOpenWorktreeRef = useRef(onOpenWorktree);
   const [zoom, setZoom] = useState(1);
   const [unseen, setUnseen] = useState<Unseen | null>(null);
@@ -103,6 +106,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     controller.setFlow(flowRef.current);
     controller.setEmphasis(emphasisRef.current);
     controller.setWorktree(worktreeRef.current);
+    controller.setInsetRight(insetRef.current);
     const minimap = new Minimap(minimapCanvas, index, controller);
 
     const observer = new ResizeObserver(() => {
@@ -149,6 +153,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     emphasisRef.current = emphasis;
     controllerRef.current?.setEmphasis(emphasis);
   }, [emphasis]);
+
+  useEffect(() => {
+    insetRef.current = insetRight;
+    controllerRef.current?.setInsetRight(insetRight);
+  }, [insetRight]);
 
   useEffect(() => {
     worktreeRef.current = worktree;

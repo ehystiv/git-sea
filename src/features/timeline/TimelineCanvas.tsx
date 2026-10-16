@@ -20,11 +20,13 @@ interface TimelineCanvasProps {
   /** Commits to keep bright while the rest fades; built for `index`. */
   emphasis: Emphasis | null;
   onSelect: (commit: CommitSummary | null) => void;
+  /** Pixels on the right covered by the floating details panel; the canvas keeps its size. */
+  insetRight: number;
 }
 
 /** The history on a time axis: one row per lane of the graph layout, newest commits on the right. */
 export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>(function TimelineCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, insetRight },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -33,6 +35,7 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
   const onSelectRef = useRef(onSelect);
   const flowRef = useRef(flow);
   const emphasisRef = useRef(emphasis);
+  const insetRef = useRef(insetRight);
   const pendingSelectRef = useRef<string | null>(null);
   const [zoom, setZoom] = useState(1);
 
@@ -66,6 +69,7 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
     controllerRef.current = controller;
     controller.setFlow(flowRef.current);
     controller.setEmphasis(emphasisRef.current);
+    controller.setInsetRight(insetRef.current);
 
     const observer = new ResizeObserver(() => {
       const { width, height } = wrap.getBoundingClientRect();
@@ -109,6 +113,11 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
     emphasisRef.current = emphasis;
     controllerRef.current?.setEmphasis(emphasis);
   }, [emphasis]);
+
+  useEffect(() => {
+    insetRef.current = insetRight;
+    controllerRef.current?.setInsetRight(insetRight);
+  }, [insetRight]);
 
   return (
     <div ref={wrapRef} className={styles.wrap}>

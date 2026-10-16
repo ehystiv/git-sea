@@ -66,6 +66,8 @@ export class GraphController {
   private view: View = { tx: 0, ty: 0, z: 1 };
   private width = 0;
   private height = 0;
+  /** Pixels on the right covered by something floating above the canvas (the details panel). */
+  private insetRight = 0;
   private dpr = 1;
   private selected: number | null = null;
   private hovered: number | null = null;
@@ -139,6 +141,19 @@ export class GraphController {
     this.requestDraw();
   }
 
+  /**
+   * Something floating above the canvas covers this many pixels on the right (the details panel).
+   * The canvas keeps its size; centring, fitting and the first placement use the part left visible.
+   */
+  setInsetRight(px: number): void {
+    this.insetRight = Math.max(0, px);
+  }
+
+  /** Width of the part of the canvas nothing floats over. */
+  private get visibleWidth(): number {
+    return Math.max(1, this.width - this.insetRight);
+  }
+
   /** Call after the index changed (new chunk, refs, reset). */
   dataChanged(): void {
     if (this.index.length === 0) {
@@ -150,7 +165,7 @@ export class GraphController {
       this.cache.described.clear();
       this.cache.wrapped.clear();
     } else if (!this.placed && this.width > 0) {
-      this.view = homeView(this.index, this.width, this.height);
+      this.view = homeView(this.index, this.visibleWidth, this.height);
       this.placed = true;
       this.callbacks.onZoom(this.view.z);
     }
@@ -159,7 +174,7 @@ export class GraphController {
 
   /** The history is about to be swapped for a fresh one: remember what the user is looking at. */
   private beforeReplace(motion: ReplaceMotion): void {
-    this.anchor = this.placed ? anchorAtCentre(this.index, this.view, this.width) : null;
+    this.anchor = this.placed ? anchorAtCentre(this.index, this.view, this.visibleWidth) : null;
     this.morph = null;
     // Reduced motion still lets new commits fade in, but nothing slides.
     const allowed = motion === "arrival" || !prefersReducedMotion();
@@ -203,7 +218,7 @@ export class GraphController {
   private updateUnseen(): void {
     let next: Unseen | null = null;
     const column = this.unseen.length > 0 ? newestColumn(this.index, this.unseen) : null;
-    const side = column === null ? null : sideOf(this.index, this.view, this.width, this.height, column);
+    const side = column === null ? null : sideOf(this.index, this.view, this.visibleWidth, this.height, column);
     if (side === null) this.unseen = [];
     else next = { count: this.unseen.filter((id) => this.index.indexOf(id) !== null).length, side };
     const last = this.unseenReported;
@@ -252,11 +267,11 @@ export class GraphController {
   }
 
   zoomBy(factor: number): void {
-    this.animateTo(zoomAt(this.view, factor, this.width / 2, this.height / 2));
+    this.animateTo(zoomAt(this.view, factor, this.visibleWidth / 2, this.height / 2));
   }
 
   fit(): void {
-    if (this.index.length > 0) this.animateTo(fitView(this.index, this.width, this.height));
+    if (this.index.length > 0) this.animateTo(fitView(this.index, this.visibleWidth, this.height));
   }
 
   /** Registers a listener called after every drawn frame; returns the unsubscribe function. */
@@ -282,7 +297,7 @@ export class GraphController {
 
   centerOn(index: number): void {
     const z = this.view.z < 0.35 ? 0.8 : this.view.z;
-    this.animateTo(centeredOn(this.index, index, z, this.width, this.height));
+    this.animateTo(centeredOn(this.index, index, z, this.visibleWidth, this.height));
   }
 
   // ---- drawing ---------------------------------------------------------------------------

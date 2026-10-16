@@ -23,16 +23,42 @@
     white-space: nowrap;
   }
 
-  .body { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  /* Clips the details panel while it slides in from past the right edge. */
+  .body { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; overflow: hidden; }
   .main { position: relative; min-width: 0; min-height: 0; }
+  /* The list is not a canvas: it makes room for the panel instead of going under it. */
+  .main.reserve { padding-right: var(--inset-right); }
 
   .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 2px 0 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-weight: 500; white-space: nowrap; max-width: 260px; overflow: hidden; }
   .chip button { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; font-size: 14px; color: inherit; }
   .chip button:hover { background: var(--accent-soft); }
 
-  .panel { position: relative; min-width: 0; min-height: 0; border-left: 1px solid var(--border); }
-  /* wider hit area than the visible 1px border */
-  .resizer { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 1; }
+  /* Floats above the views, so resizing it never changes the canvas size. */
+  .panel {
+    position: absolute;
+    top: var(--space-3);
+    right: var(--space-3);
+    bottom: var(--space-3);
+    z-index: 10;
+    /* A narrow window keeps a strip of the view visible on the left. */
+    max-width: calc(100% - var(--space-3) * 2 - 120px);
+    min-height: 0;
+    border-radius: var(--r-lg);
+    border: 0.5px solid var(--border-strong);
+    background: var(--surface);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.08);
+    overflow: hidden;
+    /* A drawer: out past the right edge until shown, sliding in and back out. */
+    transform: translateX(calc(100% + var(--space-3) + 24px));
+    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .panel.shown { transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .panel { transform: none; opacity: 0; transition: opacity 140ms ease-out; }
+    .panel.shown { opacity: 1; }
+  }
+  /* wider hit area than the panel's edge */
+  .resizer { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 1; }
   .resizer:hover { background: var(--accent-soft); }
 
   .iconButton { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-md); color: var(--text-2); }

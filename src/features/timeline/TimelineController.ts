@@ -43,6 +43,8 @@ export class TimelineController {
   private view: TimelineView = { t0: 0, ty: AXIS_H + 34, zx: BASE_ZX };
   private width = 0;
   private height = 0;
+  /** Pixels on the right covered by something floating above the canvas (the details panel). */
+  private insetRight = 0;
   private dpr = 1;
   private placed = false;
   private selected: number | null = null;
@@ -91,6 +93,15 @@ export class TimelineController {
     if (active) this.requestDraw();
   }
 
+  /** See `GraphController.setInsetRight`. */
+  setInsetRight(px: number): void {
+    this.insetRight = Math.max(0, px);
+  }
+
+  private get visibleWidth(): number {
+    return Math.max(1, this.width - this.insetRight);
+  }
+
   resize(width: number, height: number, dpr: number): void {
     if (width === 0 || height === 0) return;
     this.width = width;
@@ -111,7 +122,7 @@ export class TimelineController {
       this.selected = null;
       this.hovered = null;
     } else if (!this.placed && this.width > 0) {
-      this.view = homeTimeline(this.currentData(), this.lanes, this.width, this.height);
+      this.view = homeTimeline(this.currentData(), this.lanes, this.visibleWidth, this.height);
       this.placed = true;
       this.callbacks.onZoom(this.view.zx / BASE_ZX);
     }
@@ -155,11 +166,11 @@ export class TimelineController {
   }
 
   zoomBy(factor: number): void {
-    this.animateTo(zoomAtX(this.view, factor, this.width / 2, this.currentData(), this.width));
+    this.animateTo(zoomAtX(this.view, factor, this.visibleWidth / 2, this.currentData(), this.width));
   }
 
   fit(): void {
-    if (this.index.length > 0) this.animateTo(fitTimeline(this.currentData(), this.lanes, this.width, this.height));
+    if (this.index.length > 0) this.animateTo(fitTimeline(this.currentData(), this.lanes, this.visibleWidth, this.height));
   }
 
   select(index: number | null, center = true): void {
@@ -172,7 +183,7 @@ export class TimelineController {
   centerOn(index: number): void {
     const data = this.currentData();
     const lane = this.index.rows[index]?.lane ?? 0;
-    this.animateTo(centeredOnTimeline(this.view, data.times[index] ?? 0, lane, this.width, this.height));
+    this.animateTo(centeredOnTimeline(this.view, data.times[index] ?? 0, lane, this.visibleWidth, this.height));
   }
 
   /** Sets the view directly (used by profiling scripts). */
