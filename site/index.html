@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>git-sea</title>
+  <meta name="description" content="A fast, read-only Git history viewer for macOS that makes the commit graph easy to understand.">
+  <meta property="og:title" content="git-sea">
+  <meta property="og:description" content="A fast, read-only Git history viewer for macOS.">
+  <meta property="og:image" content="logo.png">
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f7f9;
+      --surface: #ffffff;
+      --titlebar: #f1f1f5;
+      --border: #e7e7ee;
+      --border-strong: #d9d9e3;
+      --text: #1a1a22;
+      --text-2: #5b5b6b;
+      --text-3: #8d8d9e;
+      --accent: #6d4aff;
+      --accent-soft: rgb(109 74 255 / 0.1);
+      --accent-text: #5a37f0;
+      --canvas: #f5f5f8;
+      --dot: #d3d3de;
+      --node: #ffffff;
+      --fish: 26 32 92;
+      --hero-a: #efeaff;
+      --hero-b: #f7f7f9;
+      --b0: #6d4aff; --b1: #0f9d8a; --b2: #d98a0b; --b3: #d6457f; --b4: #2f7ee8;
+      --font-ui: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --bg: #0c0c10;
+        --surface: #121217;
+        --titlebar: #0f0f14;
+        --border: #22222b;
+        --border-strong: #30303c;
+        --text: #ececf2;
+        --text-2: #a3a3b4;
+        --text-3: #6d6d7f;
+        --accent: #9b83ff;
+        --accent-soft: rgb(155 131 255 / 0.14);
+        --accent-text: #b5a2ff;
+        --canvas: #0d0d12;
+        --dot: #2b2b37;
+        --node: #1f1f29;
+        --fish: 120 140 255;
+        --hero-a: #17123a;
+        --hero-b: #0c0c10;
+        --b0: #9b83ff; --b1: #2cc7b0; --b2: #f0a83a; --b3: #f06a9f; --b4: #5aa0ff;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 var(--font-ui);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--accent-text); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, kbd { font-family: var(--font-mono); font-size: 0.88em; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+    /* nav */
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: saturate(1.6) blur(14px);
+      -webkit-backdrop-filter: saturate(1.6) blur(14px);
+      background: color-mix(in srgb, var(--bg) 72%, transparent);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+    .brand:hover { text-decoration: none; }
+    .brand img { width: 30px; height: 30px; }
+    nav .links { display: flex; gap: 20px; margin-left: auto; font-size: 14px; }
+    nav .links a { color: var(--text-2); }
+    nav .links a:hover { color: var(--text); text-decoration: none; }
+
+    /* hero */
+    .hero {
+      background: radial-gradient(1200px 520px at 50% -120px, var(--hero-a), var(--hero-b) 70%);
+      padding: 72px 0 0;
+      text-align: center;
+      overflow: hidden;
+    }
+    .hero .logo { width: 112px; height: 112px; filter: drop-shadow(0 18px 30px rgb(60 30 200 / 0.3)); }
+    h1 {
+      font-size: clamp(36px, 6vw, 60px);
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      margin: 20px auto 16px;
+      max-width: 14ch;
+      text-wrap: balance;
+    }
+    h1 .grad {
+      background: linear-gradient(90deg, var(--accent), #2fc4e8);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .lead { font-size: clamp(17px, 2vw, 19px); color: var(--text-2); max-width: 620px; margin: 0 auto 32px; text-wrap: pretty; }
+    .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      height: 44px; padding: 0 20px; border-radius: 10px;
+      font-weight: 600; font-size: 15px;
+      border: 1px solid var(--border-strong);
+      color: var(--text); background: var(--surface);
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .btn:hover { text-decoration: none; transform: translateY(-1px); box-shadow: 0 6px 20px rgb(0 0 0 / 0.08); }
+    .btn.primary { background: var(--accent); border-color: transparent; color: #fff; box-shadow: 0 8px 24px rgb(109 74 255 / 0.35); }
+    .btn svg { width: 18px; height: 18px; }
+    .note { margin-top: 14px; font-size: 13px; color: var(--text-3); }
+
+    /* app window */
+    .window {
+      margin: 56px auto 0;
+      max-width: 1040px;
+      border: 1px solid var(--border-strong);
+      border-bottom: none;
+      border-radius: 14px 14px 0 0;
+      background: var(--surface);
+      box-shadow: 0 30px 80px rgb(30 20 90 / 0.18);
+      overflow: hidden;
+      text-align: left;
+    }
+    .titlebar {
+      height: 44px; display: flex; align-items: center; gap: 16px;
+      padding: 0 16px; background: var(--titlebar); border-bottom: 1px solid var(--border);
+    }
+    .lights { display: flex; gap: 8px; }
+    .lights i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+    .lights i:nth-child(1) { background: #ff5f57; }
+    .lights i:nth-child(2) { background: #febc2e; }
+    .lights i:nth-child(3) { background: #28c840; }
+    .tab {
+      font-size: 12.5px; font-weight: 500; color: var(--text);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; padding: 3px 12px;
+    }
+    .tab.off { background: none; border-color: transparent; color: var(--text-3); }
+    .body { display: grid; grid-template-columns: 200px 1fr; height: 400px; }
+    .side { border-right: 1px solid var(--border); padding: 14px 10px; font-size: 12.5px; overflow: hidden; }
+    .side h4 { margin: 10px 8px 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); font-weight: 600; }
+    .side h4:first-child { margin-top: 0; }
+    .side div { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 6px; color: var(--text-2); white-space: nowrap; }
+    .side div.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 500; }
+    .side div::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--text-3)); flex: none; }
+    #graph { width: 100%; height: 100%; display: block; background: var(--canvas); }
+
+    /* sections */
+    section { padding: 96px 0; }
+    .eyebrow { color: var(--accent-text); font-weight: 600; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+    h2 { font-size: clamp(28px, 4vw, 40px); letter-spacing: -0.03em; line-height: 1.15; margin: 8px 0 14px; text-wrap: balance; }
+    .sub { color: var(--text-2); max-width: 640px; margin: 0 0 48px; font-size: 17px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px;
+    }
+    .card h3 { margin: 14px 0 6px; font-size: 16.5px; letter-spacing: -0.01em; }
+    .card p { margin: 0; color: var(--text-2); font-size: 14.5px; }
+    .icon {
+      width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+      background: var(--accent-soft); color: var(--accent-text);
+    }
+    .icon svg { width: 20px; height: 20px; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .stat { border-top: 2px solid var(--accent); padding-top: 18px; }
+    .stat b { display: block; font-size: clamp(34px, 5vw, 48px); letter-spacing: -0.04em; line-height: 1; }
+    .stat span { color: var(--text-2); font-size: 14.5px; }
+
+    .alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .views { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .view { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--bg); }
+    .view svg { display: block; width: 100%; height: 110px; background: var(--canvas); border-bottom: 1px solid var(--border); }
+    .view div { padding: 16px 18px 18px; }
+    .view h3 { margin: 0 0 4px; font-size: 15.5px; }
+    .view p { margin: 0; color: var(--text-2); font-size: 14px; }
+
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+    .keys { display: grid; gap: 2px; }
+    .keys div { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14.5px; color: var(--text-2); }
+    kbd {
+      display: inline-block; min-width: 24px; text-align: center; padding: 1px 7px; margin-left: 4px;
+      border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 6px;
+      background: var(--surface); color: var(--text); font-size: 12.5px;
+    }
+    pre {
+      margin: 0; padding: 18px 20px; border-radius: 12px; overflow-x: auto;
+      background: #14121f; color: #e8e6f5; font: 13.5px/1.7 var(--font-mono);
+      border: 1px solid var(--border);
+    }
+    pre .c { color: #7f7a99; }
+    .install h3 { font-size: 16px; margin: 28px 0 10px; }
+    .install h3:first-child { margin-top: 0; }
+    .install p { color: var(--text-2); font-size: 14.5px; margin: 0 0 12px; }
+
+    .stack { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+    .stack span { font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); }
+
+    footer { border-top: 1px solid var(--border); padding: 32px 0 48px; color: var(--text-3); font-size: 14px; }
+    footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+    @media (max-width: 900px) {
+      .grid, .views { grid-template-columns: repeat(2, 1fr); }
+      .split { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .wrap { padding: 0 16px; }
+      nav .links a:not(.gh) { display: none; }
+      .grid, .views, .stats { grid-template-columns: 1fr; }
+      .body { grid-template-columns: 1fr; height: 300px; }
+      .side { display: none; }
+      .tab.off { display: none; }
+      section { padding: 72px 0; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <a class="brand" href="#"><img src="logo.svg" alt="">git-sea</a>
+      <div class="links">
+        <a href="#features">Features</a>
+        <a href="#views">Views</a>
+        <a href="#install">Install</a>
+        <a class="gh" href="https://github.com/ehystiv/git-sea">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="wrap">
+      <img class="logo" src="logo.svg" alt="git-sea logo">
+      <h1>See where your <span class="grad">branches go</span>.</h1>
+      <p class="lead">git-sea is a fast, read-only Git history viewer for macOS. It lays out your commit graph as a node canvas, so you can see at a glance how branches split, merge and flow.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/ehystiv/git-sea/releases/latest">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.6c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.48.83-.72 0-1.82-.81-3-.79-1.54.02-2.96.9-3.76 2.27-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.23-.02 2.01-1.12 2.76-2.23.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.4-.92-2.42-3.66zM14.1 5.86c.63-.77 1.06-1.83.94-2.89-.91.04-2.01.61-2.66 1.37-.58.67-1.09 1.75-.96 2.79 1.02.08 2.05-.52 2.68-1.27z"/></svg>
+          Download for macOS
+        </a>
+        <a class="btn" href="https://github.com/ehystiv/git-sea">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.8 1.19 1.82 1.19 3.08 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+      <p class="note">Free and open source · Universal build for Apple Silicon and Intel</p>
+
+      <div class="window" aria-hidden="true">
+        <div class="titlebar">
+          <div class="lights"><i></i><i></i><i></i></div>
+          <span class="tab">git-sea</span>
+          <span class="tab off">tauri</span>
+          <span class="tab off">node</span>
+        </div>
+        <div class="body">
+          <div class="side">
+            <h4>Branches</h4>
+            <div class="on" style="--c: var(--b0)">main</div>
+            <div style="--c: var(--b1)">feat/timeline</div>
+            <div style="--c: var(--b2)">fix/lane-gaps</div>
+            <div style="--c: var(--b3)">feat/minimap</div>
+            <h4>Remotes</h4>
+            <div>origin/main</div>
+            <div>origin/develop</div>
+            <h4>Tags</h4>
+            <div>v0.1.0</div>
+            <h4>Stashes</h4>
+            <div>WIP on develop</div>
+          </div>
+          <canvas id="graph"></canvas>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="eyebrow">Features</div>
+      <h2>Built for reading history, not rewriting it.</h2>
+      <p class="sub">git-sea never writes to your repositories. Open as many as you like, explore their history, and close them knowing nothing changed.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="17" r="2.2"/><circle cx="12" cy="7" r="2.2"/><circle cx="19" cy="17" r="2.2"/><path d="M7.2 17h9.6M6.4 15.2 10.6 8.8M13.4 8.8l4.2 6.4"/></svg></div>
+          <h3>Node-canvas graph</h3>
+          <p>Commits flow left to right on a dotted canvas with pan, zoom, pinch and fit. Nodes show the commit type, label, hash and ref badges.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></div>
+          <h3>Fast on large repos</h3>
+          <p>The topological walk and the lane layout run in Rust and stream to the UI in chunks. A cached layout reopens in milliseconds.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M12 10v6M9 18h6"/></svg></div>
+          <h3>Details and diffs</h3>
+          <p>Metadata, clickable parents, changed files with rename detection, and unified or split diffs with syntax highlighting.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></div>
+          <h3>Live updates</h3>
+          <p>Watches your repository and working copy, fetches remotes in the background and animates new commits as they arrive.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></div>
+          <h3>Search and command palette</h3>
+          <p>Find commits by message, author or hash, filter the graph, and reach every action from the keyboard.</p>
+        </div>
+        <div class="card">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v6M12 15v6M3 12h6M15 12h6"/></svg></div>
+          <h3>CI at a glance</h3>
+          <p>See your GitHub Actions and GitLab CI workflows, their latest runs, and the commits where they would start.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <div class="eyebrow">Performance</div>
+      <h2>Measured on nodejs/node.</h2>
+      <p class="sub">About 49,000 commits on the main branch and 109,000 across all refs, on a MacBook, from a release build.</p>
+      <div class="stats">
+        <div class="stat"><b>~300 ms</b><span>until the first rows of a fresh walk appear</span></div>
+        <div class="stat"><b>13 ms</b><span>to reopen 49k commits from the layout cache</span></div>
+        <div class="stat"><b>31 ms</b><span>to reopen 109k commits from the layout cache</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="views">
+    <div class="wrap">
+      <div class="eyebrow">Views</div>
+      <h2>One history, four ways to look at it.</h2>
+      <p class="sub">Every view is a projection of the same graph, so switching between them keeps your place and your selection.</p>
+      <div class="views">
+        <div class="view">
+          <svg viewBox="0 0 240 110" fill="none" stroke-width="3" stroke-linecap="round">
+            <path d="M20 70H220" stroke="var(--b0)"/>
+            <path d="M60 70C90 70 90 38 120 38H160C190 38 190 70 200 70" stroke="var(--b1)"/>
+            <g fill="var(--node)" stroke="var(--b0)"><circle cx="20" cy="70" r="6"/><circle cx="60" cy="70" r="6"/><circle cx="100" cy="70" r="6"/><circle cx="150" cy="70" r="6"/><circle cx="200" cy="70" r="7"/></g>
+            <g fill="var(--node)" stroke="var(--b1)"><circle cx="120" cy="38" r="6"/><circle cx="160" cy="38" r="6"/></g>
+          </svg>
+          <div><h3>Graph</h3><p>Cards up close, tiles at medium zoom, dots far away.</p></div>
+        </div>
+        <div class="view">
+          <svg viewBox="0 0 240 110" fill="none" stroke-width="3" stroke-linecap="round">
+            <path d="M30 70H210" stroke="var(--b0)"/>
+            <path d="M70 70C95 70 95 38 120 38S145 70 170 70" stroke="var(--b2)"/>
+            <rect x="12" y="58" width="36" height="24" rx="7" fill="var(--node)" stroke="var(--b0)"/>
+            <rect x="100" y="27" width="40" height="22" rx="7" fill="var(--node)" stroke="var(--b2)"/>
+            <rect x="190" y="58" width="36" height="24" rx="7" fill="var(--node)" stroke="var(--b0)"/>
+            <text x="30" y="74" font-size="11" text-anchor="middle" fill="var(--text-2)" stroke="none" font-family="Inter">×42</text>
+            <text x="120" y="42" font-size="11" text-anchor="middle" fill="var(--text-2)" stroke="none" font-family="Inter">×7</text>
+            <text x="208" y="74" font-size="11" text-anchor="middle" fill="var(--text-2)" stroke="none" font-family="Inter">×18</text>
+          </svg>
+          <div><h3>Topology</h3><p>Linear runs fold into single nodes, leaving only the shape.</p></div>
+        </div>
+        <div class="view">
+          <svg viewBox="0 0 240 110" fill="none" stroke-linecap="round">
+            <path d="M16 88H224" stroke="var(--border-strong)" stroke-width="1.5"/>
+            <g stroke="var(--border-strong)" stroke-width="1.5"><path d="M56 84v8M112 84v8M168 84v8"/></g>
+            <g fill="var(--b0)"><circle cx="24" cy="66" r="4"/><circle cx="38" cy="66" r="4"/><circle cx="90" cy="66" r="4"/><circle cx="150" cy="66" r="4"/><circle cx="160" cy="66" r="4"/><circle cx="210" cy="66" r="4"/></g>
+            <g fill="var(--b4)"><circle cx="64" cy="44" r="4"/><circle cx="72" cy="44" r="4"/><circle cx="128" cy="44" r="4"/></g>
+            <g fill="var(--b3)"><circle cx="176" cy="22" r="4"/><circle cx="196" cy="22" r="4"/></g>
+          </svg>
+          <div><h3>Timeline</h3><p>Commits placed on real time, to see when work actually happened.</p></div>
+        </div>
+        <div class="view">
+          <svg viewBox="0 0 240 110" fill="none" stroke-linecap="round">
+            <g stroke-width="2" opacity=".7">
+              <path d="M14 60H226" stroke="var(--b0)"/>
+              <path d="M30 60C40 60 40 40 50 40H90C100 40 100 60 110 60" stroke="var(--b1)"/>
+              <path d="M120 60C128 60 128 80 136 80H180C190 80 190 60 198 60" stroke="var(--b2)"/>
+              <path d="M70 40C78 40 78 24 86 24H130" stroke="var(--b3)"/>
+            </g>
+            <rect x="116" y="14" width="64" height="80" rx="6" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+          </svg>
+          <div><h3>Minimap</h3><p>The whole history in one strip, with your viewport on top.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install" class="alt">
+    <div class="wrap split">
+      <div class="install">
+        <div class="eyebrow">Install</div>
+        <h2>Get started.</h2>
+        <h3>Download</h3>
+        <p>Grab the <code>.dmg</code> from the <a href="https://github.com/ehystiv/git-sea/releases/latest">latest release</a> and drag git-sea to Applications. The app isn't notarized yet, so on first launch right-click it and choose <b>Open</b>, or run:</p>
+        <pre>xattr -dr com.apple.quarantine /Applications/git-sea.app</pre>
+        <h3>Build from source</h3>
+        <p>You need Rust (stable), Node.js with pnpm, and the Xcode Command Line Tools.</p>
+        <pre><span class="c"># clone and run</span>
+git clone https://github.com/ehystiv/git-sea
+cd git-sea
+pnpm install
+pnpm tauri dev
+
+<span class="c"># release build</span>
+pnpm tauri build</pre>
+      </div>
+      <div>
+        <div class="eyebrow">Keyboard</div>
+        <h2>Keep your hands on the keys.</h2>
+        <div class="keys">
+          <div>Next / previous commit<span><kbd>j</kbd><kbd>k</kbd></span></div>
+          <div>Parent / child<span><kbd>h</kbd><kbd>l</kbd></span></div>
+          <div>Toggle details<span><kbd>↵</kbd></span></div>
+          <div>Go to HEAD<span><kbd>g</kbd><kbd>h</kbd></span></div>
+          <div>Open a repository<span><kbd>⌘</kbd><kbd>O</kbd></span></div>
+          <div>Close tab<span><kbd>⌘</kbd><kbd>W</kbd></span></div>
+          <div>Switch tab<span><kbd>⌘</kbd><kbd>1</kbd>–<kbd>9</kbd></span></div>
+        </div>
+        <div class="stack">
+          <span>Tauri 2</span><span>Rust</span><span>gitoxide</span><span>React 19</span><span>TypeScript</span><span>Canvas 2D</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <span>git-sea · a personal project by <a href="https://github.com/ehystiv">ehystiv</a></span>
+      <span><a href="https://github.com/ehystiv/git-sea">Source</a> · <a href="https://github.com/ehystiv/git-sea/releases">Releases</a> · <a href="https://github.com/ehystiv/git-sea/issues">Issues</a></span>
+    </div>
+  </footer>
+
+  <script>
+    // Hero animation: an endless commit graph drifting left, with fish behind it.
+    (() => {
+      const canvas = document.getElementById("graph");
+      const ctx = canvas.getContext("2d");
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      // Seeded RNG so the graph is the same on every visit.
+      let seed = 7;
+      const rand = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+
+      const MESSAGES = [
+        ["feat", "add minimap"], ["fix", "lane gaps"], ["refactor", "split draw"], ["feat", "timeline view"],
+        ["perf", "cache layout"], ["docs", "update readme"], ["test", "lane fixtures"], ["feat", "search refs"],
+        ["fix", "zoom clamp"], ["chore", "bump gix"], ["feat", "stash list"], ["style", "tokens"],
+      ];
+      const TYPE_COLOR = { feat: 1, fix: 3, perf: 2, refactor: 4, docs: 0, test: 2, chore: 0, style: 4 };
+      const COL_W = 128, LANE_H = 70, N = 36;
+
+      // One tile of history that starts and ends with only main open, so it loops seamlessly.
+      const commits = [];
+      const last = { 0: -1 };
+      const open = new Set();
+      for (let i = 0; i < N; i++) {
+        const free = [1, 2, 3].filter((l) => !open.has(l));
+        const closing = i >= N - 4;
+        const r = rand();
+        let c;
+        if (open.size && (closing || r < 0.22)) {
+          const lane = [...open][Math.floor(rand() * open.size)];
+          c = { lane: 0, parents: [{ col: last[0], lane: 0 }, { col: last[lane], lane }], merge: lane };
+          open.delete(lane);
+        } else if (!closing && free.length && r < 0.42) {
+          const lane = free[0];
+          c = { lane, parents: [{ col: last[0], lane: 0 }] };
+          open.add(lane);
+        } else if (open.size && r < 0.75) {
+          const lane = [...open][Math.floor(rand() * open.size)];
+          c = { lane, parents: [{ col: last[lane], lane }] };
+        } else {
+          c = { lane: 0, parents: [{ col: last[0], lane: 0 }] };
+        }
+        c.msg = MESSAGES[i % MESSAGES.length];
+        c.hash = Math.floor(rand() * 0xfffffff).toString(16).padStart(7, "0");
+        last[c.lane] = i;
+        commits.push(c);
+      }
+
+      const fish = Array.from({ length: 9 }, () => ({
+        x: rand(), y: rand(), s: 8 + rand() * 18, v: 0.012 + rand() * 0.02, p: rand() * 6.28,
+      }));
+
+      let colors = {}, w = 0, h = 0;
+      const readColors = () => {
+        const cs = getComputedStyle(document.documentElement);
+        const v = (n) => cs.getPropertyValue(n).trim();
+        colors = {
+          dot: v("--dot"), node: v("--node"), border: v("--border-strong"), text: v("--text"), text3: v("--text-3"),
+          fish: v("--fish"), lanes: ["--b0", "--b1", "--b2", "--b3", "--b4"].map(v),
+          font: v("--font-ui"), mono: v("--font-mono"),
+        };
+      };
+      const resize = () => {
+        const dpr = Math.min(devicePixelRatio || 1, 2);
+        w = canvas.clientWidth; h = canvas.clientHeight;
+        canvas.width = w * dpr; canvas.height = h * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      };
+
+      const roundRect = (x, y, rw, rh, r) => {
+        ctx.beginPath();
+        ctx.roundRect(x, y, rw, rh, r);
+      };
+
+      const draw = (t) => {
+        ctx.clearRect(0, 0, w, h);
+
+        // dotted canvas
+        ctx.fillStyle = colors.dot;
+        for (let x = 10; x < w; x += 20) for (let y = 10; y < h; y += 20) ctx.fillRect(x, y, 1.4, 1.4);
+
+        // fish
+        for (const f of fish) {
+          const x = ((f.x - t * f.v * 0.02) % 1.2 + 1.2) % 1.2 * (w + 80) - 40;
+          const y = f.y * h + Math.sin(t * 0.0012 + f.p) * 6;
+          ctx.fillStyle = `rgb(${colors.fish} / 0.13)`;
+          ctx.beginPath();
+          ctx.ellipse(x, y, f.s, f.s * 0.45, 0, 0, Math.PI * 2);
+          ctx.moveTo(x + f.s * 0.8, y);
+          ctx.lineTo(x + f.s * 1.6, y - f.s * 0.45);
+          ctx.lineTo(x + f.s * 1.6, y + f.s * 0.45);
+          ctx.fill();
+        }
+
+        const scale = w < 600 ? 0.72 : 1;
+        const colW = COL_W * scale, laneH = LANE_H * scale;
+        const top = (h - laneH * 3) / 2;
+        const tileW = N * colW;
+        const offset = reduced ? 0 : (t * 0.018) % tileW;
+        const pos = (col, lane, tile) => [40 + (col + tile * N) * colW - offset, top + lane * laneH];
+        const tiles = [0, 1, 2].filter((k) => k * tileW - offset < w + colW && (k + 1) * tileW - offset > -colW);
+
+        // edges
+        ctx.lineWidth = 2.5 * scale;
+        ctx.lineCap = "round";
+        for (const k of tiles) {
+          commits.forEach((c, i) => {
+            const [x2, y2] = pos(i, c.lane, k);
+            for (const p of c.parents) {
+              const [x1, y1] = pos(p.col, p.lane, k);
+              ctx.strokeStyle = colors.lanes[p.lane === 0 ? c.lane : p.lane];
+              ctx.beginPath();
+              ctx.moveTo(x1, y1);
+              if (y1 === y2) ctx.lineTo(x2, y2);
+              else if (c.lane === 0) {
+                // merge: run along the branch lane, bend into main just before the merge
+                const sx = Math.max(x1, x2 - colW);
+                ctx.lineTo(sx, y1);
+                ctx.bezierCurveTo(sx + colW * 0.5, y1, sx + colW * 0.5, y2, x2, y2);
+              } else {
+                // branch: bend out of main right after the fork
+                const ex = Math.min(x2, x1 + colW);
+                ctx.bezierCurveTo(x1 + colW * 0.5, y1, x1 + colW * 0.5, y2, ex, y2);
+                ctx.lineTo(x2, y2);
+              }
+              ctx.stroke();
+            }
+          });
+        }
+
+        // cards
+        const cw = 112 * scale, ch = 40 * scale;
+        for (const k of tiles) {
+          commits.forEach((c, i) => {
+            const [x, y] = pos(i, c.lane, k);
+            if (x < -cw || x > w + cw) return;
+            const lane = colors.lanes[c.lane];
+            ctx.shadowColor = "rgb(0 0 0 / 0.08)";
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 2;
+            roundRect(x - cw / 2, y - ch / 2, cw, ch, 8 * scale);
+            ctx.fillStyle = colors.node;
+            ctx.fill();
+            ctx.shadowColor = "transparent";
+            ctx.strokeStyle = c.merge !== undefined ? lane : colors.border;
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+            ctx.fillStyle = lane;
+            roundRect(x - cw / 2, y - ch / 2 + 8 * scale, 3 * scale, ch - 16 * scale, 2);
+            ctx.fill();
+
+            const [type, text] = c.msg;
+            ctx.fillStyle = colors.lanes[TYPE_COLOR[type]];
+            ctx.beginPath();
+            ctx.arc(x - cw / 2 + 16 * scale, y - 6 * scale, 4 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = colors.text;
+            ctx.font = `500 ${11.5 * scale}px ${colors.font}`;
+            ctx.fillText(c.merge !== undefined ? "Merge branch" : text, x - cw / 2 + 26 * scale, y - 2 * scale);
+            ctx.fillStyle = colors.text3;
+            ctx.font = `${10 * scale}px ${colors.mono}`;
+            ctx.fillText(c.hash, x - cw / 2 + 12 * scale, y + 13 * scale);
+          });
+        }
+      };
+
+      let visible = true;
+      const loop = (t) => {
+        if (visible) draw(t);
+        if (!reduced) requestAnimationFrame(loop);
+      };
+
+      readColors();
+      resize();
+      new ResizeObserver(() => { resize(); if (reduced) draw(0); }).observe(canvas);
+      new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(canvas);
+      matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { readColors(); if (reduced) draw(0); });
+      document.fonts.ready.then(() => reduced && draw(0));
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
