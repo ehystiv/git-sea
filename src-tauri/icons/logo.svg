@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#8f74ff"/>
+      <stop offset="0.45" stop-color="#5236e0"/>
+      <stop offset="1" stop-color="#151a5c"/>
+    </linearGradient>
+    <radialGradient id="light" cx="0.3" cy="0.12" r="0.75">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="branch" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5ff2d6"/>
+      <stop offset="1" stop-color="#2fc4e8"/>
+    </linearGradient>
+    <clipPath id="tile">
+      <rect x="100" y="100" width="824" height="824" rx="185"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#tile)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#sea)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#light)"/>
+
+    <!-- deep-water swells -->
+    <path d="M100 790 C 220 740, 330 740, 450 790 S 680 840, 800 790 S 900 750, 924 760 V 924 H 100 Z"
+          fill="#0d1046" fill-opacity="0.35"/>
+    <path d="M100 850 C 230 810, 350 815, 470 855 S 700 900, 924 840 V 924 H 100 Z"
+          fill="#0d1046" fill-opacity="0.35"/>
+
+    <!-- rising bubbles -->
+    <circle cx="612" cy="300" r="20" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="9"/>
+    <circle cx="664" cy="226" r="13" fill="none" stroke="#ffffff" stroke-opacity="0.45" stroke-width="8"/>
+    <circle cx="628" cy="172" r="8" fill="#ffffff" fill-opacity="0.4"/>
+  </g>
+
+  <!-- commit graph: the branch leaves main and rejoins it as a breaking wave -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M250 650 H 790" stroke="#ffffff" stroke-width="38"/>
+    <path d="M250 650 C 350 640, 400 430, 560 423 C 690 418, 772 520, 790 650"
+          stroke="url(#branch)" stroke-width="38"/>
+  </g>
+
+  <!-- commits on main -->
+  <g fill="#2a239a" stroke="#ffffff" stroke-width="26">
+    <circle cx="250" cy="650" r="38"/>
+    <circle cx="520" cy="650" r="38"/>
+  </g>
+  <!-- commit on the branch -->
+  <circle cx="560" cy="423" r="38" fill="#2a239a" stroke="url(#branch)" stroke-width="26"/>
+  <!-- merge commit / HEAD -->
+  <circle cx="790" cy="650" r="56" fill="#ffffff"/>
+  <circle cx="790" cy="650" r="22" fill="#5236e0"/>
+</svg>

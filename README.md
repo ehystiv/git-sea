@@ -1,3 +1,5 @@
+<p align="center"><img src="src-tauri/icons/logo.svg" width="160" alt="git-sea logo"></p>
+
 # git-sea
 
 A read-only Git history viewer for macOS, built to make the commit graph easy to understand: where branches go, how they merge, and what the commit tree looks like.
