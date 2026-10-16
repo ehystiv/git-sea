@@ -1,9 +1,12 @@
 import type { CommitSummary, GraphRow, RefLabel } from "../../lib/bindings";
 
-/** Called around `replaceWith`, so a view can keep its place while the data underneath changes. */
+/**
+ * Called around `replaceWith`, so a view can keep its place while the data underneath changes.
+ * `animate` asks the view to move from the old contents to the new ones (a run opened or closed).
+ */
 export interface ReplaceListener {
-  before: () => void;
-  after: () => void;
+  before: (animate: boolean) => void;
+  after: (animate: boolean) => void;
 }
 
 /** A run of linear commits shown as one node in the compressed view. */
@@ -56,9 +59,22 @@ export class GraphIndex {
     };
   }
 
+  /** A separate index holding what this one holds now; it stays as it is when this one is replaced. */
+  snapshot(): GraphIndex {
+    const copy = new GraphIndex();
+    copy.take(this);
+    return copy;
+  }
+
   /** Takes over everything `other` holds (which must not be used afterwards). */
-  replaceWith(other: GraphIndex): void {
-    this.replaceListeners.forEach((l) => l.before());
+  replaceWith(other: GraphIndex, animate = false): void {
+    this.replaceListeners.forEach((l) => l.before(animate));
+    this.take(other);
+    this.replaceListeners.forEach((l) => l.after(animate));
+  }
+
+  /** The arrays and maps are shared, never copied: neither side mutates them after a swap. */
+  private take(other: GraphIndex): void {
     this.commits = other.commits;
     this.rows = other.rows;
     this.refs = other.refs;
@@ -68,7 +84,6 @@ export class GraphIndex {
     this.openRuns = other.openRuns;
     this.idToIndex = other.idToIndex;
     this.childrenOf = other.childrenOf;
-    this.replaceListeners.forEach((l) => l.after());
   }
 
   appendChunk(commits: CommitSummary[], rows: GraphRow[]): void {

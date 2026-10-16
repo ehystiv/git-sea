@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { compressIndex } from "./compress";
 import { GraphIndex } from "./GraphIndex";
 
@@ -25,9 +25,16 @@ export function useCompressedIndex(base: GraphIndex, baseVersion: number, enable
   const [version, setVersion] = useState(0);
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
+  // Opening or closing a run animates; new chunks, reloads and switching views do not.
+  const shownExpanded = useRef<ReadonlySet<string> | null>(null);
   useEffect(() => {
-    if (!enabled) return;
-    index.replaceWith(compressIndex(base, expanded));
+    if (!enabled) {
+      shownExpanded.current = null;
+      return;
+    }
+    const animate = shownExpanded.current !== null && shownExpanded.current !== expanded;
+    shownExpanded.current = expanded;
+    index.replaceWith(compressIndex(base, expanded), animate);
     setVersion((v) => v + 1);
   }, [base, baseVersion, enabled, expanded, index]);
 

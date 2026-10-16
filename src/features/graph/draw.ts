@@ -15,6 +15,7 @@ import { DIM_ALPHA, emphasisFits, type Emphasis } from "./emphasis";
 import type { CommitGroup, GraphIndex } from "./GraphIndex";
 import { iconPath } from "./icons";
 import { drawFlow, FlowLinks } from "./flow";
+import { firstAtLeast } from "./morph";
 import type { Palette } from "./palette";
 
 export interface View {
@@ -53,6 +54,25 @@ export interface Scene {
   flowTime: number | null;
   /** Commits and links to keep bright while the rest fades (search, ancestors); null for none. */
   emphasis: Emphasis | null;
+  /**
+   * A run opening or closing: where each column of `index` is right now (in columns, sorted) and
+   * which commits fade in (1) or out (-1), at progress `t`. Null when nothing moves.
+   */
+  morph: { positions: Float64Array; fade: Int8Array; t: number } | null;
+}
+
+/** Screen x of the centre of column `r`, following a running morph. */
+function columnX(scene: Scene, r: number): number {
+  const column = scene.morph ? (scene.morph.positions[r] ?? r) : r;
+  return -column * COLUMN_W * scene.view.z + scene.view.tx;
+}
+
+/** Opacity of column `r` while a morph fades it in or out. */
+function morphAlpha(scene: Scene, r: number): number {
+  const morph = scene.morph;
+  const fade = morph?.fade[r] ?? 0;
+  if (!morph || fade === 0) return 1;
+  return fade > 0 ? morph.t : 1 - morph.t;
 }
 
 type Ctx = CanvasRenderingContext2D;
@@ -73,12 +93,14 @@ export function draw(ctx: Ctx, input: Scene): boolean {
   const z = view.z;
   const xMin = -view.tx / z;
   const xMax = (width - view.tx) / z;
-  const first = Math.max(0, Math.floor(-xMax / COLUMN_W) - 1);
-  const last = Math.min(count - 1, Math.ceil(-xMin / COLUMN_W) + 1);
+  const positions = scene.morph?.positions;
+  // Columns move during a morph, but stay in order, so the visible ones can still be searched.
+  const first = positions ? Math.max(0, firstAtLeast(positions, -xMax / COLUMN_W - 1) - 1) : Math.max(0, Math.floor(-xMax / COLUMN_W) - 1);
+  const last = positions ? Math.min(count - 1, firstAtLeast(positions, -xMin / COLUMN_W + 1)) : Math.min(count - 1, Math.ceil(-xMin / COLUMN_W) + 1);
   if (first > last) return false;
 
   const columnPx = COLUMN_W * z;
-  const stride = columnPx >= MIN_COLUMN_PX ? 1 : Math.ceil(MIN_COLUMN_PX / columnPx);
+  const stride = columnPx >= MIN_COLUMN_PX || scene.morph ? 1 : Math.ceil(MIN_COLUMN_PX / columnPx);
 
   // Dots travel along the links only where the links are drawn one by one.
   const links = scene.flowTime !== null && stride === 1 && z >= LOD_TILE ? new FlowLinks() : null;
@@ -118,7 +140,7 @@ function drawDots(ctx: Ctx, { width, height, view, palette }: Scene): void {
 
 function drawEdges(ctx: Ctx, scene: Scene, first: number, last: number, stride: number, flowLinks: FlowLinks | null): void {
   const { view, index, palette, height } = scene;
-  const { tx, ty, z } = view;
+  const { ty, z } = view;
   const columnPx = COLUMN_W * z;
   const halfColumn = (COLUMN_W / 2) * z;
   const halfNode = HALF * z;
@@ -144,17 +166,21 @@ function drawEdges(ctx: Ctx, scene: Scene, first: number, last: number, stride: 
   for (let r = first - (first % stride); r <= last; r += stride) {
     const row = rows[r];
     if (!row) continue;
-    const centerX = -r * COLUMN_W * z + tx;
-    const right = centerX + halfColumn;
-    const left = centerX - halfColumn;
+    const centerX = columnX(scene, r);
+    // During a morph the columns are unevenly spaced: each one reaches halfway to its neighbours,
+    // so the lines stay continuous.
+    const right = scene.morph && r > 0 ? (centerX + columnX(scene, r - 1)) / 2 : centerX + halfColumn;
+    const left = scene.morph && r < rows.length - 1 ? (centerX + columnX(scene, r + 1)) / 2 : centerX - halfColumn;
     const sampledLeft = left - (stride - 1) * columnPx;
     const nodeY = sy(row.lane);
     const hasIn = stride > 1 && row.edges.some((e) => e.kind === "In");
+    // A morph can squeeze thousands of columns onto one point; their straight pieces have no length.
+    const flat = scene.morph !== null && right - left < 0.5;
 
     const edgeBase = emphasis?.edgeStart?.[r] ?? 0;
     for (let k = 0; k < row.edges.length; k++) {
       const edge = row.edges[k];
-      if (!edge) continue;
+      if (!edge || (flat && edge.kind !== "MergeIn" && edge.kind !== "ForkOut")) continue;
       const color = edge.color % BRANCH_COLORS;
       const bright = !emphasis || emphasis.edges?.[edgeBase + k] === 1;
       const path = bright ? paths[color] : dimPaths[color];
@@ -218,7 +244,7 @@ function drawEdges(ctx: Ctx, scene: Scene, first: number, last: number, stride: 
 /** Zoomed far out: nodes are small coloured squares, one per sampled column. */
 function drawDots2(ctx: Ctx, scene: Scene, first: number, last: number, stride: number): void {
   const { view, index, palette, height } = scene;
-  const { tx, ty, z } = view;
+  const { ty, z } = view;
   const size = Math.max(2, Math.min(9, NODE * z * 1.2));
   const nodes = scene.emphasis?.nodes ?? null;
   // Bright squares are drawn after the faded ones, so a sampled column never hides a match.
@@ -228,7 +254,7 @@ function drawDots2(ctx: Ctx, scene: Scene, first: number, last: number, stride: 
   for (let r = first - (first % stride); r <= last; r += stride) {
     const row = index.rows[r];
     if (!row) continue;
-    const x = -r * COLUMN_W * z + tx;
+    const x = columnX(scene, r);
     const y = row.lane * LANE_H * z + ty;
     if (y < -size || y > height + size) continue;
     const slot = (row.color % BRANCH_COLORS) + (nodes && !hasBright(nodes, r, stride) ? 0 : BRANCH_COLORS);
@@ -254,19 +280,26 @@ function hasBright(nodes: Uint8Array, r: number, stride: number): boolean {
 function drawNodes(ctx: Ctx, scene: Scene, first: number, last: number): void {
   const { view, index, palette, width, height, selected, hovered } = scene;
   const nodes = scene.emphasis?.nodes ?? null;
-  const { tx, ty, z } = view;
+  const { ty, z } = view;
   const size = NODE * z;
   const card = z >= LOD_CARD;
   const radius = 12 * z;
+  // During a morph, nodes still stacked on the one drawn before them on their lane are skipped:
+  // a run of thousands of commits would otherwise be drawn thousands of times on one spot.
+  const lastX = scene.morph ? new Float64Array(index.maxLane + 1).fill(Infinity) : null;
 
   for (let r = first; r <= last; r++) {
     const row = index.rows[r];
     const commit = index.commits[r];
     if (!row || !commit) continue;
-    const cx = -r * COLUMN_W * z + tx;
+    const cx = columnX(scene, r);
     const cy = row.lane * LANE_H * z + ty;
     if (cx < -COLUMN_W * z || cx > width + COLUMN_W * z || cy < -size * 2 || cy > height + size * 2) {
       continue;
+    }
+    if (lastX) {
+      if (Math.abs((lastX[row.lane] ?? Infinity) - cx) < size / 2 && r !== selected) continue;
+      lastX[row.lane] = cx;
     }
 
     const color = palette.branch[row.color % BRANCH_COLORS] ?? palette.text3;
@@ -274,7 +307,7 @@ function drawNodes(ctx: Ctx, scene: Scene, first: number, last: number): void {
     const left = cx - size / 2;
     const top = cy - size / 2;
 
-    ctx.globalAlpha = nodes && !nodes[r] ? DIM_ALPHA : 1;
+    ctx.globalAlpha = (nodes && !nodes[r] ? DIM_ALPHA : 1) * morphAlpha(scene, r);
     const group = index.groups.get(r);
     const leftRadius = hasChildren ? radius : size / 2;
     if (group && z >= LOD_TILE) drawStack(ctx, palette, color, left, top, size, z, radius);

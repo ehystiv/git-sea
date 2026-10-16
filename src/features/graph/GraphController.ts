@@ -3,6 +3,7 @@ import { COLUMN_W, LANE_H } from "./constants";
 import { draw, hitTest, RenderCache, type View } from "./draw";
 import type { Emphasis } from "./emphasis";
 import type { GraphIndex } from "./GraphIndex";
+import { buildMorph, morphPositions, type Morph } from "./morph";
 import type { MinimapFrame } from "./MinimapOverlay";
 import { readPalette, type Palette } from "./palette";
 import { anchorAtCentre, centeredOn, clampView, clampZoom, fitView, homeView, viewAfterReplace, zoomAt, type ViewAnchor } from "./view";
@@ -23,7 +24,19 @@ interface Animation {
   duration: number;
 }
 
+interface RunningMorph {
+  data: Morph;
+  start: number;
+  /** Reused every frame. */
+  positions: Float64Array;
+  /** The selected commit's column in `data.index`. */
+  selected: number | null;
+}
+
 const DRAG_THRESHOLD = 4;
+const MORPH_MS = 280;
+/** Below this many pixels per column the motion would not be visible: no morph. */
+const MORPH_MIN_COLUMN_PX = 6;
 const ZOOM_STEP = 1.25;
 
 /**
@@ -51,6 +64,8 @@ export class GraphController {
   private flow = false;
   private emphasis: Emphasis | null = null;
   private anchor: ViewAnchor | null = null;
+  private morphFrom: { index: GraphIndex; tx: number } | null = null;
+  private morph: RunningMorph | null = null;
   private selectedBeforeReplace: string | null = null;
   private frameListeners: Array<(frame: MinimapFrame) => void> = [];
   private readonly disposers: Array<() => void> = [];
@@ -70,7 +85,7 @@ export class GraphController {
     this.attach();
     this.disposers.push(
       index.onReplace({
-        before: () => this.beforeReplace(),
+        before: (animate) => this.beforeReplace(animate),
         after: () => this.afterReplace(),
       }),
     );
@@ -119,8 +134,13 @@ export class GraphController {
   }
 
   /** The history is about to be swapped for a fresh one: remember what the user is looking at. */
-  private beforeReplace(): void {
+  private beforeReplace(animate: boolean): void {
     this.anchor = this.placed ? anchorAtCentre(this.index, this.view, this.width) : null;
+    this.morph = null;
+    this.morphFrom =
+      animate && this.placed && COLUMN_W * this.view.z >= MORPH_MIN_COLUMN_PX && !prefersReducedMotion()
+        ? { index: this.index.snapshot(), tx: this.view.tx }
+        : null;
     this.selectedBeforeReplace = this.selected === null ? null : (this.index.commits[this.selected]?.id ?? null);
   }
 
@@ -141,7 +161,26 @@ export class GraphController {
     }
     this.anchor = null;
     this.selectedBeforeReplace = null;
+    this.startMorph();
     this.requestDraw();
+  }
+
+  /** Slides the commits from where they were to where the swap put them (a run opened or closed). */
+  private startMorph(): void {
+    const from = this.morphFrom;
+    this.morphFrom = null;
+    if (!from) return;
+    // The view moved to keep its anchor in place; the motion starts from what was on screen.
+    const shift = (this.view.tx - from.tx) / (COLUMN_W * this.view.z);
+    const data = buildMorph(from.index, this.index, shift);
+    if (!data) return;
+    const selectedId = this.selected === null ? null : (this.index.commits[this.selected]?.id ?? null);
+    this.morph = {
+      data,
+      start: performance.now(),
+      positions: new Float64Array(data.index.length),
+      selected: selectedId === null ? null : data.index.indexOf(selectedId),
+    };
   }
 
   // ---- commands --------------------------------------------------------------------------
@@ -210,25 +249,41 @@ export class GraphController {
     }
     // Dots moving along the links need a new frame every time; a still view does not.
     const moving = this.render(now);
-    if (moving && this.active && !document.hidden) this.requestDraw();
+    if (this.morph) {
+      if (now - this.morph.start >= MORPH_MS) {
+        this.morph = null;
+        // Row numbers meant the other projection while it ran.
+        this.cache.described.clear();
+        this.cache.wrapped.clear();
+      }
+      this.requestDraw();
+    } else if (moving && this.active && !document.hidden) this.requestDraw();
   }
 
   /** Draws a frame; returns true when something in it is moving. */
   render(time: number = performance.now()): boolean {
     if (this.width === 0 || this.height === 0) return false;
     const started = performance.now();
+    const morph = this.morph;
+    let morphScene = null;
+    if (morph) {
+      const linear = Math.min(1, Math.max(0, (time - morph.start) / MORPH_MS));
+      const t = linear < 0.5 ? 4 * linear ** 3 : 1 - (-2 * linear + 2) ** 3 / 2;
+      morphScene = { positions: morphPositions(morph.data, t, morph.positions), fade: morph.data.fade, t };
+    }
     const moving = draw(this.ctx, {
       width: this.width,
       height: this.height,
       dpr: this.dpr,
       view: this.view,
-      index: this.index,
+      index: morph ? morph.data.index : this.index,
       palette: this.palette,
       cache: this.cache,
-      selected: this.selected,
-      hovered: this.hovered,
+      selected: morph ? morph.selected : this.selected,
+      hovered: morph ? null : this.hovered,
       flowTime: this.flow ? time : null,
       emphasis: this.emphasis,
+      morph: morphScene,
     });
     this.frameTimes.push(performance.now() - started);
     if (this.frameTimes.length > 300) this.frameTimes.shift();
@@ -460,5 +515,13 @@ export class GraphController {
 
   clampedZoom(z: number): number {
     return clampZoom(z);
+  }
+}
+
+function prefersReducedMotion(): boolean {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
   }
 }
