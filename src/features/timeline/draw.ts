@@ -3,7 +3,7 @@ import { BRANCH_COLORS } from "../graph/constants";
 import { describeCommit } from "../graph/describe";
 import { DIM_ALPHA, emphasisFits, type Emphasis } from "../graph/emphasis";
 import { fitText, withAlpha } from "../graph/draw";
-import { drawFlow, FlowLinks } from "../graph/flow";
+import { FlowLinks, type FlowFrame } from "../graph/flow";
 import type { GraphIndex } from "../graph/GraphIndex";
 import type { Palette } from "../graph/palette";
 import { commitsBetween, edgesBetween, type TimelineData } from "./layout";
@@ -22,8 +22,8 @@ export interface TimelineScene {
   palette: Palette;
   selected: number | null;
   hovered: number | null;
-  /** Animation time in milliseconds; null when the dots on the links are switched off. */
-  flowTime: number | null;
+  /** Whether to collect the links for the dots moving along them (drawn by the caller). */
+  flow: boolean;
   /** Commits to keep bright while the rest fades (search, ancestors); null for none. */
   emphasis: Emphasis | null;
 }
@@ -49,8 +49,8 @@ export function markerSize(view: TimelineView): number {
   return perHour >= LOD_NODE ? NODE : perHour >= LOD_SQUARE ? 8 : 3;
 }
 
-/** Draws a frame. Returns true when something in it moves, so the caller knows to keep animating. */
-export function drawTimeline(ctx: Ctx, input: TimelineScene): boolean {
+/** Draws a frame. Returns the links the dots move along (see `draw` of the graph), or null. */
+export function drawTimeline(ctx: Ctx, input: TimelineScene): FlowFrame | null {
   const scene = emphasisFits(input.emphasis, input.index) ? input : { ...input, emphasis: null };
   const { width, height, dpr, view, palette } = scene;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -62,29 +62,23 @@ export function drawTimeline(ctx: Ctx, input: TimelineScene): boolean {
   const ticks = timeTicks(t0, t1, view.zx);
 
   drawGrid(ctx, scene, ticks.map((t) => ({ x: screenX(view, t.time), major: t.major })));
-  let moving = false;
+  let flow: FlowFrame | null = null;
   if (scene.data.count > 0) {
     const margin = 60 / view.zx;
     // Dots only when zoomed in enough; further out they would just be noise.
-    const links = scene.flowTime !== null && view.zx * 3600 >= FLOW_MIN_PER_HOUR ? new FlowLinks() : null;
+    const links = scene.flow && view.zx * 3600 >= FLOW_MIN_PER_HOUR ? new FlowLinks() : null;
     drawEdges(ctx, scene, t0 - margin, t1 + margin, links);
-    if (links && scene.flowTime !== null) {
-      moving =
-        drawFlow(ctx, links, {
-          time: scene.flowTime,
-          anchor: -view.t0 * view.zx,
-          spacing: FLOW_SPACING,
-          speed: FLOW_SPEED,
-          radius: 2.6,
-          width,
-          height,
-          palette,
-        }) > 0;
+    if (links && !links.isEmpty) {
+      flow = {
+        links,
+        style: { anchor: -view.t0 * view.zx, spacing: FLOW_SPACING, speed: FLOW_SPEED, radius: 2.6, width, height, palette },
+        top: AXIS_H,
+      };
     }
     drawNodes(ctx, scene, t0 - margin, t1 + margin);
   }
   drawAxis(ctx, scene, ticks);
-  return moving;
+  return flow;
 }
 
 function drawGrid(ctx: Ctx, scene: TimelineScene, xs: Array<{ x: number; major: boolean }>): void {

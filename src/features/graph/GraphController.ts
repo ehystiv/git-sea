@@ -2,6 +2,7 @@ import { THEME_CHANGED } from "../../lib/theme";
 import { COLUMN_W, LANE_H } from "./constants";
 import { draw, hitTest, hitWorktree, RenderCache, type View, type WorktreeMarker } from "./draw";
 import type { Emphasis } from "./emphasis";
+import { drawFlow, FlowOverlay, type FlowFrame } from "./flow";
 import type { GraphIndex, ReplaceMotion } from "./GraphIndex";
 import { ARRIVAL, arrivalDuration, buildArrival, buildMorph, morphPositions, type Morph } from "./morph";
 import type { MinimapFrame } from "./MinimapOverlay";
@@ -18,6 +19,8 @@ export interface GraphCallbacks {
   onCollapseGroup?: (id: string) => void;
   /** The badge of local changes was clicked. */
   onOpenWorktree?: () => void;
+  /** New commits arrived; where they are on screen (for the sea). */
+  onNewCommits?: (points: Array<{ x: number; y: number }>) => void;
   /** New commits arrived off screen (how many, and which way); null once they were seen. */
   onUnseen?: (unseen: Unseen | null) => void;
 }
@@ -79,6 +82,14 @@ export class GraphController {
   private pendingG = 0;
   private active = true;
   private flow = false;
+  /** Canvas the dots move on; without one (profiling) they are drawn with the graph. */
+  private flowOverlay: FlowOverlay | null = null;
+  /** The links of the last frame drawn, for the dots. */
+  private flowFrame: FlowFrame | null = null;
+  /** Something in the graph changed since the last frame: it must be drawn again. */
+  private dirty = true;
+  /** The window has the focus: things keep moving only then. */
+  private focused = true;
   private emphasis: Emphasis | null = null;
   private worktree: WorktreeMarker | null = null;
   private overBadge = false;
@@ -129,6 +140,19 @@ export class GraphController {
     if (active) this.requestDraw();
   }
 
+  /** Without the window's focus nothing moves on its own (the dots); it resumes with the focus. */
+  setFocused(focused: boolean): void {
+    this.focused = focused;
+    if (focused) this.schedule();
+  }
+
+  /** Moves the dots on their own canvas, laid over this one with the same size. */
+  attachFlowCanvas(canvas: HTMLCanvasElement): void {
+    this.flowOverlay = new FlowOverlay(canvas);
+    if (this.width > 0) this.flowOverlay.resize(this.width, this.height, this.dpr);
+    this.requestDraw();
+  }
+
   resize(width: number, height: number, dpr: number): void {
     // A hidden canvas reports no size; keep the last real one and the view as it is.
     if (width === 0 || height === 0) return;
@@ -137,6 +161,7 @@ export class GraphController {
     this.dpr = dpr;
     this.canvas.width = Math.round(width * dpr);
     this.canvas.height = Math.round(height * dpr);
+    this.flowOverlay?.resize(width, height, dpr);
     if (this.placed) this.view = clampView(this.view, width, height, this.index);
     this.requestDraw();
   }
@@ -209,9 +234,22 @@ export class GraphController {
       const added = newCommitIds(this.arrivalFrom, this.index);
       this.unseen = [...new Set([...added, ...this.unseen])];
       this.arrivalFrom = null;
+      if (added.length > 0) this.callbacks.onNewCommits?.(this.screenPoints(added.slice(0, 20)));
     }
     this.updateUnseen();
     this.requestDraw();
+  }
+
+  /** Where these commits are on screen, at their final place. */
+  private screenPoints(ids: readonly string[]): Array<{ x: number; y: number }> {
+    const points: Array<{ x: number; y: number }> = [];
+    for (const id of ids) {
+      const column = this.index.indexOf(id);
+      if (column === null) continue;
+      const lane = this.index.rows[column]?.lane ?? 0;
+      points.push({ x: -column * COLUMN_W * this.view.z + this.view.tx, y: lane * LANE_H * this.view.z + this.view.ty });
+    }
+    return points;
   }
 
   /** Forgets new commits once the view shows them, and tells which way they are until then. */
@@ -302,7 +340,14 @@ export class GraphController {
 
   // ---- drawing ---------------------------------------------------------------------------
 
+  /** Something in the graph changed: draw it again on the next frame. */
   requestDraw(): void {
+    this.dirty = true;
+    this.schedule();
+  }
+
+  /** A next frame, for the graph or only for the dots. */
+  private schedule(): void {
     if (this.frame) return;
     this.frame = requestAnimationFrame((now) => {
       this.frame = 0;
@@ -311,6 +356,8 @@ export class GraphController {
   }
 
   private step(now: number): void {
+    const redraw = this.dirty;
+    this.dirty = false;
     if (this.animation) {
       const { from, to, start, duration } = this.animation;
       const t = Math.min(1, (now - start) / duration);
@@ -324,8 +371,8 @@ export class GraphController {
       if (t >= 1) this.animation = null;
       else this.requestDraw();
     }
-    // Dots moving along the links need a new frame every time; a still view does not.
-    const moving = this.render(now);
+    // The graph is drawn only when something in it changed; the dots move on their own canvas.
+    const moving = redraw ? this.render(now) : false;
     if (this.morph) {
       if (now - this.morph.start >= this.morph.duration) {
         this.morph = null;
@@ -334,10 +381,22 @@ export class GraphController {
         this.cache.wrapped.clear();
       }
       this.requestDraw();
-    } else if (moving && this.active && !document.hidden) this.requestDraw();
+    }
+    const animate = this.active && this.focused && !document.hidden;
+    const overlay = this.flowOverlay;
+    if (overlay) {
+      overlay.setFrame(this.flow ? this.flowFrame : null);
+      // Paused, the dots still follow a redrawn graph, but stay where they are.
+      if ((redraw || animate) && overlay.tick(now, redraw) && animate) this.schedule();
+    } else if (moving && animate) {
+      this.requestDraw();
+    }
   }
 
-  /** Draws a frame; returns true when something in it is moving. */
+  /**
+   * Draws a frame; returns true when there are dots moving along its links. Without a canvas of
+   * their own (profiling), the dots are drawn here, over the graph.
+   */
   render(time: number = performance.now()): boolean {
     if (this.width === 0 || this.height === 0) return false;
     const started = performance.now();
@@ -355,7 +414,7 @@ export class GraphController {
         arrival: order ? { order, elapsed, gentle: morph.gentle } : null,
       };
     }
-    const moving = draw(this.ctx, {
+    const flow = draw(this.ctx, {
       width: this.width,
       height: this.height,
       dpr: this.dpr,
@@ -365,11 +424,13 @@ export class GraphController {
       cache: this.cache,
       selected: morph ? morph.selected : this.selected,
       hovered: morph ? null : this.hovered,
-      flowTime: this.flow ? time : null,
+      flow: this.flow,
       emphasis: this.emphasis,
       morph: morphScene,
       worktree: this.worktree,
     });
+    this.flowFrame = flow;
+    const moving = flow !== null && (this.flowOverlay !== null || drawFlow(this.ctx, flow.links, { ...flow.style, time }) > 0);
     if (this.unseen.length > 0) this.updateUnseen();
     this.frameTimes.push(performance.now() - started);
     if (this.frameTimes.length > 300) this.frameTimes.shift();
@@ -396,6 +457,12 @@ export class GraphController {
   setFlow(enabled: boolean): void {
     this.flow = enabled;
     this.requestDraw();
+  }
+
+  /** Draws only the dots of the last frame, at `time` (used by profiling scripts). */
+  renderFlow(time: number): void {
+    this.flowOverlay?.setFrame(this.flow ? this.flowFrame : null);
+    this.flowOverlay?.tick(time, true);
   }
 
   /** Sets the view directly (used by profiling scripts). */
@@ -469,6 +536,13 @@ export class GraphController {
       this.canvas.removeEventListener("gesturestart", gestureStart);
       this.canvas.removeEventListener("gesturechange", gestureChange);
     });
+
+    // Hidden, nothing moved; visible again, the dots pick up where they were.
+    const visibility = () => {
+      if (!document.hidden) this.schedule();
+    };
+    document.addEventListener("visibilitychange", visibility);
+    this.disposers.push(() => document.removeEventListener("visibilitychange", visibility));
 
     const keydown = (e: KeyboardEvent) => this.onKeyDown(e);
     window.addEventListener("keydown", keydown);

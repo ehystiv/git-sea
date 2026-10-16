@@ -149,3 +149,83 @@ export function drawFlow(ctx: Ctx, links: FlowLinks, style: FlowStyle): number {
   }
   return count;
 }
+
+/** What the dots of a frame need: the links the view drew, and how the dots move along them. */
+export interface FlowFrame {
+  links: FlowLinks;
+  style: Omit<FlowStyle, "time">;
+  /** Dots stay below this y (the timeline's axis covers the band above it). */
+  top: number;
+}
+
+/** About 30 frames a second: smooth enough for dots this slow. */
+const FLOW_FRAME_MS = 32;
+
+/**
+ * Moves the dots on their own canvas, over the view's. The view draws its links once per change
+ * and hands them over; every frame in between only redraws the dots, so moving dots never make
+ * the whole graph redraw.
+ */
+export class FlowOverlay {
+  private readonly ctx: Ctx;
+  private width = 0;
+  private height = 0;
+  private dpr = 1;
+  private frame: FlowFrame | null = null;
+  private drawn = false;
+  private last = -Infinity;
+
+  constructor(private readonly canvas: HTMLCanvasElement) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D is not available");
+    this.ctx = ctx;
+  }
+
+  resize(width: number, height: number, dpr: number): void {
+    this.width = width;
+    this.height = height;
+    this.dpr = dpr;
+    this.canvas.width = Math.round(width * dpr);
+    this.canvas.height = Math.round(height * dpr);
+    this.drawn = false;
+    this.last = -Infinity;
+  }
+
+  /** The links of the view's latest frame; null when it has none, or the dots are off. */
+  setFrame(frame: FlowFrame | null): void {
+    this.frame = frame;
+  }
+
+  /**
+   * Draws the dots at `time` when due: right away when the view has just redrawn (so the dots
+   * stay on its links), otherwise at most every `FLOW_FRAME_MS`. Returns whether there are dots
+   * to keep moving.
+   */
+  tick(time: number, viewRedrew: boolean): boolean {
+    const frame = this.frame;
+    if (!frame || this.width === 0) {
+      this.clear();
+      return false;
+    }
+    if (!viewRedrew && time - this.last < FLOW_FRAME_MS) return true;
+    this.last = time;
+    const { ctx } = this;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.clearRect(0, 0, this.width, this.height);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, frame.top, this.width, this.height - frame.top);
+    ctx.clip();
+    const count = drawFlow(ctx, frame.links, { ...frame.style, time });
+    ctx.restore();
+    this.drawn = true;
+    return count > 0;
+  }
+
+  clear(): void {
+    if (!this.drawn) return;
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.drawn = false;
+  }
+}

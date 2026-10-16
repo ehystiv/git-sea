@@ -1,10 +1,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { CommitSummary } from "../../lib/bindings";
+import { useWindowFocused } from "../../lib/windowFocus";
 import { GraphController, type Unseen } from "./GraphController";
 import type { WorktreeMarker } from "./draw";
 import type { Emphasis } from "./emphasis";
 import type { GraphIndex } from "./GraphIndex";
 import { Minimap } from "./MinimapOverlay";
+import { SeaLayer } from "../sea/SeaLayer";
 import { MINIMAP_H, MINIMAP_W } from "./minimapMath";
 import { ZoomControls } from "./ZoomControls";
 import styles from "./GraphCanvas.module.css";
@@ -33,6 +35,8 @@ interface GraphCanvasProps {
   onOpenWorktree?: () => void;
   /** Pixels on the right covered by the floating details panel; the canvas keeps its size. */
   insetRight: number;
+  /** Fish swimming in the background. */
+  sea: boolean;
 }
 
 const ARROW = { left: "←", right: "→", up: "↑", down: "↓" } as const;
@@ -47,11 +51,17 @@ export interface GraphCanvasHandle {
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree, insetRight },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree, insetRight, sea },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const seaCanvasRef = useRef<HTMLCanvasElement>(null);
+  const flowCanvasRef = useRef<HTMLCanvasElement>(null);
+  const focused = useWindowFocused();
+  const seaRef = useRef<SeaLayer | null>(null);
+  const seaEnabledRef = useRef(sea);
+  const activeRef = useRef(active);
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<GraphController | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -92,7 +102,14 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     const minimapCanvas = minimapRef.current;
-    if (!canvas || !wrap || !minimapCanvas) return;
+    const seaCanvas = seaCanvasRef.current;
+    const flowCanvas = flowCanvasRef.current;
+    if (!canvas || !wrap || !minimapCanvas || !seaCanvas || !flowCanvas) return;
+
+    const seaLayer = new SeaLayer(seaCanvas);
+    seaRef.current = seaLayer;
+    seaLayer.setEnabled(seaEnabledRef.current);
+    seaLayer.setActive(activeRef.current && document.hasFocus());
 
     const controller = new GraphController(canvas, index, {
       onSelect: (i) => onSelectRef.current(i === null ? null : (index.commits[i] ?? null)),
@@ -101,21 +118,32 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onCollapseGroup: (id) => onCollapseRef.current?.(id),
       onOpenWorktree: () => onOpenWorktreeRef.current?.(),
       onUnseen: setUnseen,
+      onNewCommits: (points) => seaLayer.scare(points),
     });
     controllerRef.current = controller;
+    controller.attachFlowCanvas(flowCanvas);
     controller.setFlow(flowRef.current);
     controller.setEmphasis(emphasisRef.current);
     controller.setWorktree(worktreeRef.current);
     controller.setInsetRight(insetRef.current);
     const minimap = new Minimap(minimapCanvas, index, controller);
+    const stopFollowing = controller.onFrame((frame) => seaLayer.follow(frame.view));
+    const pointer = (e: PointerEvent) => {
+      const rect = wrap.getBoundingClientRect();
+      seaLayer.setPointer({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    };
+    const leave = () => seaLayer.setPointer(null);
+    wrap.addEventListener("pointermove", pointer);
+    wrap.addEventListener("pointerleave", leave);
 
-    const observer = new ResizeObserver(() => {
+    const resize = () => {
       const { width, height } = wrap.getBoundingClientRect();
       controller.resize(width, height, window.devicePixelRatio || 1);
-    });
+      seaLayer.resize(width, height);
+    };
+    const observer = new ResizeObserver(resize);
     observer.observe(wrap);
-    const { width, height } = wrap.getBoundingClientRect();
-    controller.resize(width, height, window.devicePixelRatio || 1);
+    resize();
     controller.dataChanged();
     const initial = initialSelectedId === null ? null : index.indexOf(initialSelectedId);
     if (initial !== null) controller.select(initial);
@@ -123,6 +151,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
     return () => {
       observer.disconnect();
+      stopFollowing();
+      wrap.removeEventListener("pointermove", pointer);
+      wrap.removeEventListener("pointerleave", leave);
+      seaLayer.destroy();
+      seaRef.current = null;
       minimap.destroy();
       controller.destroy();
       controllerRef.current = null;
@@ -141,8 +174,20 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }, [version, index]);
 
   useEffect(() => {
+    activeRef.current = active;
     controllerRef.current?.setActive(active);
   }, [active]);
+
+  // After the controller's creation, so a new one (and its sea) learns the focus too.
+  useEffect(() => {
+    controllerRef.current?.setFocused(focused);
+    seaRef.current?.setActive(active && focused);
+  }, [active, focused, index]);
+
+  useEffect(() => {
+    seaEnabledRef.current = sea;
+    seaRef.current?.setEnabled(sea);
+  }, [sea]);
 
   useEffect(() => {
     flowRef.current = flow;
@@ -166,7 +211,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   return (
     <div ref={wrapRef} className={styles.wrap}>
+      <canvas ref={seaCanvasRef} className={styles.sea} aria-hidden="true" />
       <canvas ref={canvasRef} className={styles.canvas} />
+      <canvas ref={flowCanvasRef} className={styles.flow} aria-hidden="true" />
       <canvas
         ref={minimapRef}
         className={minimapStyles.minimap}

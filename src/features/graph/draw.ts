@@ -14,7 +14,7 @@ import { describeCommit, type CommitKind, type Described } from "./describe";
 import { DIM_ALPHA, emphasisFits, type Emphasis } from "./emphasis";
 import type { CommitGroup, GraphIndex } from "./GraphIndex";
 import { iconPath } from "./icons";
-import { drawFlow, FlowLinks } from "./flow";
+import { FlowLinks, type FlowFrame } from "./flow";
 import { ARRIVAL, arrivalProgress, firstAtLeast } from "./morph";
 import type { Palette } from "./palette";
 
@@ -50,8 +50,8 @@ export interface Scene {
   cache: RenderCache;
   selected: number | null;
   hovered: number | null;
-  /** Animation time in milliseconds; null when the dots on the links are switched off. */
-  flowTime: number | null;
+  /** Whether to collect the links for the dots moving along them (drawn by the caller). */
+  flow: boolean;
   /** Commits and links to keep bright while the rest fades (search, ancestors); null for none. */
   emphasis: Emphasis | null;
   /**
@@ -111,18 +111,21 @@ function arrivalScale(scene: Scene, r: number): number {
 
 type Ctx = CanvasRenderingContext2D;
 
-/** Draws a frame. Returns true when something in it moves, so the caller knows to keep animating. */
-export function draw(ctx: Ctx, input: Scene): boolean {
+/**
+ * Draws a frame. Returns the links the dots move along, for the caller to animate them without
+ * redrawing the frame; null when the dots are off or there are no links to move on.
+ */
+export function draw(ctx: Ctx, input: Scene): FlowFrame | null {
   // A mask built for an older load would light the wrong commits; better none until it catches up.
   const scene = emphasisFits(input.emphasis, input.index) ? input : { ...input, emphasis: null };
   const { width, height, view, index, palette } = scene;
   ctx.setTransform(scene.dpr, 0, 0, scene.dpr, 0, 0);
-  ctx.fillStyle = palette.canvas;
-  ctx.fillRect(0, 0, width, height);
+  // Transparent: the background colour, and the sea, are under this canvas.
+  ctx.clearRect(0, 0, width, height);
   drawDots(ctx, scene);
 
   const count = index.length;
-  if (count === 0) return false;
+  if (count === 0) return null;
 
   const z = view.z;
   const xMin = -view.tx / z;
@@ -131,35 +134,37 @@ export function draw(ctx: Ctx, input: Scene): boolean {
   // Columns move during a morph, but stay in order, so the visible ones can still be searched.
   const first = positions ? Math.max(0, firstAtLeast(positions, -xMax / COLUMN_W - 1) - 1) : Math.max(0, Math.floor(-xMax / COLUMN_W) - 1);
   const last = positions ? Math.min(count - 1, firstAtLeast(positions, -xMin / COLUMN_W + 1)) : Math.min(count - 1, Math.ceil(-xMin / COLUMN_W) + 1);
-  if (first > last) return false;
+  if (first > last) return null;
 
   const columnPx = COLUMN_W * z;
   const stride = columnPx >= MIN_COLUMN_PX || scene.morph ? 1 : Math.ceil(MIN_COLUMN_PX / columnPx);
 
   // Dots travel along the links only where the links are drawn one by one.
-  const links = scene.flowTime !== null && stride === 1 && z >= LOD_TILE ? new FlowLinks() : null;
+  const links = scene.flow && stride === 1 && z >= LOD_TILE ? new FlowLinks() : null;
   const clipped = clipUntraced(ctx, scene, last);
   drawEdges(ctx, scene, first, last, stride, links);
-  let moving = false;
-  if (links && scene.flowTime !== null) {
-    moving =
-      drawFlow(ctx, links, {
-        time: scene.flowTime,
-        anchor: view.tx,
-        spacing: FLOW_SPACING * z,
-        speed: FLOW_SPEED * z,
-        radius: Math.max(2, Math.min(4, 3.4 * z)),
-        width,
-        height,
-        palette,
-      }) > 0;
-  }
   if (clipped) ctx.restore();
+  const flow: FlowFrame | null =
+    links && !links.isEmpty
+      ? {
+          links,
+          style: {
+            anchor: view.tx,
+            spacing: FLOW_SPACING * z,
+            speed: FLOW_SPEED * z,
+            radius: Math.max(2, Math.min(4, 3.4 * z)),
+            width,
+            height,
+            palette,
+          },
+          top: 0,
+        }
+      : null;
   if (z < LOD_TILE) drawDots2(ctx, scene, first, last, stride);
   else drawNodes(ctx, scene, first, last);
   drawWorktree(ctx, scene);
   scene.cache.trim();
-  return moving;
+  return flow;
 }
 
 /**

@@ -3,6 +3,7 @@
 //   mode=shot|bench    render one view / time many frames
 //   compress=1         show the compressed (topology) projection
 //   flow=1             moving dots on the links
+//   overlay=1          with flow=1: dots on their own canvas, and their own timings
 //   timeline=1         show the timeline; zoom is then pixels per day, col the commit to centre on
 //   zoom, col, select  for mode=shot: zoom level, column to centre on, column to select
 //   ancestors=<col>    highlight the ancestors of that column
@@ -139,6 +140,12 @@ async function main(): Promise<void> {
   });
   new Minimap(document.getElementById("minimap") as HTMLCanvasElement, index, controller);
   controller.setFlow(params.get("flow") === "1");
+  const overlay = params.get("overlay") === "1" ? document.createElement("canvas") : null;
+  if (overlay) {
+    overlay.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none";
+    canvas.after(overlay);
+    controller.attachFlowCanvas(overlay);
+  }
   controller.setEmphasis(emphasisFor(index, false));
   (window as unknown as { __bench: unknown }).__bench = controller;
   const width = window.innerWidth;
@@ -175,6 +182,19 @@ async function main(): Promise<void> {
     rows.push(
       `zoom=${z} median=${percentile(times, 0.5).toFixed(2)}ms p95=${percentile(times, 0.95).toFixed(2)}ms max=${times[times.length - 1]?.toFixed(2)}ms`,
     );
+    if (overlay) {
+      // The frames between two redraws: only the dots move.
+      const dots: number[] = [];
+      const overlayCtx = overlay.getContext("2d");
+      for (let k = 0; k < 60; k++) {
+        const start = performance.now();
+        controller.renderFlow(start);
+        overlayCtx?.getImageData(0, 0, 1, 1);
+        dots.push(performance.now() - start);
+      }
+      dots.sort((a, b) => a - b);
+      rows.push(`  dots only: median=${percentile(dots, 0.5).toFixed(2)}ms p95=${percentile(dots, 0.95).toFixed(2)}ms`);
+    }
   }
   report(rows.join("\n"));
   document.title = "done";

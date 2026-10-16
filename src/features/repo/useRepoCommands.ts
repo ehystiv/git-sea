@@ -28,6 +28,7 @@ export interface RepoCommandState {
   mode: ViewMode;
   panelOpen: boolean;
   flow: boolean;
+  sea: boolean;
   ancestors: boolean;
   hasSelection: boolean;
   canCollapse: boolean;
@@ -38,6 +39,7 @@ export interface RepoCommandActions {
   setMode: (mode: ViewMode) => void;
   togglePanel: () => void;
   toggleFlow: () => void;
+  toggleSea: () => void;
   toggleAncestors: () => void;
   openSearch: () => void;
   goHead: () => void;
@@ -53,7 +55,7 @@ export interface RepoCommandActions {
 
 /** What the active repository offers to the command palette. Null for a tab in the background. */
 export function useRepoCommands(active: boolean, state: RepoCommandState, actions: RepoCommandActions): PaletteSource | null {
-  const { index, version, mode, panelOpen, flow, ancestors, hasSelection, canCollapse, branchFilter } = state;
+  const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter } = state;
 
   return useMemo(() => {
     if (!active) return null;
@@ -67,6 +69,9 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
     add({ id: "panel", title: panelOpen ? "Nascondi il pannello dettagli" : "Mostra il pannello dettagli", shortcut: "↩", keywords: "details dettagli diff", run: actions.togglePanel }, "Vista");
     if (mode !== "list") {
       add({ id: "flow", title: flow ? "Ferma il flusso animato" : "Attiva il flusso animato", keywords: "pallini animazione flow", run: actions.toggleFlow }, "Vista");
+      if (mode !== "timeline") {
+        add({ id: "sea", title: sea ? "Nascondi i pesci sullo sfondo" : "Mostra i pesci sullo sfondo", keywords: "pesci mare sfondo fish acquario", run: actions.toggleSea }, "Vista");
+      }
       add({ id: "fit", title: "Mostra tutta la storia", shortcut: "⌘0", keywords: "zoom adatta fit", run: actions.fit }, "Vista");
       add({ id: "zoom-in", title: "Ingrandisci", shortcut: "⌘+", keywords: "zoom in", run: actions.zoomIn }, "Vista");
       add({ id: "zoom-out", title: "Riduci", shortcut: "⌘−", keywords: "zoom out", run: actions.zoomOut }, "Vista");
@@ -121,5 +126,5 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
 
     return { commands, search };
     // `version` is what tells us the (mutable) index changed.
-  }, [active, index, version, mode, panelOpen, flow, ancestors, hasSelection, canCollapse, branchFilter, actions]);
+  }, [active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter, actions]);
 }

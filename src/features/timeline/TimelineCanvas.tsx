@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { CommitSummary } from "../../lib/bindings";
+import { useWindowFocused } from "../../lib/windowFocus";
 import type { Emphasis } from "../graph/emphasis";
 import type { GraphCanvasHandle } from "../graph/GraphCanvas";
 import type { GraphIndex } from "../graph/GraphIndex";
@@ -31,6 +32,8 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
 ) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const flowCanvasRef = useRef<HTMLCanvasElement>(null);
+  const focused = useWindowFocused();
   const controllerRef = useRef<TimelineController | null>(null);
   const onSelectRef = useRef(onSelect);
   const flowRef = useRef(flow);
@@ -60,13 +63,15 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
   useEffect(() => {
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
-    if (!canvas || !wrap) return;
+    const flowCanvas = flowCanvasRef.current;
+    if (!canvas || !wrap || !flowCanvas) return;
 
     const controller = new TimelineController(canvas, index, {
       onSelect: (i) => onSelectRef.current(i === null ? null : (index.commits[i] ?? null)),
       onZoom: setZoom,
     });
     controllerRef.current = controller;
+    controller.attachFlowCanvas(flowCanvas);
     controller.setFlow(flowRef.current);
     controller.setEmphasis(emphasisRef.current);
     controller.setInsetRight(insetRef.current);
@@ -119,9 +124,15 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
     controllerRef.current?.setInsetRight(insetRight);
   }, [insetRight]);
 
+  // After the controller's creation, so a new one learns the focus too.
+  useEffect(() => {
+    controllerRef.current?.setFocused(focused);
+  }, [focused, index]);
+
   return (
     <div ref={wrapRef} className={styles.wrap}>
       <canvas ref={canvasRef} className={styles.canvas} />
+      <canvas ref={flowCanvasRef} className={styles.flow} aria-hidden="true" />
       <ZoomControls
         zoom={zoom}
         onFit={() => controllerRef.current?.fit()}

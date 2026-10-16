@@ -1,5 +1,6 @@
 import { THEME_CHANGED } from "../../lib/theme";
 import type { Emphasis } from "../graph/emphasis";
+import { drawFlow, FlowOverlay, type FlowFrame } from "../graph/flow";
 import type { GraphIndex } from "../graph/GraphIndex";
 import { readPalette, type Palette } from "../graph/palette";
 import { drawTimeline, hitTestTimeline } from "./draw";
@@ -56,6 +57,12 @@ export class TimelineController {
   private pendingG = 0;
   private active = true;
   private flow = false;
+  /** See the fields of the same name in GraphController. */
+  private flowOverlay: FlowOverlay | null = null;
+  private flowFrame: FlowFrame | null = null;
+  /** Something changed since the last frame (not `dirty`, which is about the data). */
+  private needsDraw = true;
+  private focused = true;
   private emphasis: Emphasis | null = null;
   private selectedBeforeReplace: string | null = null;
   private readonly disposers: Array<() => void> = [];
@@ -93,6 +100,19 @@ export class TimelineController {
     if (active) this.requestDraw();
   }
 
+  /** See `GraphController.setFocused`. */
+  setFocused(focused: boolean): void {
+    this.focused = focused;
+    if (focused) this.schedule();
+  }
+
+  /** See `GraphController.attachFlowCanvas`. */
+  attachFlowCanvas(canvas: HTMLCanvasElement): void {
+    this.flowOverlay = new FlowOverlay(canvas);
+    if (this.width > 0) this.flowOverlay.resize(this.width, this.height, this.dpr);
+    this.requestDraw();
+  }
+
   /** See `GraphController.setInsetRight`. */
   setInsetRight(px: number): void {
     this.insetRight = Math.max(0, px);
@@ -109,6 +129,7 @@ export class TimelineController {
     this.dpr = dpr;
     this.canvas.width = Math.round(width * dpr);
     this.canvas.height = Math.round(height * dpr);
+    this.flowOverlay?.resize(width, height, dpr);
     const data = this.currentData();
     if (this.placed && data.count > 0) this.view = this.clamp(this.view);
     this.requestDraw();
@@ -196,7 +217,13 @@ export class TimelineController {
 
   // ---- drawing ---------------------------------------------------------------------------
 
+  /** Something in the timeline changed: draw it again on the next frame. */
   requestDraw(): void {
+    this.needsDraw = true;
+    this.schedule();
+  }
+
+  private schedule(): void {
     if (this.frame) return;
     this.frame = requestAnimationFrame((now) => {
       this.frame = 0;
@@ -205,6 +232,8 @@ export class TimelineController {
   }
 
   private step(now: number): void {
+    const redraw = this.needsDraw;
+    this.needsDraw = false;
     if (this.animation) {
       const { from, to, start, duration } = this.animation;
       const t = Math.min(1, (now - start) / duration);
@@ -218,15 +247,22 @@ export class TimelineController {
       if (t >= 1) this.animation = null;
       else this.requestDraw();
     }
-    // Dots moving along the links need a new frame every time; a still view does not.
-    const moving = this.render(now);
-    if (moving && this.active && !document.hidden) this.requestDraw();
+    // Drawn only when something changed; the dots move on their own canvas (see GraphController).
+    const moving = redraw ? this.render(now) : false;
+    const animate = this.active && this.focused && !document.hidden;
+    const overlay = this.flowOverlay;
+    if (overlay) {
+      overlay.setFrame(this.flow ? this.flowFrame : null);
+      if ((redraw || animate) && overlay.tick(now, redraw) && animate) this.schedule();
+    } else if (moving && animate) {
+      this.requestDraw();
+    }
   }
 
-  /** Draws a frame; returns true when something in it is moving. */
+  /** Draws a frame; returns true when there are dots moving (drawn here without their canvas). */
   render(time: number = performance.now()): boolean {
     if (this.width === 0 || this.height === 0) return false;
-    return drawTimeline(this.ctx, {
+    const flow = drawTimeline(this.ctx, {
       width: this.width,
       height: this.height,
       dpr: this.dpr,
@@ -236,9 +272,11 @@ export class TimelineController {
       palette: this.palette,
       selected: this.selected,
       hovered: this.hovered,
-      flowTime: this.flow ? time : null,
+      flow: this.flow,
       emphasis: this.emphasis,
     });
+    this.flowFrame = flow;
+    return flow !== null && (this.flowOverlay !== null || drawFlow(this.ctx, flow.links, { ...flow.style, time }) > 0);
   }
 
   /** Keeps these commits bright and fades the rest; null shows everything normally. */
@@ -313,6 +351,12 @@ export class TimelineController {
       this.canvas.removeEventListener("gesturestart", gestureStart);
       this.canvas.removeEventListener("gesturechange", gestureChange);
     });
+
+    const visibility = () => {
+      if (!document.hidden) this.schedule();
+    };
+    document.addEventListener("visibilitychange", visibility);
+    this.disposers.push(() => document.removeEventListener("visibilitychange", visibility));
 
     const keydown = (e: KeyboardEvent) => this.onKeyDown(e);
     window.addEventListener("keydown", keydown);

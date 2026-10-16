@@ -20,6 +20,7 @@ import { TimelineCanvas } from "../timeline/TimelineCanvas";
 import { describeFilter, pruneFilter, toggleRef } from "../sidebar/refFilter";
 import { Sidebar } from "../sidebar/Sidebar";
 import { useFlow } from "../../lib/flow";
+import { useSea } from "../../lib/sea";
 import { shortHash } from "../../lib/format";
 import { headCommitId } from "./head";
 import { useDrawer } from "./useDrawer";
@@ -87,6 +88,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   const { index, reload } = stream;
   const flow = useFlow((s) => s.enabled);
   const toggleFlow = useFlow((s) => s.toggle);
+  const sea = useSea((s) => s.enabled);
+  const toggleSea = useSea((s) => s.toggle);
   const compressed = useCompressedIndex(index, stream.version, mode === "topology");
   const canvasIndex = mode === "topology" ? compressed.index : index;
   const canvasVersion = mode === "topology" ? compressed.version : stream.version;
@@ -262,6 +265,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     setMode,
     togglePanel: () => setPanelOpen((open) => !open),
     toggleFlow,
+    toggleSea,
     toggleAncestors: () => setAncestors((on) => !on),
     openSearch,
     goHead,
@@ -284,6 +288,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         mode,
         panelOpen,
         flow,
+        sea,
         ancestors,
         hasSelection: selected !== null,
         canCollapse: mode === "topology" && compressed.expandedCount > 0,
@@ -433,6 +438,22 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
             </svg>
           </button>
         )}
+        {mode !== "list" && mode !== "timeline" && (
+          <button
+            type="button"
+            className={`${styles.iconButton} ${sea ? styles.active : ""}`}
+            aria-label="Pesci sullo sfondo"
+            aria-pressed={sea}
+            title={sea ? "Nascondi i pesci sullo sfondo" : "Mostra i pesci sullo sfondo"}
+            onClick={toggleSea}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12c-2.5 3.5-6 5-9.5 5S7 15 6 12c1-3 2.5-5 5.5-5s7 1.5 9.5 5z" />
+              <path d="M6 12 2 8.5v7z" />
+              <circle cx="16.5" cy="11" r="0.8" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        )}
         <button
           type="button"
           className={`${styles.iconButton} ${panelOpen ? styles.active : ""}`}
@@ -484,6 +505,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               worktree={worktreeMarker}
               onOpenWorktree={openWorktree}
               insetRight={insetRight}
+              sea={sea}
             />
           ) : (
             <CommitList commits={listCommits} selectedId={selected?.id ?? null} onSelect={selectCommit} />
