@@ -1,6 +1,18 @@
 @layer components {
-  .view { display: grid; grid-template-columns: 232px minmax(0, 1fr); height: 100%; min-height: 0; }
-  .content { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; background: var(--surface); }
+  /* `--sidebar-w` is the chosen width; in a narrow window the sidebar gives way first, so the
+     views keep at least 640px. */
+  .view {
+    --sidebar-col: min(var(--sidebar-w, 232px), max(180px, calc(100% - 640px)));
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--sidebar-col) minmax(0, 1fr);
+    height: 100%;
+    min-height: 0;
+  }
+  /* On the sidebar's right edge, above both sides of it. */
+  .sidebarResizer { position: absolute; left: calc(var(--sidebar-col) - 4px); top: 0; bottom: 0; width: 8px; z-index: 6; cursor: col-resize; touch-action: none; }
+  .sidebarResizer:hover, .sidebarResizer:active { background: linear-gradient(to right, transparent 3px, var(--accent) 3px, var(--accent) 5px, transparent 5px); }
+  .content { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; background: var(--surface); }
 
   .toolbar {
     display: flex;
@@ -9,7 +21,11 @@
     height: 44px;
     padding: 0 var(--space-4);
     border-bottom: 1px solid var(--border);
+    min-width: 0;
+    overflow: hidden;
   }
+  /* Only the path gives way when the toolbar is short of room. */
+  .toolbar > * { flex: none; }
 
   .detail { color: var(--text-3); }
   .meta { color: var(--text-2); }

@@ -28,6 +28,7 @@ import { useSearch } from "../search/useSearch";
 import { TimelineCanvas } from "../timeline/TimelineCanvas";
 import { describeFilter, pruneFilter, toggleRef } from "../sidebar/refFilter";
 import { Sidebar } from "../sidebar/Sidebar";
+import { useSidebarWidth } from "../sidebar/sidebarWidth";
 import { branchDivergences, useUpstreams, type BranchDivergence } from "../sidebar/upstream";
 import { useFlow } from "../../lib/flow";
 import { useSea } from "../../lib/sea";
@@ -621,6 +622,27 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   const insetRight = panelOpen ? panelWidth + PANEL_GAP * 2 : 0;
   const drawer = useDrawer(panelOpen);
 
+  // The sidebar is resized from its right edge; a double click there gives the default back.
+  const sidebarWidth = useSidebarWidth((s) => s.width);
+  const setSidebarWidth = useSidebarWidth((s) => s.setWidth);
+  const resetSidebarWidth = useSidebarWidth((s) => s.reset);
+  function startSidebarResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const target = event.currentTarget;
+    // From the width on screen, which a narrow window may keep below the chosen one.
+    const startWidth = target.offsetLeft + target.offsetWidth / 2;
+    target.setPointerCapture(event.pointerId);
+    const onMove = (e: PointerEvent) => setSidebarWidth(startWidth + (e.clientX - startX));
+    const onUp = () => {
+      target.removeEventListener("pointermove", onMove);
+      target.removeEventListener("pointerup", onUp);
+    };
+    target.addEventListener("pointermove", onMove);
+    target.addEventListener("pointerup", onUp);
+  }
+
   function startResize(event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();
     const startX = event.clientX;
@@ -639,7 +661,16 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   }
 
   return (
-    <div className={styles.view}>
+    <div className={styles.view} style={{ "--sidebar-w": `${sidebarWidth}px` } as CSSProperties}>
+      <div
+        className={styles.sidebarResizer}
+        onPointerDown={startSidebarResize}
+        onDoubleClick={resetSidebarWidth}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label={m.repo.resizeSidebar}
+        title={m.repo.resizeSidebarTitle}
+      />
       <Sidebar
         sessionId={repo.sessionId}
         index={index}

@@ -154,6 +154,8 @@ export const it: Messages = {
     panelTitle: "Pannello dettagli (Invio)",
     close: "Chiudi",
     resizePanel: "Ridimensiona il pannello",
+    resizeSidebar: "Ridimensiona la sidebar",
+    resizeSidebarTitle: "Trascina per ridimensionare la sidebar, doppio clic per tornare alla larghezza iniziale",
     divergence: (branch, upstream) => `${branch} ↔ ${upstream}`,
     stopDivergence: "Smetti di evidenziare la divergenza",
   },

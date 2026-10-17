@@ -157,6 +157,8 @@ export const en = {
     panelTitle: "Details panel (Enter)",
     close: "Close",
     resizePanel: "Resize the panel",
+    resizeSidebar: "Resize the sidebar",
+    resizeSidebarTitle: "Drag to resize the sidebar, double-click to reset it",
     divergence: (branch: string, upstream: string) => `${branch} ↔ ${upstream}`,
     stopDivergence: "Stop highlighting the divergence",
   },
