@@ -10,6 +10,9 @@ import minimapStyles from "../graph/MinimapOverlay.module.css";
 import { ZoomControls } from "../graph/ZoomControls";
 import { useT } from "../../lib/i18n";
 import { timelineMinimap } from "./minimap";
+import { DOCK_HANDLE } from "../dock/DockController";
+import { useDockedWidgets } from "../dock/useDockedWidgets";
+import { AXIS_H } from "./view";
 import { TimelineController } from "./TimelineController";
 import styles from "./TimelineCanvas.module.css";
 
@@ -46,6 +49,10 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const flowCanvasRef = useRef<HTMLCanvasElement>(null);
   const minimapRef = useRef<HTMLCanvasElement>(null);
+  const minimapBoxRef = useRef<HTMLDivElement>(null);
+  const zoomRef = useRef<HTMLDivElement>(null);
+  // The top corners sit below the date axis.
+  useDockedWidgets(wrapRef, { minimap: minimapBoxRef, zoom: zoomRef }, insetRight, AXIS_H);
   const focused = useWindowFocused();
   const controllerRef = useRef<TimelineController | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -163,15 +170,19 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
     <div ref={wrapRef} className={styles.wrap}>
       <canvas ref={canvasRef} className={styles.canvas} />
       <canvas ref={flowCanvasRef} className={styles.flow} aria-hidden="true" />
-      <canvas
-        ref={minimapRef}
-        className={minimapStyles.minimap}
-        style={{ width: MINIMAP_W, height: MINIMAP_H }}
-        role="img"
-        aria-label={m.graph.minimap}
-        title={m.graph.minimapTitle}
-      />
+      <div ref={minimapBoxRef} className={minimapStyles.box}>
+        <canvas
+          ref={minimapRef}
+          className={minimapStyles.minimap}
+          style={{ width: MINIMAP_W, height: MINIMAP_H }}
+          role="img"
+          aria-label={m.graph.minimap}
+          title={m.graph.minimapTitle}
+        />
+        <div className={minimapStyles.grip} {...{ [DOCK_HANDLE]: "" }} title={m.dock.move} aria-hidden="true" />
+      </div>
       <ZoomControls
+        ref={zoomRef}
         zoom={zoom}
         onFit={() => controllerRef.current?.fit()}
         onZoomIn={() => controllerRef.current?.zoomBy(1.5)}

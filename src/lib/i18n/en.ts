@@ -420,6 +420,8 @@ export const en = {
 
   zoom: { fit: "Fit", in: "Zoom in", out: "Zoom out", export: "Export the view as an image" },
 
+  dock: { move: "Drag to move it to another corner" },
+
   export: {
     label: "Export the view",
     save: "Save as PNG…",

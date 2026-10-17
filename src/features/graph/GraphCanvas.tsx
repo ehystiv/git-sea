@@ -11,6 +11,8 @@ import { Minimap } from "./MinimapOverlay";
 import { SeaLayer } from "../sea/SeaLayer";
 import { MINIMAP_H, MINIMAP_W, graphMinimap } from "./minimapMath";
 import { ZoomControls } from "./ZoomControls";
+import { DOCK_HANDLE } from "../dock/DockController";
+import { useDockedWidgets } from "../dock/useDockedWidgets";
 import styles from "./GraphCanvas.module.css";
 import minimapStyles from "./MinimapOverlay.module.css";
 
@@ -80,6 +82,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const seaEnabledRef = useRef(sea);
   const activeRef = useRef(active);
   const minimapRef = useRef<HTMLCanvasElement>(null);
+  const minimapBoxRef = useRef<HTMLDivElement>(null);
+  const zoomRef = useRef<HTMLDivElement>(null);
+  useDockedWidgets(wrapRef, { minimap: minimapBoxRef, zoom: zoomRef }, insetRight);
   const controllerRef = useRef<GraphController | null>(null);
   const onSelectRef = useRef(onSelect);
   const onCompareRef = useRef(onCompare);
@@ -261,14 +266,17 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       <canvas ref={seaCanvasRef} className={styles.sea} aria-hidden="true" />
       <canvas ref={canvasRef} className={styles.canvas} />
       <canvas ref={flowCanvasRef} className={styles.flow} aria-hidden="true" />
-      <canvas
-        ref={minimapRef}
-        className={minimapStyles.minimap}
-        style={{ width: MINIMAP_W, height: MINIMAP_H }}
-        role="img"
-        aria-label={m.graph.minimap}
-        title={m.graph.minimapTitle}
-      />
+      <div ref={minimapBoxRef} className={minimapStyles.box}>
+        <canvas
+          ref={minimapRef}
+          className={minimapStyles.minimap}
+          style={{ width: MINIMAP_W, height: MINIMAP_H }}
+          role="img"
+          aria-label={m.graph.minimap}
+          title={m.graph.minimapTitle}
+        />
+        <div className={minimapStyles.grip} {...{ [DOCK_HANDLE]: "" }} title={m.dock.move} aria-hidden="true" />
+      </div>
       {unseen && (
         <button type="button" className={styles.unseen} onClick={() => controllerRef.current?.showUnseen()}>
           {unseen.side === "left" && <span aria-hidden="true">←</span>}
@@ -277,6 +285,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         </button>
       )}
       <ZoomControls
+        ref={zoomRef}
         zoom={zoom}
         onFit={() => controllerRef.current?.fit()}
         onZoomIn={() => controllerRef.current?.zoomBy(1.25)}

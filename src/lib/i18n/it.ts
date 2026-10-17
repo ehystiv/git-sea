@@ -417,6 +417,8 @@ export const it: Messages = {
 
   zoom: { fit: "Adatta", in: "Ingrandisci", out: "Riduci", export: "Esporta la vista come immagine" },
 
+  dock: { move: "Trascina per spostarlo in un altro angolo" },
+
   export: {
     label: "Esporta la vista",
     save: "Salva come PNG…",

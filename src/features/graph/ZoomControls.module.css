@@ -1,8 +1,10 @@
 @layer components {
   .zoom {
+    /* Placed by the dock (a transform), in a corner of the view. */
     position: absolute;
-    left: var(--space-4);
-    bottom: var(--space-4);
+    left: 0;
+    top: 0;
+    z-index: 3;
     display: flex;
     align-items: center;
     gap: 2px;
@@ -12,6 +14,10 @@
     box-shadow: 0 0 0 0.5px var(--border-strong), 0 2px 8px rgb(0 0 0 / 0.1);
     color: var(--text-2);
   }
+  .zoom[data-dragging] { box-shadow: 0 0 0 0.5px var(--border-strong), 0 12px 32px rgb(0 0 0 / 0.22); }
+  .grip { display: grid; place-items: center; width: 14px; height: 26px; color: var(--text-3); cursor: grab; touch-action: none; opacity: 0.7; }
+  .grip:hover { opacity: 1; color: var(--text-2); }
+  .zoom[data-dragging] .grip { cursor: grabbing; }
   .zoom button { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 6px; }
   .zoom button:hover { background: var(--hover); color: var(--text); }
   .zoom .export { margin-left: 2px; border-left: 1px solid var(--border); border-radius: 0 6px 6px 0; }

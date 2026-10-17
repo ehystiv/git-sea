@@ -1,3 +1,5 @@
+import { forwardRef } from "react";
+import { DOCK_HANDLE } from "../dock/DockController";
 import { useT } from "../../lib/i18n";
 import { modShortcut } from "../../lib/platform";
 import styles from "./ZoomControls.module.css";
@@ -18,10 +20,21 @@ function formatZoom(zoom: number): string {
   return `${pct >= 10 ? Math.round(pct) : pct.toFixed(1)}%`;
 }
 
-export function ZoomControls({ zoom, onFit, onZoomIn, onZoomOut, onExport }: ZoomControlsProps) {
+/** Fit, zoom in and out, the zoom level and the export button; dragged by the dots on the left. */
+export const ZoomControls = forwardRef<HTMLDivElement, ZoomControlsProps>(function ZoomControls({ zoom, onFit, onZoomIn, onZoomOut, onExport }, ref) {
   const m = useT();
   return (
-    <div className={styles.zoom} role="toolbar" aria-label="Zoom">
+    <div ref={ref} className={styles.zoom} role="toolbar" aria-label="Zoom">
+      <span className={styles.grip} {...{ [DOCK_HANDLE]: "" }} title={m.dock.move} aria-hidden="true">
+        <svg viewBox="0 0 6 14" width="6" height="14" fill="currentColor">
+          <circle cx="1.5" cy="2" r="1.2" />
+          <circle cx="4.5" cy="2" r="1.2" />
+          <circle cx="1.5" cy="7" r="1.2" />
+          <circle cx="4.5" cy="7" r="1.2" />
+          <circle cx="1.5" cy="12" r="1.2" />
+          <circle cx="4.5" cy="12" r="1.2" />
+        </svg>
+      </span>
       <button type="button" aria-label={m.zoom.fit} title={`${m.zoom.fit} (${modShortcut("0")})`} onClick={onFit}>
         <svg viewBox="0 0 24 24" width="14" height="14" {...stroke}>
           <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
@@ -58,4 +71,4 @@ export function ZoomControls({ zoom, onFit, onZoomIn, onZoomOut, onExport }: Zoo
       )}
     </div>
   );
-}
+});
