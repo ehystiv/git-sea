@@ -32,11 +32,13 @@ interface TimelineCanvasProps {
   onContextMenu?: (commit: CommitSummary, x: number, y: number) => void;
   /** Pixels on the right covered by the floating details panel; the canvas keeps its size. */
   insetRight: number;
+  /** The export button next to the zoom was pressed, at window coordinates. */
+  onExport?: (x: number, y: number) => void;
 }
 
 /** The history on a time axis: one row per lane of the graph layout, newest commits on the right. */
 export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>(function TimelineCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, onContextMenu, insetRight },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, onContextMenu, insetRight, onExport },
   ref,
 ) {
   const m = useT();
@@ -71,6 +73,7 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
       zoomIn: () => controllerRef.current?.zoomBy(1.5),
       zoomOut: () => controllerRef.current?.zoomBy(1 / 1.5),
       fit: () => controllerRef.current?.fit(),
+      snapshot: () => controllerRef.current?.snapshot() ?? Promise.resolve(null),
     }),
     [index],
   );
@@ -173,6 +176,7 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
         onFit={() => controllerRef.current?.fit()}
         onZoomIn={() => controllerRef.current?.zoomBy(1.5)}
         onZoomOut={() => controllerRef.current?.zoomBy(1 / 1.5)}
+        onExport={onExport}
       />
     </div>
   );

@@ -1628,6 +1628,7 @@ dependencies = [
 name = "git-sea"
 version = "0.3.0"
 dependencies = [
+ "base64 0.22.1",
  "gix",
  "keyring-core",
  "notify",

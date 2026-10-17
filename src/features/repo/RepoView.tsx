@@ -31,7 +31,9 @@ import { Sidebar } from "../sidebar/Sidebar";
 import { branchDivergences, useUpstreams, type BranchDivergence } from "../sidebar/upstream";
 import { useFlow } from "../../lib/flow";
 import { useSea } from "../../lib/sea";
-import { formatCount, shortHash } from "../../lib/format";
+import { formatCount, shortHash, splitPath } from "../../lib/format";
+import { blobToBase64 } from "../graph/snapshot";
+import { commands } from "../../lib/bindings";
 import { useT, type Messages } from "../../lib/i18n";
 import { headCommitId } from "./head";
 import { normalizePath } from "../../app/tabsLogic";
@@ -206,6 +208,38 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     [index],
   );
   const compareWithCommit = useCallback((commit: CommitSummary) => startCompare(commit.id), [startCompare]);
+
+  // Export of the visible view as an image, with a short notice of how it went.
+  const [exportAt, setExportAt] = useState<{ x: number; y: number } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (notice === null) return;
+    const timer = setTimeout(() => setNotice(null), 2500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+  const openExport = useCallback((x: number, y: number) => setExportAt({ x, y }), []);
+  const savePng = useCallback(async () => {
+    const blob = await graphRef.current?.snapshot();
+    if (!blob) return setNotice(m.export.empty);
+    const day = new Date().toISOString().slice(0, 10);
+    const result = await commands.savePng(`${repo.name}-${mode}-${day}.png`, await blobToBase64(blob)).catch(() => null);
+    if (result?.status !== "ok") return setNotice(m.export.failed);
+    if (result.data) setNotice(m.export.saved(splitPath(result.data)[1]));
+  }, [m, repo.name, mode]);
+  const copyImage = useCallback(async () => {
+    const snapshot = graphRef.current?.snapshot() ?? Promise.resolve(null);
+    try {
+      // Safari only allows writing during the click: the item takes the image still being drawn.
+      const png = snapshot.then((blob) => {
+        if (!blob) throw new Error("empty");
+        return blob;
+      });
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
+      setNotice(m.export.copied);
+    } catch {
+      setNotice((await snapshot) ? m.export.failed : m.export.empty);
+    }
+  }, [m]);
 
   // Bookmarks, kept per repository across launches.
   const repoKey = normalizePath(repo.path);
@@ -503,6 +537,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     toggleBookmark: () => {
       if (selectedIdRef.current !== null) toggleBookmarkOf(selectedIdRef.current);
     },
+    exportPng: () => void savePng(),
+    copyImage: () => void copyImage(),
     goBack: () => goHistory(-1),
     goForward: () => goHistory(1),
     openSearch,
@@ -778,6 +814,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               onSelect={selectCommit}
               onCompare={compareWithCommit}
               onContextMenu={openMenu}
+              onExport={openExport}
               insetRight={insetRight}
             />
           ) : mode !== "list" ? (
@@ -801,9 +838,15 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               onOpenCi={openCi}
               insetRight={insetRight}
               sea={sea}
+              onExport={openExport}
             />
           ) : (
             <CommitList commits={listCommits} selectedId={selected?.id ?? null} onSelect={selectCommit} onCompare={compareWithCommit} onContextMenu={openMenu} />
+          )}
+          {notice && (
+            <div className={styles.notice} role="status">
+              {notice}
+            </div>
           )}
           {searchOpen && (
             <SearchBar
@@ -862,6 +905,20 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
           </div>
         )}
       </div>
+
+      {exportAt && (
+        <ContextMenu
+          x={exportAt.x}
+          y={exportAt.y}
+          label={m.export.label}
+          placement="above"
+          onClose={() => setExportAt(null)}
+          items={[
+            { id: "save", label: m.export.save, run: () => void savePng() },
+            { id: "copy", label: m.export.copy, run: () => void copyImage() },
+          ]}
+        />
+      )}
 
       {menu && (
         <ContextMenu

@@ -7,6 +7,8 @@ interface ZoomControlsProps {
   onFit: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  /** Opens the export choices; the point is where to show them (window coordinates). */
+  onExport?: (x: number, y: number) => void;
 }
 
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" } as const;
@@ -16,7 +18,7 @@ function formatZoom(zoom: number): string {
   return `${pct >= 10 ? Math.round(pct) : pct.toFixed(1)}%`;
 }
 
-export function ZoomControls({ zoom, onFit, onZoomIn, onZoomOut }: ZoomControlsProps) {
+export function ZoomControls({ zoom, onFit, onZoomIn, onZoomOut, onExport }: ZoomControlsProps) {
   const m = useT();
   return (
     <div className={styles.zoom} role="toolbar" aria-label="Zoom">
@@ -36,6 +38,24 @@ export function ZoomControls({ zoom, onFit, onZoomIn, onZoomOut }: ZoomControlsP
         </svg>
       </button>
       <span className={styles.pct}>{formatZoom(zoom)}</span>
+      {onExport && (
+        <button
+          type="button"
+          className={styles.export}
+          aria-label={m.zoom.export}
+          title={m.zoom.export}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            onExport(rect.left, rect.top - 6);
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" {...stroke} strokeLinejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <circle cx="9" cy="10" r="1.5" />
+            <path d="m21 16-5-5-8 8" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { LANGUAGE_CHANGED } from "../../lib/i18n";
 import type { MinimapFrame } from "../graph/MinimapOverlay";
+import { snapshotCanvas, toPng } from "../graph/snapshot";
 import { hasModKey, IS_MAC } from "../../lib/platform";
 import { THEME_CHANGED } from "../../lib/theme";
 import type { Emphasis } from "../graph/emphasis";
@@ -309,6 +310,29 @@ export class TimelineController {
       this.frameListeners.forEach((listener) => listener(frame));
     }
     return flow !== null && (this.flowOverlay !== null || drawFlow(this.ctx, flow.links, { ...flow.style, time }) > 0);
+  }
+
+  /** The view as it is on screen, without the part under the details panel or the hover, as a PNG. */
+  async snapshot(): Promise<Blob | null> {
+    const width = this.visibleWidth;
+    const height = this.height;
+    if (width <= 0 || height <= 0 || this.index.length === 0) return null;
+    const target = snapshotCanvas(width, height, this.dpr);
+    if (!target) return null;
+    drawTimeline(target.ctx, {
+      width,
+      height,
+      dpr: target.scale,
+      view: this.view,
+      index: this.index,
+      data: this.currentData(),
+      palette: this.palette,
+      selected: this.selected,
+      hovered: null,
+      flow: false,
+      emphasis: this.emphasis,
+    });
+    return toPng(target.canvas);
   }
 
   /** Keeps these commits bright and fades the rest; null shows everything normally. */

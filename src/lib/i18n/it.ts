@@ -175,6 +175,8 @@ export const it: Messages = {
     collapseChains: "Richiudi tutte le catene",
     search: "Cerca nei commit",
     goHead: "Vai a HEAD",
+    exportPng: "Salva la vista come PNG…",
+    copyImage: "Copia la vista come immagine",
     back: "Torna al commit precedente",
     addBookmark: "Aggiungi un segnalibro al commit selezionato",
     removeBookmark: "Togli il segnalibro dal commit selezionato",
@@ -411,7 +413,17 @@ export const it: Messages = {
     },
   },
 
-  zoom: { fit: "Adatta", in: "Ingrandisci", out: "Riduci" },
+  zoom: { fit: "Adatta", in: "Ingrandisci", out: "Riduci", export: "Esporta la vista come immagine" },
+
+  export: {
+    label: "Esporta la vista",
+    save: "Salva come PNG…",
+    copy: "Copia come immagine",
+    saved: (name) => `Salvato ${name}`,
+    copied: "Immagine copiata",
+    failed: "Non sono riuscito a esportare la vista",
+    empty: "Niente da esportare",
+  },
 
   graph: {
     minimap: "Minimappa",

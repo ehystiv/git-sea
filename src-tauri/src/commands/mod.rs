@@ -440,6 +440,41 @@ pub async fn repo_web(
     .map_err(|err| AppError::Internal(err.to_string()))
 }
 
+/// Asks where to save an exported image (a PNG sent as base64) and writes it there. Returns the
+/// path, or `None` when the user cancelled. The dialog is opened here, so the frontend has no way
+/// to write anywhere it was not told to.
+#[tauri::command]
+#[specta::specta]
+pub async fn save_png(
+    app: tauri::AppHandle,
+    file_name: String,
+    base64: String,
+) -> Result<Option<String>, AppError> {
+    use base64::Engine;
+    use tauri_plugin_dialog::DialogExt;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64.as_bytes())
+        .map_err(|err| AppError::Internal(format!("not a base64 image: {err}")))?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(chosen) = app
+            .dialog()
+            .file()
+            .add_filter("PNG", &["png"])
+            .set_file_name(&file_name)
+            .blocking_save_file()
+        else {
+            return Ok(None);
+        };
+        let path = chosen
+            .into_path()
+            .map_err(|err| AppError::Internal(err.to_string()))?;
+        std::fs::write(&path, bytes).map_err(|err| AppError::Internal(err.to_string()))?;
+        Ok(Some(path.to_string_lossy().into_owned()))
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
 /// Opens a web page (a CI run) in the default browser. Only `https` links are opened.
 #[tauri::command]
 #[specta::specta]

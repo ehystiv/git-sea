@@ -20,13 +20,15 @@ interface ContextMenuProps {
   label: string;
   items: MenuItem[];
   onClose: () => void;
+  /** Above the point, for a button near the bottom of the window. */
+  placement?: "below" | "above";
 }
 
 /**
  * A menu at the pointer, above everything else. It closes on Escape, on a click outside, when the
  * window loses focus or scrolls, and after an item runs. Arrow keys move between the items.
  */
-export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
+export function ContextMenu({ x, y, label, items, onClose, placement = "below" }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
 
@@ -34,8 +36,8 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
   useLayoutEffect(() => {
     const menu = ref.current;
     if (!menu) return;
-    setPlace(menuPosition(x, y, menu.offsetWidth, menu.offsetHeight, window.innerWidth, window.innerHeight));
-  }, [x, y]);
+    setPlace(menuPosition(x, y, menu.offsetWidth, menu.offsetHeight, window.innerWidth, window.innerHeight, placement));
+  }, [x, y, placement]);
 
   // Only once placed: a hidden element cannot take the focus.
   const placed = place !== null;

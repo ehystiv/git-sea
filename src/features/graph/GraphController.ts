@@ -1,4 +1,5 @@
 import { hasModKey, IS_MAC } from "../../lib/platform";
+import { snapshotCanvas, toPng } from "./snapshot";
 import { THEME_CHANGED } from "../../lib/theme";
 import { COLUMN_W, LANE_H } from "./constants";
 import { describeMarker } from "../ci/markers";
@@ -452,6 +453,42 @@ export class GraphController {
       this.frameListeners.forEach((listener) => listener(frame));
     }
     return moving;
+  }
+
+  /**
+   * The view as it is on screen, without the part under the details panel and without the
+   * pointer's hover or moving parts, as a PNG drawn sharper than the screen. Null when empty.
+   */
+  async snapshot(): Promise<Blob | null> {
+    const width = this.visibleWidth;
+    const height = this.height;
+    if (width <= 0 || height <= 0 || this.index.length === 0) return null;
+    const target = snapshotCanvas(width, height, this.dpr);
+    if (!target) return null;
+    const { ctx, canvas, scale } = target;
+    draw(ctx, {
+      width,
+      height,
+      dpr: scale,
+      view: this.view,
+      index: this.index,
+      palette: this.palette,
+      cache: this.cache,
+      selected: this.selected,
+      hovered: null,
+      flow: false,
+      emphasis: this.emphasis,
+      morph: null,
+      worktree: this.worktree,
+      ci: this.ci,
+      bookmarks: this.bookmarks,
+    });
+    // On screen the background is another layer, under the transparent graph.
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = "destination-over";
+    ctx.fillStyle = this.palette.canvas;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    return toPng(canvas);
   }
 
   /** Keeps these commits bright and fades the rest; null shows everything normally. */

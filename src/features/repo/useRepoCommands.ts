@@ -72,6 +72,8 @@ export interface RepoCommandActions {
   showDivergence: (branch: string) => void;
   stopDivergence: () => void;
   toggleBookmark: () => void;
+  exportPng: () => void;
+  copyImage: () => void;
   goBack: () => void;
   goForward: () => void;
   openSearch: () => void;
@@ -111,6 +113,8 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
       if (mode !== "timeline") {
         add({ id: "sea", title: sea ? m.commands.hideSea : m.commands.showSea, keywords: "pesci mare sfondo fish sea acquario", run: actions.toggleSea }, g.view);
       }
+      add({ id: "export:png", title: m.commands.exportPng, keywords: "esporta export png immagine image salva save screenshot", run: actions.exportPng }, g.view);
+      add({ id: "export:copy", title: m.commands.copyImage, keywords: "copia copy immagine image appunti clipboard screenshot", run: actions.copyImage }, g.view);
       add({ id: "fit", title: m.commands.fit, shortcut: modShortcut("0"), keywords: "zoom adatta fit", run: actions.fit }, g.view);
       add({ id: "zoom-in", title: m.commands.zoomIn, shortcut: modShortcut("+"), keywords: "zoom in ingrandisci", run: actions.zoomIn }, g.view);
       add({ id: "zoom-out", title: m.commands.zoomOut, shortcut: modShortcut("−"), keywords: "zoom out riduci", run: actions.zoomOut }, g.view);

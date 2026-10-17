@@ -136,6 +136,10 @@ if (new URLSearchParams(location.search).has("updates")) (window as unknown as R
       case "plugin:updater|download_and_install":
         await new Promise((resolve) => setTimeout(resolve, 1500));
         return null;
+      case "save_png":
+        // Kept for inspection from the console: `__lastExport` is the PNG as base64.
+        (window as unknown as Record<string, unknown>).__lastExport = args.base64;
+        return `/dev/exports/${String(args.fileName)}`;
       case "cache_usage":
         return { files: 3, bytes: 24_600_000 };
       case "clear_cache":

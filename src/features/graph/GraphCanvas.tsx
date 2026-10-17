@@ -49,6 +49,8 @@ interface GraphCanvasProps {
   insetRight: number;
   /** Fish swimming in the background. */
   sea: boolean;
+  /** The export button next to the zoom was pressed, at window coordinates. */
+  onExport?: (x: number, y: number) => void;
 }
 
 const ARROW = { left: "←", right: "→", up: "↑", down: "↓" } as const;
@@ -60,10 +62,12 @@ export interface GraphCanvasHandle {
   zoomOut: () => void;
   /** Shows the whole history. */
   fit: () => void;
+  /** The visible part of the view as a PNG; null when there is nothing to draw. */
+  snapshot: () => Promise<Blob | null>;
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, onContextMenu, onExpandGroup, onCollapseGroup, worktree, bookmarks, onOpenWorktree, ci, onOpenCi, insetRight, sea },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, onContextMenu, onExpandGroup, onCollapseGroup, worktree, bookmarks, onOpenWorktree, ci, onOpenCi, insetRight, sea, onExport },
   ref,
 ) {
   const m = useT();
@@ -115,6 +119,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       zoomIn: () => controllerRef.current?.zoomBy(1.25),
       zoomOut: () => controllerRef.current?.zoomBy(1 / 1.25),
       fit: () => controllerRef.current?.fit(),
+      snapshot: () => controllerRef.current?.snapshot() ?? Promise.resolve(null),
     }),
     [index],
   );
@@ -276,6 +281,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         onFit={() => controllerRef.current?.fit()}
         onZoomIn={() => controllerRef.current?.zoomBy(1.25)}
         onZoomOut={() => controllerRef.current?.zoomBy(1 / 1.25)}
+        onExport={onExport}
       />
     </div>
   );

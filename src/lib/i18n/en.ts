@@ -178,6 +178,8 @@ export const en = {
     collapseChains: "Collapse all the chains",
     search: "Search the commits",
     goHead: "Go to HEAD",
+    exportPng: "Save the view as PNG…",
+    copyImage: "Copy the view as an image",
     back: "Back to the previous commit",
     addBookmark: "Bookmark the selected commit",
     removeBookmark: "Remove the bookmark from the selected commit",
@@ -414,7 +416,17 @@ export const en = {
     },
   },
 
-  zoom: { fit: "Fit", in: "Zoom in", out: "Zoom out" },
+  zoom: { fit: "Fit", in: "Zoom in", out: "Zoom out", export: "Export the view as an image" },
+
+  export: {
+    label: "Export the view",
+    save: "Save as PNG…",
+    copy: "Copy as image",
+    saved: (name: string) => `Saved ${name}`,
+    copied: "Image copied",
+    failed: "Could not export the view",
+    empty: "Nothing to export",
+  },
 
   graph: {
     minimap: "Minimap",
