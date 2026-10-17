@@ -41,6 +41,9 @@ export interface RepoCommandState {
   divergences: Map<string, BranchDivergence>;
   /** The branch whose divergence is highlighted. */
   divergenceOf: string | null;
+  /** There is a selection to go back or forward to. */
+  canGoBack: boolean;
+  canGoForward: boolean;
   canCollapse: boolean;
   branchFilter: RefFilter[] | null;
   ci: {
@@ -65,6 +68,8 @@ export interface RepoCommandActions {
   stopCompare: () => void;
   showDivergence: (branch: string) => void;
   stopDivergence: () => void;
+  goBack: () => void;
+  goForward: () => void;
   openSearch: () => void;
   goHead: () => void;
   zoomIn: () => void;
@@ -83,7 +88,7 @@ export interface RepoCommandActions {
 
 /** What the active repository offers to the command palette. Null for a tab in the background. */
 export function useRepoCommands(active: boolean, state: RepoCommandState, actions: RepoCommandActions): PaletteSource | null {
-  const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, canCollapse, branchFilter, ci } = state;
+  const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, canGoBack, canGoForward, canCollapse, branchFilter, ci } = state;
   const m = useT();
 
   return useMemo(() => {
@@ -109,6 +114,8 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
     if (canCollapse) add({ id: "collapse", title: m.commands.collapseChains, keywords: "comprimi topologia collapse topology", run: actions.collapseAll }, g.view);
 
     add({ id: "search", title: m.commands.search, shortcut: "/", keywords: "trova find search messaggio message autore author hash percorso path file", run: actions.openSearch }, g.navigation);
+    if (canGoBack) add({ id: "back", title: m.commands.back, shortcut: modShortcut("["), keywords: "indietro back history cronologia precedente", run: actions.goBack }, g.navigation);
+    if (canGoForward) add({ id: "forward", title: m.commands.forward, shortcut: modShortcut("]"), keywords: "avanti forward history cronologia successivo", run: actions.goForward }, g.navigation);
     add({ id: "head", title: m.commands.goHead, shortcut: "g h", keywords: "head corrente current", run: actions.goHead }, g.navigation);
     if (hasSelection || ancestors) {
       add(
@@ -188,5 +195,5 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
 
     return { commands, search };
     // `version` is what tells us the (mutable) index changed.
-  }, [m, active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, canCollapse, branchFilter, ci, actions]);
+  }, [m, active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, canGoBack, canGoForward, canCollapse, branchFilter, ci, actions]);
 }

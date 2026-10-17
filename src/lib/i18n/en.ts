@@ -148,6 +148,8 @@ export const en = {
     collapseChains: "Collapse all the chains",
     search: "Search the commits",
     goHead: "Go to HEAD",
+    back: "Back to the previous commit",
+    forward: "Forward to the next commit",
     stopAncestors: "Stop highlighting the ancestors",
     highlightAncestors: "Highlight the ancestors of the selected commit",
     showAllWorkflows: "Show all the workflows",

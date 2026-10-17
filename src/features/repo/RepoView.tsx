@@ -31,6 +31,8 @@ import { useSea } from "../../lib/sea";
 import { formatCount, shortHash } from "../../lib/format";
 import { useT, type Messages } from "../../lib/i18n";
 import { headCommitId } from "./head";
+import { emptyHistory, go, visit, type SelectionHistory } from "./history";
+import { hasModKey } from "../../lib/platform";
 import { useDrawer } from "./useDrawer";
 import { useFetchStatus } from "./useFetchStatus";
 import { useRepoChanges } from "./useRepoChanges";
@@ -201,16 +203,50 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   // Picking another commit brings its details back. Views report their selection again when they
   // are created, so only a different commit counts.
   const selectedIdRef = useRef<string | null>(null);
-  const selectCommit = useCallback((commit: CommitSummary | null) => {
-    if (commit && commit.id !== selectedIdRef.current) {
-      setShowWorktree(false);
-      setCiCommit(null);
-      // Jumping between the two ends keeps the comparison; any other commit ends it.
-      setCompare((c) => (c && (c.base === commit.id || c.target === commit.id) ? c : null));
-    }
-    selectedIdRef.current = commit?.id ?? null;
-    setSelected(commit);
+  // Back and forward through the selections; a selection made by going back is not recorded.
+  const historyRef = useRef<SelectionHistory>(emptyHistory);
+  // True while going back or forward: the views report the selection synchronously.
+  const travelling = useRef(false);
+  const [historyMoves, setHistoryMoves] = useState({ back: false, forward: false });
+  const recordHistory = useCallback((next: SelectionHistory) => {
+    historyRef.current = next;
+    const back = next.at > 0;
+    const forward = next.at < next.entries.length - 1;
+    setHistoryMoves((moves) => (moves.back === back && moves.forward === forward ? moves : { back, forward }));
   }, []);
+  // Moving with j, k, h or l is a step: it replaces the last entry instead of adding one, so back
+  // returns to where the walk started. The views select synchronously while handling the key, so
+  // a selection right after one of those keys came from it; clicks are always jumps.
+  const stepKeyAt = useRef(-Infinity);
+  useEffect(() => {
+    let gAt = -Infinity;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const now = performance.now();
+      // `g h` jumps to HEAD, as the views read it.
+      if (event.key === "h" && now - gAt < 600) return;
+      if (event.key === "g") gAt = now;
+      else if (event.key === "j" || event.key === "k" || event.key === "h" || event.key === "l") stepKeyAt.current = now;
+    };
+    // Capture: before the views' own listeners on the window.
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, []);
+  const isStep = useCallback(() => performance.now() - stepKeyAt.current < 50, []);
+  const selectCommit = useCallback(
+    (commit: CommitSummary | null) => {
+      if (commit && commit.id !== selectedIdRef.current) {
+        setShowWorktree(false);
+        setCiCommit(null);
+        // Jumping between the two ends keeps the comparison; any other commit ends it.
+        setCompare((c) => (c && (c.base === commit.id || c.target === commit.id) ? c : null));
+        if (!travelling.current) recordHistory(visit(historyRef.current, commit.id, isStep));
+      }
+      selectedIdRef.current = commit?.id ?? null;
+      setSelected(commit);
+    },
+    [isStep, recordHistory],
+  );
 
   // A branch of the filter was deleted: drop it, rather than keep an empty or partial graph.
   useEffect(() => {
@@ -275,6 +311,47 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     },
     [mode, index, selectCommit],
   );
+
+  const goHistory = useCallback(
+    (step: -1 | 1) => {
+      const next = go(historyRef.current, step, (id) => index.indexOf(id) !== null);
+      const id = next?.entries[next.at];
+      if (!next || id === undefined) return;
+      recordHistory(next);
+      travelling.current = true;
+      try {
+        selectById(id);
+      } finally {
+        travelling.current = false;
+      }
+    },
+    [index, recordHistory, selectById],
+  );
+
+  // ⌘[ and ⌘] (Ctrl on Linux and Windows), and the mouse's back and forward buttons. The key code
+  // is checked too, since on some layouts (Italian) the brackets need ⌥.
+  useEffect(() => {
+    if (!active) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (!hasModKey(event) || event.shiftKey || usePalette.getState().open) return;
+      const back = event.code === "BracketLeft" || event.key === "[";
+      const forward = event.code === "BracketRight" || event.key === "]";
+      if (!back && !forward) return;
+      event.preventDefault();
+      goHistory(back ? -1 : 1);
+    }
+    function onMouseUp(event: MouseEvent) {
+      if (event.button !== 3 && event.button !== 4) return;
+      event.preventDefault();
+      goHistory(event.button === 3 ? -1 : 1);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [active, goHistory]);
 
   // ---- search, ancestors and filter ------------------------------------------------------
 
@@ -369,6 +446,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     stopCompare: () => setCompare(null),
     showDivergence: (branch) => setDivergenceOf(branch),
     stopDivergence: () => setDivergenceOf(null),
+    goBack: () => goHistory(-1),
+    goForward: () => goHistory(1),
     openSearch,
     goHead,
     zoomIn: () => graphRef.current?.zoomIn(),
@@ -410,6 +489,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         comparing: compare !== null,
         divergences,
         divergenceOf: focusedDivergence?.branch ?? null,
+        canGoBack: historyMoves.back,
+        canGoForward: historyMoves.forward,
         canCollapse: mode === "topology" && compressed.expandedCount > 0,
         branchFilter,
         ci: ciCommands,

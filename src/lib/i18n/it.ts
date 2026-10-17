@@ -145,6 +145,8 @@ export const it: Messages = {
     collapseChains: "Richiudi tutte le catene",
     search: "Cerca nei commit",
     goHead: "Vai a HEAD",
+    back: "Torna al commit precedente",
+    forward: "Vai al commit successivo",
     stopAncestors: "Smetti di evidenziare gli antenati",
     highlightAncestors: "Evidenzia gli antenati del commit selezionato",
     showAllWorkflows: "Mostra tutti i workflow",
