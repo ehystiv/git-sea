@@ -19,6 +19,8 @@
   .field input { flex: 1; min-width: 0; border: 0; outline: none; background: none; color: var(--text); }
   .field input::placeholder { color: var(--text-3); }
   .status { flex: none; color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .keys { display: inline-flex; gap: 4px; }
+  .invalid { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--danger); }
   .icon { width: 24px; height: 24px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--text-2); font-size: 16px; }
   .icon:not(:disabled):hover { background: var(--hover); }
   .icon:disabled { opacity: 0.4; }

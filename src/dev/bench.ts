@@ -14,7 +14,7 @@ import "../styles/tokens.css";
 import "../styles/global.css";
 import { ancestorEmphasis, ancestorMask, matchEmphasis, type Emphasis } from "../features/graph/emphasis";
 import { GraphController } from "../features/graph/GraphController";
-import { matchCommits } from "../features/search/query";
+import { matchCommits, textQuery } from "../features/search/query";
 import { compressIndex } from "../features/graph/compress";
 import { GraphIndex } from "../features/graph/GraphIndex";
 import { Minimap } from "../features/graph/MinimapOverlay";
@@ -47,7 +47,7 @@ function report(text: string): void {
 function emphasisFor(index: GraphIndex, timeline: boolean): Emphasis | null {
   const ancestors = params.get("ancestors");
   const match = params.get("match");
-  if (match) return matchEmphasis(index, matchCommits(index.commits, { mode: "text", text: match }));
+  if (match) return matchEmphasis(index, matchCommits(index.commits, textQuery(match)));
   if (ancestors === null) return null;
   const at = Number(ancestors);
   return timeline ? { nodes: ancestorMask(index, at), edges: null, edgeStart: null } : ancestorEmphasis(index, at);

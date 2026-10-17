@@ -7,7 +7,7 @@ import { modShortcut } from "../../lib/platform";
 import type { GraphIndex } from "../graph/GraphIndex";
 import type { PaletteSource } from "../palette/paletteStore";
 import type { PaletteCommand } from "../palette/rank";
-import { matchCommits } from "../search/query";
+import { matchCommits, textQuery } from "../search/query";
 import { inFilter } from "../sidebar/refFilter";
 import type { BranchDivergence } from "../sidebar/upstream";
 
@@ -196,7 +196,7 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
         if (filtered) out.push({ id: `drop:${ref.kind}:${ref.name}`, group: g.filter, title: m.commands.removeFromFilter(ref.name), run: () => actions.toggleFilter(filter) });
       }
       if (needle.length >= 2) {
-        for (const id of matchCommits(index.commits, { mode: "text", text: needle }, MAX_COMMITS)) {
+        for (const id of matchCommits(index.commits, textQuery(needle), MAX_COMMITS)) {
           const commit = index.commits[index.indexOf(id) ?? -1];
           if (!commit) continue;
           out.push({ id: `commit:${id}`, group: g.commit, title: commit.summary || m.commands.noMessage, detail: `${shortHash(id)} · ${commit.author}`, run: () => actions.selectCommit(id) });

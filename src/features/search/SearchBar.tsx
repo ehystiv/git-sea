@@ -55,7 +55,8 @@ export function SearchBar({ value, onChange, onClose, search, index, current, ta
   }, [current, ids.length, virtualizer]);
 
   let status: string;
-  if (search.query === null) status = "";
+  if (search.invalid) status = search.invalid;
+  else if (search.query === null) status = "";
   else if (search.error) status = m.search.error;
   else if (search.ids === null) status = m.search.searching;
   else if (ids.length === 0) status = search.pending ? m.search.searching : m.search.noResults;
@@ -93,7 +94,10 @@ export function SearchBar({ value, onChange, onClose, search, index, current, ta
           spellCheck={false}
           aria-label={m.search.label}
         />
-        <span className={styles.status} title={search.error ?? (targets !== ids.length ? m.search.inView(targets) : undefined)}>
+        <span
+          className={`${styles.status} ${search.invalid ? styles.invalid : ""}`}
+          title={search.invalid ?? search.error ?? (targets !== ids.length ? m.search.inView(targets) : undefined)}
+        >
           {status}
         </span>
         <button type="button" className={styles.icon} aria-label={m.search.previous} title={m.search.previousTitle} disabled={ids.length === 0} onClick={() => onStep(-1)}>
@@ -115,7 +119,15 @@ export function SearchBar({ value, onChange, onClose, search, index, current, ta
         <ul className={styles.help}>
           {searchHelp(m).map(({ prefix, meaning }) => (
             <li key={prefix || "text"}>
-              {prefix ? <Kbd>{prefix}</Kbd> : <span className={styles.plain}>{m.search.text}</span>}
+              {prefix ? (
+                <span className={styles.keys}>
+                  {prefix.split(" ").map((key) => (
+                    <Kbd key={key}>{key}</Kbd>
+                  ))}
+                </span>
+              ) : (
+                <span className={styles.plain}>{m.search.text}</span>
+              )}
               <span>{meaning}</span>
             </li>
           ))}
