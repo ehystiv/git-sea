@@ -123,6 +123,8 @@ const ci = fakeCi();
       }
       case "list_stashes":
         return [];
+      case "repo_web":
+        return { name: "GitHub", commitUrl: "https://github.com/example/repo/commit/" };
       case "list_upstreams":
         // Every local branch tracks the remote branch of the same name, when there is one.
         return dump.refs

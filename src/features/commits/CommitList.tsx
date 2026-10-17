@@ -13,9 +13,11 @@ interface CommitListProps {
   onSelect: (commit: CommitSummary) => void;
   /** ⇧-click on another commit than the selected one. */
   onCompare?: (commit: CommitSummary) => void;
+  /** Right-click on a commit, at window coordinates. */
+  onContextMenu?: (commit: CommitSummary, x: number, y: number) => void;
 }
 
-export function CommitList({ commits, selectedId, onSelect, onCompare }: CommitListProps) {
+export function CommitList({ commits, selectedId, onSelect, onCompare, onContextMenu }: CommitListProps) {
   const m = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [now] = useState(() => Date.now());
@@ -45,6 +47,11 @@ export function CommitList({ commits, selectedId, onSelect, onCompare }: CommitL
               <div
                 key={commit.id}
                 className={`${styles.columns} ${styles.row} ${commit.id === selectedId ? styles.selected : ""}`}
+                onContextMenu={(event) => {
+                  if (!onContextMenu) return;
+                  event.preventDefault();
+                  onContextMenu(commit, event.clientX, event.clientY);
+                }}
                 onClick={(event) => {
                   if (event.shiftKey && onCompare && selectedId !== null && commit.id !== selectedId) onCompare(commit);
                   else onSelect(commit);

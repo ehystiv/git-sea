@@ -23,13 +23,15 @@ interface TimelineCanvasProps {
   onSelect: (commit: CommitSummary | null) => void;
   /** ⇧-click on another commit than the selected one. */
   onCompare?: (commit: CommitSummary) => void;
+  /** Right-click on a commit, at window coordinates. */
+  onContextMenu?: (commit: CommitSummary, x: number, y: number) => void;
   /** Pixels on the right covered by the floating details panel; the canvas keeps its size. */
   insetRight: number;
 }
 
 /** The history on a time axis: one row per lane of the graph layout, newest commits on the right. */
 export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>(function TimelineCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, insetRight },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, onContextMenu, insetRight },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -39,6 +41,7 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
   const controllerRef = useRef<TimelineController | null>(null);
   const onSelectRef = useRef(onSelect);
   const onCompareRef = useRef(onCompare);
+  const onContextMenuRef = useRef(onContextMenu);
   const flowRef = useRef(flow);
   const emphasisRef = useRef(emphasis);
   const insetRef = useRef(insetRight);
@@ -48,7 +51,8 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
   useEffect(() => {
     onSelectRef.current = onSelect;
     onCompareRef.current = onCompare;
-  }, [onSelect, onCompare]);
+    onContextMenuRef.current = onContextMenu;
+  }, [onSelect, onCompare, onContextMenu]);
 
   useImperativeHandle(
     ref,
@@ -76,6 +80,10 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
       onCompare: (i) => {
         const commit = index.commits[i];
         if (commit) onCompareRef.current?.(commit);
+      },
+      onContextMenu: (i, x, y) => {
+        const commit = index.commits[i];
+        if (commit) onContextMenuRef.current?.(commit, x, y);
       },
     });
     controllerRef.current = controller;

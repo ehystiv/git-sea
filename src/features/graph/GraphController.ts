@@ -18,6 +18,8 @@ export interface GraphCallbacks {
   onZoom: (zoom: number) => void;
   /** ⇧-click on a commit other than the selected one: compare the two. */
   onCompare?: (index: number) => void;
+  /** Right-click on a commit; `x` and `y` are in the window (client coordinates). */
+  onContextMenu?: (index: number, x: number, y: number) => void;
   /** A node standing for several commits was clicked; the argument is its newest commit's id. */
   onExpandGroup?: (id: string) => void;
   /** An already selected commit inside an opened run was clicked; the argument is the run's newest commit's id. */
@@ -532,6 +534,12 @@ export class GraphController {
     on("pointerup", (e) => this.onPointerUp(e));
     on("pointerleave", () => this.setHover(null));
     on("wheel", (e) => this.onWheel(e), { passive: false });
+    on("contextmenu", (e) => {
+      e.preventDefault();
+      const { x, y } = this.local(e);
+      const hit = hitTest(this.index, this.view, x, y);
+      if (hit !== null) this.callbacks.onContextMenu?.(hit, e.clientX, e.clientY);
+    });
 
     // Safari / WKWebView reports trackpad pinch as non-standard gesture events.
     const gestureStart = (e: Event) => {

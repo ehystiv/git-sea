@@ -49,6 +49,16 @@ export const commands = {
 	ciRuns: (sessionId: string) => typedError<CiRunsReport, AppError>(__TAURI_INVOKE("ci_runs", { sessionId })),
 	/**  Saves the token for a CI service in the Keychain; None removes it. */
 	ciSetToken: (provider: CiProvider, token: string | null) => typedError<null, AppError>(__TAURI_INVOKE("ci_set_token", { provider, token })),
+	/**
+	 *  Where the repository's commits can be seen on the web (from `origin`, else the first remote),
+	 *  or `None` for a local repository or an unknown service.
+	 */
+	repoWeb: (sessionId: string) => typedError<{
+	/**  The service, as shown to the user ("GitHub"). */
+	name: string,
+	/**  A commit's page is this followed by the full commit id. */
+	commitUrl: string,
+} | null, AppError>(__TAURI_INVOKE("repo_web", { sessionId })),
 	/**  Opens a web page (a CI run) in the default browser. Only `https` links are opened. */
 	openUrl: (url: string) => typedError<null, AppError>(__TAURI_INVOKE("open_url", { url })),
 	/**  The user's system language (a BCP 47 tag such as "it-IT"), for the default UI language. */
@@ -337,6 +347,14 @@ export type RepoInfo = {
 	/**  Number of references under `refs/` (branches, remote branches, tags, stash). */
 	refCount: number,
 	isBare: boolean,
+};
+
+/**  Where the commits of a repository can be seen on the web. */
+export type RepoWeb = {
+	/**  The service, as shown to the user ("GitHub"). */
+	name: string,
+	/**  A commit's page is this followed by the full commit id. */
+	commitUrl: string,
 };
 
 export type SearchField = 

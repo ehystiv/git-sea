@@ -306,6 +306,16 @@ export const en = {
     noChanges: "No differences in the content.",
   },
 
+  menu: {
+    label: "Commit actions",
+    copyHash: "Copy the hash",
+    copyShortHash: "Copy the short hash",
+    copyMessage: "Copy the message",
+    compareWithSelected: "Compare with the selected commit",
+    shiftClick: "⇧-click",
+    openOn: (service: string) => `Open on ${service}`,
+  },
+
   compare: {
     title: "Comparison",
     label: "Comparison of two commits",

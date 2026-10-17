@@ -8,7 +8,10 @@ import { openUrl, useCi } from "../ci/useCi";
 import { CommitList } from "../commits/CommitList";
 import { LoadStatus } from "../commits/LoadStatus";
 import { useCommitStream } from "../commits/useCommitStream";
+import { ContextMenu } from "../../components/ContextMenu/ContextMenu";
+import { copyText } from "../../lib/clipboard";
 import { ComparePanel } from "../details/ComparePanel";
+import { commitDetailsQuery } from "../details/useCommitDetails";
 import { DetailsPanel } from "../details/DetailsPanel";
 import { useWorktreeStatus } from "../details/useWorktree";
 import { WorktreePanel } from "../details/WorktreePanel";
@@ -31,7 +34,9 @@ import { useSea } from "../../lib/sea";
 import { formatCount, shortHash } from "../../lib/format";
 import { useT, type Messages } from "../../lib/i18n";
 import { headCommitId } from "./head";
+import { commitMenuItems } from "./commitMenu";
 import { emptyHistory, go, visit, type SelectionHistory } from "./history";
+import { useRepoWeb } from "./useRepoWeb";
 import { hasModKey } from "../../lib/platform";
 import { useDrawer } from "./useDrawer";
 import { useFetchStatus } from "./useFetchStatus";
@@ -198,6 +203,20 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     [index],
   );
   const compareWithCommit = useCallback((commit: CommitSummary) => startCompare(commit.id), [startCompare]);
+
+  // Right-click on a commit, in any view.
+  const [menu, setMenu] = useState<{ commit: CommitSummary; x: number; y: number } | null>(null);
+  const openMenu = useCallback((commit: CommitSummary, x: number, y: number) => setMenu({ commit, x, y }), []);
+  const closeMenu = useCallback(() => setMenu(null), []);
+  const web = useRepoWeb(repo.sessionId).data ?? null;
+  const copyMessage = useCallback(
+    async (commit: CommitSummary) => {
+      // The summary is only the first line; the body comes with the details (often already cached).
+      const details = await queryClient.fetchQuery(commitDetailsQuery(repo.sessionId, commit.id)).catch(() => null);
+      await copyText(details?.body ? `${details.summary}\n\n${details.body}` : commit.summary);
+    },
+    [queryClient, repo.sessionId],
+  );
   const swapCompare = useCallback(() => setCompare((c) => (c ? { base: c.target, target: c.base } : null)), []);
 
   // Picking another commit brings its details back. Views report their selection again when they
@@ -716,6 +735,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               emphasis={emphasis}
               onSelect={selectCommit}
               onCompare={compareWithCommit}
+              onContextMenu={openMenu}
               insetRight={insetRight}
             />
           ) : mode !== "list" ? (
@@ -729,6 +749,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               emphasis={emphasis}
               onSelect={selectCommit}
               onCompare={compareWithCommit}
+              onContextMenu={openMenu}
               onExpandGroup={mode === "topology" ? compressed.expand : undefined}
               onCollapseGroup={mode === "topology" ? compressed.collapse : undefined}
               worktree={worktreeMarker}
@@ -739,7 +760,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               sea={sea}
             />
           ) : (
-            <CommitList commits={listCommits} selectedId={selected?.id ?? null} onSelect={selectCommit} onCompare={compareWithCommit} />
+            <CommitList commits={listCommits} selectedId={selected?.id ?? null} onSelect={selectCommit} onCompare={compareWithCommit} onContextMenu={openMenu} />
           )}
           {searchOpen && (
             <SearchBar
@@ -797,6 +818,21 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
           </div>
         )}
       </div>
+
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label={m.menu.label}
+          onClose={closeMenu}
+          items={commitMenuItems(menu.commit, selected?.id ?? null, web, {
+            copy: (text) => void copyText(text),
+            copyMessage: (commit) => void copyMessage(commit),
+            compare: compareWithCommit,
+            openUrl,
+          })}
+        />
+      )}
 
       <LoadStatus stream={stream} selected={selected} fetch={remote.state} onFetchNow={remote.fetchNow} />
       </div>

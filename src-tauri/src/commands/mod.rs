@@ -4,6 +4,7 @@ use tauri::ipc::Channel;
 use tauri::{Emitter, State};
 
 use crate::cache::{self, CachedGraph, Fingerprint, MIN_CACHED_COMMITS};
+use crate::ci::remote::RepoWeb;
 use crate::ci::runs::CiRunsReport;
 use crate::ci::{self, CiOverview, CiProvider};
 use crate::error::AppError;
@@ -401,6 +402,23 @@ pub async fn ci_set_token(provider: CiProvider, token: Option<String>) -> Result
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// Where the repository's commits can be seen on the web (from `origin`, else the first remote),
+/// or `None` for a local repository or an unknown service.
+#[tauri::command]
+#[specta::specta]
+pub async fn repo_web(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<Option<RepoWeb>, AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::ci::remote::main_remote(&session.repo.to_thread_local())
+            .and_then(|remote| remote.commit_page())
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))
 }
 
 /// Opens a web page (a CI run) in the default browser. Only `https` links are opened.

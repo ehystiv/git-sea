@@ -303,6 +303,16 @@ export const it: Messages = {
     noChanges: "Nessuna differenza nel contenuto.",
   },
 
+  menu: {
+    label: "Azioni sul commit",
+    copyHash: "Copia l'hash",
+    copyShortHash: "Copia l'hash breve",
+    copyMessage: "Copia il messaggio",
+    compareWithSelected: "Confronta con il commit selezionato",
+    shiftClick: "⇧-clic",
+    openOn: (service) => `Apri su ${service}`,
+  },
+
   compare: {
     title: "Confronto",
     label: "Confronto tra due commit",

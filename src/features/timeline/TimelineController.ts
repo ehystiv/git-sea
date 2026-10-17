@@ -22,6 +22,8 @@ export interface TimelineCallbacks {
   onSelect: (index: number | null) => void;
   /** ⇧-click on a commit other than the selected one: compare the two. */
   onCompare?: (index: number) => void;
+  /** Right-click on a commit; `x` and `y` are in the window (client coordinates). */
+  onContextMenu?: (index: number, x: number, y: number) => void;
   /** Zoom as a ratio of the 100 px/day shown as 100%. */
   onZoom: (zoom: number) => void;
 }
@@ -332,6 +334,12 @@ export class TimelineController {
     };
 
     on("pointerdown", (e) => this.onPointerDown(e));
+    on("contextmenu", (e) => {
+      e.preventDefault();
+      const { x, y } = this.local(e);
+      const hit = this.hit(x, y);
+      if (hit !== null) this.callbacks.onContextMenu?.(hit, e.clientX, e.clientY);
+    });
     on("pointermove", (e) => this.onPointerMove(e));
     on("pointerup", (e) => this.onPointerUp(e));
     on("pointerleave", () => this.setHover(null));

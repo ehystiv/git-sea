@@ -48,6 +48,39 @@ impl RemoteRepo {
     pub fn web(&self) -> String {
         format!("https://{}/{}", self.host, self.path)
     }
+
+    /// The hosting service's name and the address of a commit's page without the commit id, for
+    /// the services whose URL scheme is known.
+    pub fn commit_page(&self) -> Option<RepoWeb> {
+        let (name, prefix) = if self.is_github() {
+            ("GitHub", format!("{}/commit/", self.web()))
+        } else if self.is_gitlab() {
+            ("GitLab", format!("{}/-/commit/", self.web()))
+        } else if self.is_bitbucket() {
+            ("Bitbucket", format!("{}/commits/", self.web()))
+        } else if let Some((org, project, repo)) = self.azure() {
+            (
+                "Azure DevOps",
+                format!("https://dev.azure.com/{org}/{project}/_git/{repo}/commit/"),
+            )
+        } else {
+            return None;
+        };
+        Some(RepoWeb {
+            name: name.to_owned(),
+            commit_url: prefix,
+        })
+    }
+}
+
+/// Where the commits of a repository can be seen on the web.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoWeb {
+    /// The service, as shown to the user ("GitHub").
+    pub name: String,
+    /// A commit's page is this followed by the full commit id.
+    pub commit_url: String,
 }
 
 /// Reads `git@host:path.git`, `ssh://user@host:port/path`, `https://user@host/path.git` and the like.
@@ -120,6 +153,31 @@ mod tests {
         );
         assert_eq!(parse("/Users/me/repo"), None);
         assert_eq!(parse("../repo"), None);
+    }
+
+    #[test]
+    fn builds_commit_pages_for_the_known_services() {
+        let page = |url: &str| parse(url).and_then(|r| r.commit_page());
+        let github = page("git@github.com:owner/repo.git").unwrap();
+        assert_eq!(github.name, "GitHub");
+        assert_eq!(github.commit_url, "https://github.com/owner/repo/commit/");
+        assert_eq!(
+            page("https://gitlab.com/group/sub/repo.git")
+                .unwrap()
+                .commit_url,
+            "https://gitlab.com/group/sub/repo/-/commit/"
+        );
+        assert_eq!(
+            page("git@bitbucket.org:ws/repo.git").unwrap().commit_url,
+            "https://bitbucket.org/ws/repo/commits/"
+        );
+        assert_eq!(
+            page("git@ssh.dev.azure.com:v3/org/project/repo")
+                .unwrap()
+                .commit_url,
+            "https://dev.azure.com/org/project/_git/repo/commit/"
+        );
+        assert_eq!(page("git@example.org:a/b.git"), None);
     }
 
     #[test]
