@@ -282,6 +282,9 @@ export const it: Messages = {
   diff: {
     showAll: (n) => `Mostra tutte le ${n} righe`,
     truncated: "Differenze troncate: file molto lungo.",
+    binary: "File binario: nessuna anteprima.",
+    tooLarge: "File troppo grande per mostrare le differenze.",
+    noChanges: "Nessuna differenza nel contenuto.",
   },
 
   status: {

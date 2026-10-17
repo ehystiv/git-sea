@@ -5,6 +5,7 @@ import { formatCount } from "../../lib/format";
 import { useT } from "../../lib/i18n";
 import { hunkHeader, limitHunks, splitRows, totalLines } from "./diffModel";
 import { highlightHunks, type HunkTokens } from "./highlight";
+import { intralineRanges, markPieces, type Range } from "./wordDiff";
 import styles from "./DiffView.module.css";
 
 export type DiffMode = "unified" | "split";
@@ -12,23 +13,40 @@ export type DiffMode = "unified" | "split";
 /** Lines rendered before the user asks for the rest; keeps huge diffs responsive. */
 const INITIAL_LINES = 1500;
 
-function Code({ text, tokens }: { text: string; tokens?: ThemedToken[] }) {
-  if (!tokens) return <>{text || " "}</>;
+function tokenStyle(token: ThemedToken) {
+  return {
+    color: token.color,
+    fontStyle: (token.fontStyle ?? 0) & 1 ? "italic" : undefined,
+    fontWeight: (token.fontStyle ?? 0) & 2 ? 600 : undefined,
+  };
+}
+
+/** A line of code, with syntax colours when there are tokens and the changed words marked. */
+function Code({ text, tokens, marks }: { text: string; tokens?: ThemedToken[]; marks?: Range[] }) {
+  if (text === "" || tokens?.length === 0) return <> </>;
+  if (!marks?.length) {
+    if (!tokens) return <>{text}</>;
+    return (
+      <>
+        {tokens.map((token, i) => (
+          <span key={i} style={tokenStyle(token)}>
+            {token.content}
+          </span>
+        ))}
+      </>
+    );
+  }
+  const pieces = markPieces(tokens ? tokens.map((t) => t.content) : [text], marks);
   return (
     <>
-      {tokens.map((token, i) => (
-        <span
-          key={i}
-          style={{
-            color: token.color,
-            fontStyle: (token.fontStyle ?? 0) & 1 ? "italic" : undefined,
-            fontWeight: (token.fontStyle ?? 0) & 2 ? 600 : undefined,
-          }}
-        >
-          {token.content}
-        </span>
-      ))}
-      {tokens.length === 0 && " "}
+      {pieces.map((piece, i) => {
+        const token = tokens?.[piece.token];
+        return (
+          <span key={i} className={piece.marked ? styles.changed : undefined} style={token ? tokenStyle(token) : undefined}>
+            {piece.text}
+          </span>
+        );
+      })}
     </>
   );
 }
@@ -46,6 +64,9 @@ export function DiffView({ diff, mode }: { diff: FileDiff; mode: DiffMode }) {
     [diff.hunks, showAll],
   );
 
+  // Word ranges for every hunk, worked out once per diff (not per render or per mode).
+  const marks = useMemo(() => diff.hunks.map((hunk) => intralineRanges(hunk.lines)), [diff.hunks]);
+
   useEffect(() => {
     let active = true;
     setTokens(null);
@@ -58,9 +79,9 @@ export function DiffView({ diff, mode }: { diff: FileDiff; mode: DiffMode }) {
     };
   }, [diff]);
 
-  if (diff.binary) return <p className={styles.note}>File binario: nessuna anteprima.</p>;
-  if (diff.tooLarge) return <p className={styles.note}>File troppo grande per mostrare le differenze.</p>;
-  if (diff.hunks.length === 0) return <p className={styles.note}>Nessuna differenza nel contenuto.</p>;
+  if (diff.binary) return <p className={styles.note}>{m.diff.binary}</p>;
+  if (diff.tooLarge) return <p className={styles.note}>{m.diff.tooLarge}</p>;
+  if (diff.hunks.length === 0) return <p className={styles.note}>{m.diff.noChanges}</p>;
 
   return (
     <div className={`${styles.diff} selectable`}>
@@ -74,14 +95,14 @@ export function DiffView({ diff, mode }: { diff: FileDiff; mode: DiffMode }) {
                   <span className={styles.no}>{line.newNo ?? ""}</span>
                   <span className={styles.code}>
                     <b className={styles.sign}>{SIGN[line.kind]}</b>
-                    <Code text={line.text} tokens={tokens?.[h]?.[i]} />
+                    <Code text={line.text} tokens={tokens?.[h]?.[i]} marks={marks[h]?.[i]} />
                   </span>
                 </div>
               ))
             : splitRows(hunk).map((row, i) => (
                 <div key={i} className={styles.splitRow}>
-                  <SplitSide line={row.left} tokens={row.leftAt === null ? undefined : tokens?.[h]?.[row.leftAt]} side="old" />
-                  <SplitSide line={row.right} tokens={row.rightAt === null ? undefined : tokens?.[h]?.[row.rightAt]} side="new" />
+                  <SplitSide line={row.left} tokens={row.leftAt === null ? undefined : tokens?.[h]?.[row.leftAt]} marks={row.leftAt === null ? undefined : marks[h]?.[row.leftAt]} side="old" />
+                  <SplitSide line={row.right} tokens={row.rightAt === null ? undefined : tokens?.[h]?.[row.rightAt]} marks={row.rightAt === null ? undefined : marks[h]?.[row.rightAt]} side="new" />
                 </div>
               ))}
         </section>
@@ -102,14 +123,14 @@ export function DiffView({ diff, mode }: { diff: FileDiff; mode: DiffMode }) {
   );
 }
 
-function SplitSide({ line, tokens, side }: { line: DiffLine | null; tokens?: ThemedToken[]; side: "old" | "new" }) {
+function SplitSide({ line, tokens, marks, side }: { line: DiffLine | null; tokens?: ThemedToken[]; marks?: Range[]; side: "old" | "new" }) {
   if (!line) return <div className={`${styles.half} ${styles.empty}`} />;
   const kind = line.kind === "Context" ? "Context" : side === "old" ? "Del" : "Add";
   return (
     <div className={`${styles.half} ${styles[kind]}`}>
       <span className={styles.no}>{(side === "old" ? line.oldNo : line.newNo) ?? ""}</span>
       <span className={styles.code}>
-        <Code text={line.text} tokens={tokens} />
+        <Code text={line.text} tokens={tokens} marks={marks} />
       </span>
     </div>
   );

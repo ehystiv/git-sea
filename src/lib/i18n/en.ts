@@ -285,6 +285,9 @@ export const en = {
   diff: {
     showAll: (n: string) => `Show all ${n} lines`,
     truncated: "Differences cut short: very long file.",
+    binary: "Binary file: no preview.",
+    tooLarge: "File too large to show the differences.",
+    noChanges: "No differences in the content.",
   },
 
   status: {

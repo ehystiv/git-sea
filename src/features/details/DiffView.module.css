@@ -18,6 +18,9 @@
   .Del { background: var(--del-bg); }
   .Add .code { box-shadow: inset 2px 0 0 var(--add); }
   .Del .code { box-shadow: inset 2px 0 0 var(--danger); }
+  /* Changed words inside a modified line. */
+  .Add .changed { background: var(--add-word); border-radius: 2px; }
+  .Del .changed { background: var(--del-word); border-radius: 2px; }
   .empty { background: var(--subtle); opacity: 0.5; }
 
   .more { padding: var(--space-3); text-align: center; color: var(--text-3); font-family: var(--font-ui); font-size: 12px; }

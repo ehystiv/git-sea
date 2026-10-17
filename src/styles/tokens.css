@@ -31,6 +31,8 @@
     --add: #1a7f4b;
     --add-bg: rgb(26 127 75 / 0.1);
     --del-bg: rgb(201 58 74 / 0.09);
+    --add-word: rgb(26 127 75 / 0.22);
+    --del-word: rgb(201 58 74 / 0.2);
 
     /* Shiki "css-variables" theme: syntax colours follow the app theme */
     --shiki-foreground: #1a1a22;
@@ -90,6 +92,8 @@
     --add: #4cc38a;
     --add-bg: rgb(76 195 138 / 0.12);
     --del-bg: rgb(255 122 134 / 0.11);
+    --add-word: rgb(76 195 138 / 0.28);
+    --del-word: rgb(255 122 134 / 0.26);
 
     --shiki-foreground: #ececf2;
     --shiki-token-constant: #f2b072;
