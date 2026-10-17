@@ -123,7 +123,7 @@ fn prune(dir: &Path) {
         .filter(|e| e.path().extension().is_some_and(|x| x == EXTENSION))
         .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
         .collect();
-    files.sort_by(|a, b| b.0.cmp(&a.0));
+    files.sort_by_key(|(modified, _)| std::cmp::Reverse(*modified));
     for (_, path) in files.into_iter().skip(MAX_FILES) {
         let _ = fs::remove_file(path);
     }
