@@ -14,13 +14,15 @@
   .who { font-weight: 500; }
   .when { color: var(--text-3); font-size: 12px; }
 
-  .grid { display: grid; grid-template-columns: 56px 1fr; gap: var(--space-2); align-items: start; }
+  /* minmax(0, …): long values are cut or wrapped inside the column, never widen the panel. */
+  .grid { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: var(--space-2); align-items: start; }
   .grid dt { color: var(--text-3); font-size: 12px; padding-top: 2px; }
   .grid dd { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
   .link { color: var(--accent-text); font-size: 12px; }
   .refs { gap: var(--space-1) !important; }
 
-  .parents { flex-direction: column; align-items: stretch !important; gap: var(--space-1) !important; }
+  /* No wrapping: in a wrapping column the line is as wide as the longest summary, and so is the chip. */
+  .parents { flex-direction: column; flex-wrap: nowrap !important; align-items: stretch !important; gap: var(--space-1) !important; }
   .chip { display: flex; align-items: center; gap: var(--space-2); min-width: 0; height: 24px; padding: 0 var(--space-2); border-radius: var(--r-sm); background: var(--subtle); color: var(--text-2); text-align: left; }
   .chip code { color: var(--accent-text); flex: none; }
   .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
