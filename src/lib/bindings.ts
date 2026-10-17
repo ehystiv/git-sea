@@ -15,12 +15,20 @@ export const commands = {
 	 *  since it was written. Starting a new load on the same session cancels the previous one.
 	 */
 	loadCommits: (sessionId: string, only: RefFilter[] | null, onEvent: Channel<LoadEvent>) => typedError<null, AppError>(__TAURI_INVOKE("load_commits", { sessionId, only, onEvent })),
-	/**  Metadata and changed files of one commit, compared with its first parent. */
-	commitDetails: (sessionId: string, commitId: string) => typedError<CommitDetails, AppError>(__TAURI_INVOKE("commit_details", { sessionId, commitId })),
-	/**  Line diff of one file of a commit. `old_path` is the previous path of a renamed file. */
-	fileDiff: (sessionId: string, commitId: string, path: string, oldPath: string | null) => typedError<FileDiff, AppError>(__TAURI_INVOKE("file_diff", { sessionId, commitId, path, oldPath })),
+	/**
+	 *  Metadata and changed files of one commit, compared with its first parent, or with `base`
+	 *  (another parent of a merge, or any commit) when given.
+	 */
+	commitDetails: (sessionId: string, commitId: string, base: string | null) => typedError<CommitDetails, AppError>(__TAURI_INVOKE("commit_details", { sessionId, commitId, base })),
+	/**
+	 *  Line diff of one file of a commit, against its first parent or `base`. `old_path` is the
+	 *  previous path of a renamed file.
+	 */
+	fileDiff: (sessionId: string, commitId: string, path: string, oldPath: string | null, base: string | null) => typedError<FileDiff, AppError>(__TAURI_INVOKE("file_diff", { sessionId, commitId, path, oldPath, base })),
 	/**  Stashes of the repository, newest first. */
 	listStashes: (sessionId: string) => typedError<StashEntry[], AppError>(__TAURI_INVOKE("list_stashes", { sessionId })),
+	/**  The upstream of every local branch that has one. */
+	listUpstreams: (sessionId: string) => typedError<Upstream[], AppError>(__TAURI_INVOKE("list_upstreams", { sessionId })),
 	/**
 	 *  Commits whose whole message contains `text`, or that changed the path `text`. Searches every
 	 *  ref (the frontend drops what the branch filter hides). A new search on the same session stops
@@ -161,7 +169,10 @@ export type CommitDetails = {
 	author: Person,
 	committer: Person,
 	parents: string[],
-	/**  The parent the files below were compared with; `None` for a root commit. */
+	/**
+	 *  The commit the files below were compared with (the first parent unless a base was given);
+	 *  `None` for a root commit.
+	 */
 	comparedWith: string | null,
 	files: FileChange[],
 	/**  True when some files have no line statistics only because of the limit. */
@@ -353,6 +364,16 @@ export type StashEntry = {
 	commit: string,
 	/**  The commit the stash was made on, which is in the graph. */
 	base: string | null,
+};
+
+export type Upstream = {
+	/**  Short name of the local branch, as in the ref labels (`main`). */
+	branch: string,
+	/**
+	 *  Short name of its remote-tracking branch (`origin/main`). It may not exist locally yet,
+	 *  for instance before the first fetch.
+	 */
+	upstream: string,
 };
 
 export type WorktreeStatus = {

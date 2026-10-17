@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Badge } from "../../components/Badge/Badge";
-import type { CommitSummary, FileChange } from "../../lib/bindings";
+import type { CommitDetails, CommitSummary, FileChange } from "../../lib/bindings";
+import type { CommandError } from "../../lib/errors";
 import { describeError } from "../../lib/errors";
 import { formatAgo, formatDateTime, shortHash, splitPath } from "../../lib/format";
 import { useT } from "../../lib/i18n";
@@ -9,6 +10,7 @@ import type { GraphIndex } from "../graph/GraphIndex";
 import { DiffView, type DiffMode } from "./DiffView";
 import { FileList } from "./FileList";
 import { useCommitDetails, useFileDiff } from "./useCommitDetails";
+import type { UseQueryResult } from "@tanstack/react-query";
 import styles from "./DetailsPanel.module.css";
 
 interface DetailsPanelProps {
@@ -16,24 +18,20 @@ interface DetailsPanelProps {
   commit: CommitSummary | null;
   index: GraphIndex;
   onSelectCommit: (id: string) => void;
+  /** Shows the commits that changed a file. */
+  onFileHistory?: (path: string) => void;
 }
 
-export function DetailsPanel({ sessionId, commit, index, onSelectCommit }: DetailsPanelProps) {
+export function DetailsPanel({ sessionId, commit, index, onSelectCommit, onFileHistory }: DetailsPanelProps) {
   // Holding j or k moves through commits fast; only ask the backend once it settles.
   const commitId = useDebouncedValue(commit?.id ?? null, 80);
   const m = useT();
-  const details = useCommitDetails(sessionId, commitId);
-
-  const [picked, setPicked] = useState<FileChange | null>(null);
-  const [mode, setMode] = useState<DiffMode>("unified");
+  // A merge is compared with its first parent unless another one is picked.
+  const [parentAt, setParentAt] = useState(0);
+  useEffect(() => setParentAt(0), [commitId]);
+  const base = parentAt > 0 && commit?.id === commitId ? (commit.parents[parentAt] ?? null) : null;
+  const details = useCommitDetails(sessionId, commitId, base);
   const [copied, setCopied] = useState(false);
-
-  const files = details.data?.files;
-  // The first file is shown until another is picked; picks do not carry over to other commits.
-  const file = files?.find((f) => f.path === picked?.path) ?? files?.[0] ?? null;
-  useEffect(() => setPicked(null), [commitId]);
-
-  const diff = useFileDiff(sessionId, commitId, file);
 
   if (!commit) {
     return <aside className={styles.panel}><p className={styles.empty}>{m.details.selectCommit}</p></aside>;
@@ -42,8 +40,6 @@ export function DetailsPanel({ sessionId, commit, index, onSelectCommit }: Detai
   const data = details.data;
   const isMerge = commit.parents.length > 1;
   const refs = index.refs.get(commit.id) ?? [];
-  const additions = files?.reduce((sum, f) => sum + (f.additions ?? 0), 0) ?? 0;
-  const deletions = files?.reduce((sum, f) => sum + (f.deletions ?? 0), 0) ?? 0;
 
   async function copyHash() {
     try {
@@ -112,31 +108,86 @@ export function DetailsPanel({ sessionId, commit, index, onSelectCommit }: Detai
             </>
           )}
         </dl>
+        <p className={styles.tip}>{m.compare.hint}</p>
       </header>
 
       {details.isError && <p className={styles.error}>{describeError(details.error, m)}</p>}
       {details.isPending && commitId !== null && <p className={styles.empty}>{m.details.loading}</p>}
 
-      {files && (
-        <section className={styles.section}>
-          <h3>
-            {m.details.changedFiles}<span className={styles.count}>{files.length}</span>
-            <span className={styles.totals}>
-              <i className={styles.add}>+{additions}</i>
-              <i className={styles.del}>−{deletions}</i>
-            </span>
-          </h3>
-          {isMerge && <p className={styles.hint}>{m.details.vsFirstParent}</p>}
-          {data?.statsTruncated && <p className={styles.hint}>{m.details.statsTruncated}</p>}
-          {files.length === 0 ? (
-            <p className={styles.hint}>{m.details.noFiles}</p>
-          ) : (
-            <div className={styles.fileScroll}>
-              <FileList files={files} selectedPath={file?.path ?? null} onSelect={setPicked} />
+      <FileChanges
+        sessionId={sessionId}
+        commitId={commitId}
+        base={base}
+        details={details}
+        onFileHistory={onFileHistory}
+        hint={
+          isMerge && (
+            <div className={styles.hint}>
+              <span className={styles.compared}>
+                {m.details.comparedWith}
+                <span className={styles.seg} role="tablist" aria-label={m.details.comparedWith}>
+                  {commit.parents.map((id, n) => (
+                    <button key={id} type="button" role="tab" aria-selected={parentAt === n} className={parentAt === n ? styles.on : undefined} title={shortHash(id)} onClick={() => setParentAt(n)}>
+                      {m.details.parentOrdinal(n + 1)}
+                    </button>
+                  ))}
+                </span>
+              </span>
             </div>
-          )}
-        </section>
-      )}
+          )
+        }
+      />
+    </aside>
+  );
+}
+
+interface FileChangesProps {
+  sessionId: string;
+  commitId: string | null;
+  /** What the commit is compared with: null for its first parent. */
+  base: string | null;
+  details: UseQueryResult<CommitDetails, CommandError>;
+  /** Shown under the heading, before the files. */
+  hint?: ReactNode;
+  onFileHistory?: (path: string) => void;
+}
+
+/** The changed files of a commit (against its parent or another commit) and the diff of one of them. */
+export function FileChanges({ sessionId, commitId, base, details, hint, onFileHistory }: FileChangesProps) {
+  const m = useT();
+  const [picked, setPicked] = useState<FileChange | null>(null);
+  const [mode, setMode] = useState<DiffMode>("unified");
+
+  const files = details.data?.files;
+  // The first file is shown until another is picked; picks do not carry over to other comparisons.
+  const file = files?.find((f) => f.path === picked?.path) ?? files?.[0] ?? null;
+  useEffect(() => setPicked(null), [commitId, base]);
+
+  const diff = useFileDiff(sessionId, commitId, file, base);
+  if (!files) return null;
+  const additions = files.reduce((sum, f) => sum + (f.additions ?? 0), 0);
+  const deletions = files.reduce((sum, f) => sum + (f.deletions ?? 0), 0);
+
+  return (
+    <>
+      <section className={styles.section}>
+        <h3>
+          {m.details.changedFiles}<span className={styles.count}>{files.length}</span>
+          <span className={styles.totals}>
+            <i className={styles.add}>+{additions}</i>
+            <i className={styles.del}>−{deletions}</i>
+          </span>
+        </h3>
+        {hint}
+        {details.data?.statsTruncated && <p className={styles.hint}>{m.details.statsTruncated}</p>}
+        {files.length === 0 ? (
+          <p className={styles.hint}>{m.details.noFiles}</p>
+        ) : (
+          <div className={styles.fileScroll}>
+            <FileList files={files} selectedPath={file?.path ?? null} onSelect={setPicked} onHistory={onFileHistory} />
+          </div>
+        )}
+      </section>
 
       {file && (
         <section className={`${styles.section} ${styles.diffSection}`}>
@@ -166,6 +217,6 @@ export function DetailsPanel({ sessionId, commit, index, onSelectCommit }: Detai
           </div>
         </section>
       )}
-    </aside>
+    </>
   );
 }

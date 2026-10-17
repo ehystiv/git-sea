@@ -16,6 +16,8 @@ import { anchorAtCentre, centeredOn, clampView, clampZoom, fitView, homeView, vi
 export interface GraphCallbacks {
   onSelect: (index: number | null) => void;
   onZoom: (zoom: number) => void;
+  /** ⇧-click on a commit other than the selected one: compare the two. */
+  onCompare?: (index: number) => void;
   /** A node standing for several commits was clicked; the argument is its newest commit's id. */
   onExpandGroup?: (id: string) => void;
   /** An already selected commit inside an opened run was clicked; the argument is the run's newest commit's id. */
@@ -623,6 +625,10 @@ export class GraphController {
       return;
     }
     const hit = hitTest(this.index, this.view, x, y);
+    if (e.shiftKey && hit !== null && this.selected !== null && hit !== this.selected && this.callbacks.onCompare) {
+      this.callbacks.onCompare(hit);
+      return;
+    }
     const wasSelected = hit !== null && hit === this.selected;
     this.select(hit, false);
     const commit = hit === null ? undefined : this.index.commits[hit];

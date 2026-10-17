@@ -127,6 +127,8 @@ export const en = {
     panelTitle: "Details panel (Enter)",
     close: "Close",
     resizePanel: "Resize the panel",
+    divergence: (branch: string, upstream: string) => `${branch} ↔ ${upstream}`,
+    stopDivergence: "Stop highlighting the divergence",
   },
 
   commands: {
@@ -160,6 +162,12 @@ export const en = {
     addToFilter: (name: string) => `Add ${name} to the filter`,
     removeFromFilter: (name: string) => `Remove ${name} from the filter`,
     noMessage: "(no message)",
+    compareWithHead: "Compare the selected commit with HEAD",
+    compareWith: (name: string) => `Compare the selected commit with ${name}`,
+    stopCompare: "Close the comparison",
+    swapCompare: "Swap the two sides of the comparison",
+    highlightDivergence: (branch: string, upstream: string) => `Highlight where ${branch} and ${upstream} diverge`,
+    stopDivergence: "Stop highlighting the divergence",
     kind: { Head: "branch (HEAD)", Branch: "branch", Remote: "remote", Tag: "tag" },
   },
 
@@ -182,6 +190,9 @@ export const en = {
     showOnlyThis: "Show only this one",
     sections: { branches: "Local branches", remotes: "Remotes", tags: "Tags", stashes: "Stashes" },
     stashTitle: (index: number) => `stash@{${index}}: jump to the commit it was created on`,
+    upToDate: (upstream: string) => `Up to date with ${upstream}`,
+    divergence: (ahead: number, behind: number, upstream: string) =>
+      `${ahead} ${ahead === 1 ? "commit" : "commits"} ahead of ${upstream} and ${behind} behind. Click to highlight them.`,
   },
 
   ci: {
@@ -261,7 +272,9 @@ export const en = {
     ref: "Ref",
     loading: "Loading the details…",
     changedFiles: "Changed files",
-    vsFirstParent: "Differences from the first parent.",
+    comparedWith: "Compared with",
+    parentOrdinal: (n: number) => (n === 1 ? "first parent" : n === 2 ? "second parent" : `parent ${n}`),
+    fileHistory: (name: string) => `Show the commits that changed ${name}`,
     statsTruncated: "Added and removed lines counted only for the first files.",
     noFiles: "No changed files.",
     diffMode: "Diff mode",
@@ -286,8 +299,21 @@ export const en = {
     showAll: (n: string) => `Show all ${n} lines`,
     truncated: "Differences cut short: very long file.",
     binary: "Binary file: no preview.",
+    binaryShort: "binary",
     tooLarge: "File too large to show the differences.",
     noChanges: "No differences in the content.",
+  },
+
+  compare: {
+    title: "Comparison",
+    label: "Comparison of two commits",
+    from: "From",
+    to: "To",
+    swap: "Swap",
+    close: "Close the comparison",
+    onlyIn: (n: number, side: string) => `${n} ${n === 1 ? "commit" : "commits"} only in ${side}`,
+    sameHistory: "Both sides have the same commits.",
+    hint: "⇧-click on another commit to compare it with the selected one.",
   },
 
   status: {

@@ -29,13 +29,14 @@ fn main() {
         .find(|c| c.summary == summary)
         .expect("no such commit");
 
-    let details = commit_details(&repo, &commit.id).expect("details");
+    let details = commit_details(&repo, &commit.id, None).expect("details");
     let diffs: serde_json::Map<String, serde_json::Value> = details
         .files
         .iter()
         .filter(|f| !f.binary)
         .map(|f| {
-            let diff = file_diff(&repo, &commit.id, &f.path, f.old_path.as_deref()).expect("diff");
+            let diff =
+                file_diff(&repo, &commit.id, &f.path, f.old_path.as_deref(), None).expect("diff");
             (f.path.clone(), serde_json::to_value(diff).expect("json"))
         })
         .collect();

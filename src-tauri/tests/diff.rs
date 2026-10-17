@@ -48,7 +48,7 @@ fn root_commit_lists_everything_as_added_with_statistics() {
     let dir = fixture("root_commit_lists_everything_as_added_with_statistics");
     let repo = gix::open(&dir).unwrap();
 
-    let details = commit_details(&repo, &commit_named(&dir, "add")).unwrap();
+    let details = commit_details(&repo, &commit_named(&dir, "add"), None).unwrap();
 
     assert_eq!(details.summary, "add");
     assert_eq!(details.compared_with, None);
@@ -74,7 +74,7 @@ fn modification_counts_changed_lines() {
     let dir = fixture("modification_counts_changed_lines");
     let repo = gix::open(&dir).unwrap();
 
-    let details = commit_details(&repo, &commit_named(&dir, "modify")).unwrap();
+    let details = commit_details(&repo, &commit_named(&dir, "modify"), None).unwrap();
 
     assert_eq!(details.files.len(), 1);
     let file = &details.files[0];
@@ -92,7 +92,7 @@ fn rename_and_delete_are_reported() {
     let dir = fixture("rename_and_delete_are_reported");
     let repo = gix::open(&dir).unwrap();
 
-    let details = commit_details(&repo, &commit_named(&dir, "rename")).unwrap();
+    let details = commit_details(&repo, &commit_named(&dir, "rename"), None).unwrap();
 
     let renamed = details
         .files
@@ -107,7 +107,7 @@ fn rename_and_delete_are_reported() {
     assert_eq!(deleted.deletions, Some(4));
 
     // The rename diff is taken between the old and the new path.
-    let diff = file_diff(&repo, &details.id, "dir/c.txt", Some("b.txt")).unwrap();
+    let diff = file_diff(&repo, &details.id, "dir/c.txt", Some("b.txt"), None).unwrap();
     let changed: Vec<_> = diff
         .hunks
         .iter()
@@ -124,7 +124,7 @@ fn merge_is_compared_with_its_first_parent() {
     let dir = fixture("merge_is_compared_with_its_first_parent");
     let repo = gix::open(&dir).unwrap();
 
-    let details = commit_details(&repo, &commit_named(&dir, "Merge side")).unwrap();
+    let details = commit_details(&repo, &commit_named(&dir, "Merge side"), None).unwrap();
 
     assert_eq!(details.parents.len(), 2);
     assert_eq!(
@@ -139,12 +139,62 @@ fn merge_is_compared_with_its_first_parent() {
 }
 
 #[test]
+fn merge_can_be_compared_with_its_second_parent() {
+    let dir = fixture("merge_can_be_compared_with_its_second_parent");
+    let repo = gix::open(&dir).unwrap();
+    let merge = commit_named(&dir, "Merge side");
+    let second = commit_named(&dir, "side work");
+
+    let details = commit_details(&repo, &merge, Some(&second)).unwrap();
+
+    assert_eq!(details.compared_with.as_deref(), Some(second.as_str()));
+    // Seen from the side branch, the merge brings in what main did.
+    let names: Vec<_> = details.files.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(names, ["main.txt"]);
+    let diff = file_diff(&repo, &merge, "main.txt", None, Some(&second)).unwrap();
+    assert_eq!(diff.hunks[0].lines[0].text, "main");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn any_two_commits_can_be_compared() {
+    let dir = fixture("any_two_commits_can_be_compared");
+    let repo = gix::open(&dir).unwrap();
+    let from = commit_named(&dir, "add");
+    let to = commit_named(&dir, "rename");
+
+    let details = commit_details(&repo, &to, Some(&from)).unwrap();
+
+    // Two commits apart: a.txt is gone and b.txt became dir/c.txt.
+    let files: Vec<_> = details
+        .files
+        .iter()
+        .map(|f| (f.path.as_str(), f.status))
+        .collect();
+    assert_eq!(
+        files,
+        [
+            ("a.txt", ChangeStatus::Deleted),
+            ("dir/c.txt", ChangeStatus::Renamed)
+        ]
+    );
+    let diff = file_diff(&repo, &to, "a.txt", None, Some(&from)).unwrap();
+    let removed: Vec<_> = diff.hunks[0]
+        .lines
+        .iter()
+        .map(|l| l.text.as_str())
+        .collect();
+    assert_eq!(removed, ["one", "two", "three"]);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn file_diff_has_line_numbers_on_both_sides() {
     let dir = fixture("file_diff_has_line_numbers_on_both_sides");
     let repo = gix::open(&dir).unwrap();
     let id = commit_named(&dir, "modify");
 
-    let diff = file_diff(&repo, &id, "a.txt", None).unwrap();
+    let diff = file_diff(&repo, &id, "a.txt", None, None).unwrap();
 
     assert!(!diff.binary && !diff.truncated);
     assert_eq!(diff.hunks.len(), 1);
@@ -168,7 +218,7 @@ fn binary_files_have_no_hunks() {
     let dir = fixture("binary_files_have_no_hunks");
     let repo = gix::open(&dir).unwrap();
 
-    let diff = file_diff(&repo, &commit_named(&dir, "add"), "image.bin", None).unwrap();
+    let diff = file_diff(&repo, &commit_named(&dir, "add"), "image.bin", None, None).unwrap();
 
     assert!(diff.binary);
     assert!(diff.hunks.is_empty());
@@ -181,12 +231,12 @@ fn bad_ids_are_reported_as_git_errors() {
     let repo = gix::open(&dir).unwrap();
 
     assert!(matches!(
-        commit_details(&repo, "not-hex"),
+        commit_details(&repo, "not-hex", None),
         Err(AppError::Git(_))
     ));
     let missing = "0123456789abcdef0123456789abcdef01234567";
     assert!(matches!(
-        commit_details(&repo, missing),
+        commit_details(&repo, missing, None),
         Err(AppError::Git(_))
     ));
     let _ = std::fs::remove_dir_all(&dir);

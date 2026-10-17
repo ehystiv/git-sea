@@ -1,6 +1,7 @@
 @layer components {
   .files { padding: 0 var(--space-2) var(--space-2); }
 
+  .row { position: relative; }
   .file {
     display: flex;
     align-items: center;
@@ -30,5 +31,22 @@
   .numbers i { font-style: normal; }
   .add { color: var(--add); }
   .del { color: var(--danger); }
+  /* Shown over the line numbers while the row is hovered or focused. */
+  .history {
+    position: absolute;
+    top: 3px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    display: none;
+    place-items: center;
+    border-radius: 5px;
+    background: var(--surface);
+    color: var(--text-3);
+    box-shadow: 0 0 0 0.5px var(--border-strong);
+  }
+  .row:hover .history, .history:focus-visible { display: grid; }
+  .history:hover { color: var(--text); }
+
   .muted { color: var(--text-3); font-family: var(--font-ui); }
 }

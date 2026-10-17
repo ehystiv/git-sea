@@ -9,6 +9,7 @@ import type { PaletteSource } from "../palette/paletteStore";
 import type { PaletteCommand } from "../palette/rank";
 import { matchCommits } from "../search/query";
 import { inFilter } from "../sidebar/refFilter";
+import type { BranchDivergence } from "../sidebar/upstream";
 
 export type ViewMode = "graph" | "topology" | "timeline" | "list";
 
@@ -34,6 +35,12 @@ export interface RepoCommandState {
   sea: boolean;
   ancestors: boolean;
   hasSelection: boolean;
+  /** The panel compares two commits. */
+  comparing: boolean;
+  /** Local branches and how far they are from their upstream, by branch name. */
+  divergences: Map<string, BranchDivergence>;
+  /** The branch whose divergence is highlighted. */
+  divergenceOf: string | null;
   canCollapse: boolean;
   branchFilter: RefFilter[] | null;
   ci: {
@@ -52,6 +59,12 @@ export interface RepoCommandActions {
   toggleFlow: () => void;
   toggleSea: () => void;
   toggleAncestors: () => void;
+  /** Compares the selected commit with this one. */
+  compareWith: (id: string) => void;
+  swapCompare: () => void;
+  stopCompare: () => void;
+  showDivergence: (branch: string) => void;
+  stopDivergence: () => void;
   openSearch: () => void;
   goHead: () => void;
   zoomIn: () => void;
@@ -70,7 +83,7 @@ export interface RepoCommandActions {
 
 /** What the active repository offers to the command palette. Null for a tab in the background. */
 export function useRepoCommands(active: boolean, state: RepoCommandState, actions: RepoCommandActions): PaletteSource | null {
-  const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter, ci } = state;
+  const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, canCollapse, branchFilter, ci } = state;
   const m = useT();
 
   return useMemo(() => {
@@ -109,6 +122,23 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
         g.navigation,
       );
     }
+    const labels = [...index.refs.values()].flat();
+    const head = labels.find((l) => l.kind === "Head");
+    if (hasSelection && head && index.indexOf(head.commit) !== null) {
+      add({ id: "compare:head", title: m.commands.compareWithHead, keywords: "compare confronta diff differenze head", run: () => actions.compareWith(head.commit) }, g.navigation);
+    }
+    if (comparing) {
+      add({ id: "compare:swap", title: m.commands.swapCompare, keywords: "compare confronta inverti swap", run: actions.swapCompare }, g.navigation);
+      add({ id: "compare:stop", title: m.commands.stopCompare, keywords: "compare confronta chiudi close", run: actions.stopCompare }, g.navigation);
+    }
+    if (divergenceOf !== null) add({ id: "divergence:stop", title: m.commands.stopDivergence, keywords: "ahead behind upstream divergenza", run: actions.stopDivergence }, g.navigation);
+    for (const d of divergences.values()) {
+      if (d.branch === divergenceOf || (d.ahead === 0 && d.behind === 0)) continue;
+      add(
+        { id: `divergence:${d.branch}`, title: m.commands.highlightDivergence(d.branch, d.upstream), detail: `${d.ahead}↑ ${d.behind}↓`, keywords: "ahead behind upstream divergenza avanti indietro", run: () => actions.showDivergence(d.branch) },
+        g.navigation,
+      );
+    }
     if (ci.focus !== null) add({ id: "ci:all", title: m.commands.showAllWorkflows, keywords: "ci workflow azioni actions pipeline", run: () => actions.focusWorkflow(null) }, g.ci);
     for (const workflow of ci.workflows) {
       const keywords = `ci workflow pipeline ${workflow.path} ${PROVIDER_LABEL[workflow.provider]}`;
@@ -126,7 +156,6 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
     }
     if (branchFilter) add({ id: "filter:clear", title: m.commands.showAllBranches, keywords: "filtro filter togli rimuovi clear", run: actions.clearFilter }, g.filter);
 
-    const labels = [...index.refs.values()].flat();
     const search = (query: string): PaletteCommand[] => {
       const needle = query.trim().toLowerCase();
       if (needle === "") return [];
@@ -138,6 +167,7 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
         const loaded = index.indexOf(ref.commit) !== null;
         if (!loaded) continue;
         out.push({ id: `ref:${ref.kind}:${ref.name}`, group: g.refs, title: m.commands.goTo(ref.name), detail: kindLabel(m, ref.kind), run: () => actions.selectCommit(ref.commit) });
+        if (hasSelection) out.push({ id: `compare:${ref.kind}:${ref.name}`, group: g.refs, title: m.commands.compareWith(ref.name), detail: kindLabel(m, ref.kind), run: () => actions.compareWith(ref.commit) });
       }
       for (const ref of refs.filter((r) => r.name !== "HEAD").slice(0, MAX_FILTER_REFS)) {
         const filtered = inFilter(branchFilter, ref);
@@ -158,5 +188,5 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
 
     return { commands, search };
     // `version` is what tells us the (mutable) index changed.
-  }, [m, active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter, ci, actions]);
+  }, [m, active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, canCollapse, branchFilter, ci, actions]);
 }

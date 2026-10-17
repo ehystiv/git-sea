@@ -11,9 +11,11 @@ interface CommitListProps {
   commits: CommitSummary[];
   selectedId: string | null;
   onSelect: (commit: CommitSummary) => void;
+  /** ⇧-click on another commit than the selected one. */
+  onCompare?: (commit: CommitSummary) => void;
 }
 
-export function CommitList({ commits, selectedId, onSelect }: CommitListProps) {
+export function CommitList({ commits, selectedId, onSelect, onCompare }: CommitListProps) {
   const m = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [now] = useState(() => Date.now());
@@ -43,7 +45,10 @@ export function CommitList({ commits, selectedId, onSelect }: CommitListProps) {
               <div
                 key={commit.id}
                 className={`${styles.columns} ${styles.row} ${commit.id === selectedId ? styles.selected : ""}`}
-                onClick={() => onSelect(commit)}
+                onClick={(event) => {
+                  if (event.shiftKey && onCompare && selectedId !== null && commit.id !== selectedId) onCompare(commit);
+                  else onSelect(commit);
+                }}
                 style={{ height: ROW_HEIGHT, transform: `translateY(${item.start}px)` }}
               >
                 <span className={styles.summary}>{commit.summary}</span>

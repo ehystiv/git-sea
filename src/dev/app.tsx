@@ -123,6 +123,11 @@ const ci = fakeCi();
       }
       case "list_stashes":
         return [];
+      case "list_upstreams":
+        // Every local branch tracks the remote branch of the same name, when there is one.
+        return dump.refs
+          .filter((r) => (r.kind === "Branch" || r.kind === "Head") && dump.refs.some((o) => o.kind === "Remote" && o.name === `origin/${r.name}`))
+          .map((r) => ({ branch: r.name, upstream: `origin/${r.name}` }));
       case "commit_details": {
         const commit = dump.commits.find((c) => c.id === args.commitId);
         const person = { name: commit?.author ?? "", email: "dev@example.com", time: commit?.time ?? 0 };

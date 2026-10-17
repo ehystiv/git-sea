@@ -13,6 +13,7 @@ use crate::git::fetch::{FetchState, Fetcher};
 use crate::git::repo::{self, RepoInfo};
 use crate::git::search::{self, SearchField, SearchResult};
 use crate::git::stash::{self, StashEntry};
+use crate::git::upstream::{self, Upstream};
 use crate::git::worktree::{self, WorktreeStatus};
 use crate::session::AppState;
 use crate::watcher::RepoWatcher;
@@ -198,23 +199,26 @@ pub async fn load_commits(
     .map_err(|err| AppError::Internal(err.to_string()))?
 }
 
-/// Metadata and changed files of one commit, compared with its first parent.
+/// Metadata and changed files of one commit, compared with its first parent, or with `base`
+/// (another parent of a merge, or any commit) when given.
 #[tauri::command]
 #[specta::specta]
 pub async fn commit_details(
     state: State<'_, AppState>,
     session_id: String,
     commit_id: String,
+    base: Option<String>,
 ) -> Result<CommitDetails, AppError> {
     let session = state.get(&session_id)?;
     tauri::async_runtime::spawn_blocking(move || {
-        diff::commit_details(&session.repo.to_thread_local(), &commit_id)
+        diff::commit_details(&session.repo.to_thread_local(), &commit_id, base.as_deref())
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?
 }
 
-/// Line diff of one file of a commit. `old_path` is the previous path of a renamed file.
+/// Line diff of one file of a commit, against its first parent or `base`. `old_path` is the
+/// previous path of a renamed file.
 #[tauri::command]
 #[specta::specta]
 pub async fn file_diff(
@@ -223,6 +227,7 @@ pub async fn file_diff(
     commit_id: String,
     path: String,
     old_path: Option<String>,
+    base: Option<String>,
 ) -> Result<FileDiff, AppError> {
     let session = state.get(&session_id)?;
     tauri::async_runtime::spawn_blocking(move || {
@@ -231,6 +236,7 @@ pub async fn file_diff(
             &commit_id,
             &path,
             old_path.as_deref(),
+            base.as_deref(),
         )
     })
     .await
@@ -247,6 +253,21 @@ pub async fn list_stashes(
     let session = state.get(&session_id)?;
     tauri::async_runtime::spawn_blocking(move || {
         stash::list_stashes(&session.repo.to_thread_local())
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// The upstream of every local branch that has one.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_upstreams(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<Vec<Upstream>, AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        upstream::list_upstreams(&session.repo.to_thread_local())
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?

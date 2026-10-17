@@ -21,13 +21,15 @@ interface TimelineCanvasProps {
   /** Commits to keep bright while the rest fades; built for `index`. */
   emphasis: Emphasis | null;
   onSelect: (commit: CommitSummary | null) => void;
+  /** ⇧-click on another commit than the selected one. */
+  onCompare?: (commit: CommitSummary) => void;
   /** Pixels on the right covered by the floating details panel; the canvas keeps its size. */
   insetRight: number;
 }
 
 /** The history on a time axis: one row per lane of the graph layout, newest commits on the right. */
 export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>(function TimelineCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, insetRight },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, insetRight },
   ref,
 ) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -36,6 +38,7 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
   const focused = useWindowFocused();
   const controllerRef = useRef<TimelineController | null>(null);
   const onSelectRef = useRef(onSelect);
+  const onCompareRef = useRef(onCompare);
   const flowRef = useRef(flow);
   const emphasisRef = useRef(emphasis);
   const insetRef = useRef(insetRight);
@@ -44,7 +47,8 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
 
   useEffect(() => {
     onSelectRef.current = onSelect;
-  }, [onSelect]);
+    onCompareRef.current = onCompare;
+  }, [onSelect, onCompare]);
 
   useImperativeHandle(
     ref,
@@ -69,6 +73,10 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
     const controller = new TimelineController(canvas, index, {
       onSelect: (i) => onSelectRef.current(i === null ? null : (index.commits[i] ?? null)),
       onZoom: setZoom,
+      onCompare: (i) => {
+        const commit = index.commits[i];
+        if (commit) onCompareRef.current?.(commit);
+      },
     });
     controllerRef.current = controller;
     controller.attachFlowCanvas(flowCanvas);

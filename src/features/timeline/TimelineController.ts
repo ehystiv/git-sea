@@ -20,6 +20,8 @@ import {
 
 export interface TimelineCallbacks {
   onSelect: (index: number | null) => void;
+  /** ⇧-click on a commit other than the selected one: compare the two. */
+  onCompare?: (index: number) => void;
   /** Zoom as a ratio of the 100 px/day shown as 100%. */
   onZoom: (zoom: number) => void;
 }
@@ -414,7 +416,12 @@ export class TimelineController {
     this.canvas.style.cursor = this.hovered === null ? "grab" : "pointer";
     if (!drag || drag.moved) return;
     const { x, y } = this.local(e);
-    this.select(this.hit(x, y), false);
+    const hit = this.hit(x, y);
+    if (e.shiftKey && hit !== null && this.selected !== null && hit !== this.selected && this.callbacks.onCompare) {
+      this.callbacks.onCompare(hit);
+      return;
+    }
+    this.select(hit, false);
   }
 
   private setHover(index: number | null): void {

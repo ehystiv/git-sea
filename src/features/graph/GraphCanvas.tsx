@@ -27,6 +27,8 @@ interface GraphCanvasProps {
   /** Commits to keep bright while the rest fades; built for `index`. */
   emphasis: Emphasis | null;
   onSelect: (commit: CommitSummary | null) => void;
+  /** ⇧-click on another commit than the selected one. */
+  onCompare?: (commit: CommitSummary) => void;
   /** Compressed view: a node standing for several commits was clicked. */
   onExpandGroup?: (id: string) => void;
   /** Compressed view: a selected commit of an opened run was clicked again. */
@@ -57,7 +59,7 @@ export interface GraphCanvasHandle {
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree, ci, onOpenCi, insetRight, sea },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree, ci, onOpenCi, insetRight, sea },
   ref,
 ) {
   const m = useT();
@@ -72,6 +74,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const controllerRef = useRef<GraphController | null>(null);
   const onSelectRef = useRef(onSelect);
+  const onCompareRef = useRef(onCompare);
   const flowRef = useRef(flow);
   const emphasisRef = useRef(emphasis);
   const onExpandRef = useRef(onExpandGroup);
@@ -88,11 +91,12 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
 
   useEffect(() => {
     onSelectRef.current = onSelect;
+    onCompareRef.current = onCompare;
     onExpandRef.current = onExpandGroup;
     onCollapseRef.current = onCollapseGroup;
     onOpenWorktreeRef.current = onOpenWorktree;
     onOpenCiRef.current = onOpenCi;
-  }, [onSelect, onExpandGroup, onCollapseGroup, onOpenWorktree, onOpenCi]);
+  }, [onSelect, onCompare, onExpandGroup, onCollapseGroup, onOpenWorktree, onOpenCi]);
 
   useImperativeHandle(
     ref,
@@ -124,6 +128,10 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     const controller = new GraphController(canvas, index, {
       onSelect: (i) => onSelectRef.current(i === null ? null : (index.commits[i] ?? null)),
       onZoom: setZoom,
+      onCompare: (i) => {
+        const commit = index.commits[i];
+        if (commit) onCompareRef.current?.(commit);
+      },
       onExpandGroup: (id) => onExpandRef.current?.(id),
       onCollapseGroup: (id) => onCollapseRef.current?.(id),
       onOpenWorktree: () => onOpenWorktreeRef.current?.(),

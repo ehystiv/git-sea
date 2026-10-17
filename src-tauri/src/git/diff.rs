@@ -1,5 +1,7 @@
-//! Commit details and per-file diffs. A commit is always compared with its first parent (like
-//! `git show --first-parent`); a root commit is compared with the empty tree.
+//! Commit details and per-file diffs. A commit is compared with its first parent (like
+//! `git show --first-parent`) unless another base commit is given: another parent of a merge, or
+//! any commit to compare two points of the history. A root commit without a base is compared with
+//! the empty tree.
 
 use gix::diff::blob::{Algorithm, InternedInput};
 use gix::object::tree::diff::ChangeDetached;
@@ -59,7 +61,8 @@ pub struct CommitDetails {
     pub author: Person,
     pub committer: Person,
     pub parents: Vec<String>,
-    /// The parent the files below were compared with; `None` for a root commit.
+    /// The commit the files below were compared with (the first parent unless a base was given);
+    /// `None` for a root commit.
     pub compared_with: Option<String>,
     pub files: Vec<FileChange>,
     /// True when some files have no line statistics only because of the limit.
@@ -135,7 +138,25 @@ fn first_parent_tree<'repo>(
     Ok(Some((parent_id.detach(), tree)))
 }
 
-pub fn commit_details(repo: &gix::Repository, commit_id: &str) -> Result<CommitDetails, AppError> {
+/// The tree to compare `commit` with: `base`'s when given, else the first parent's.
+fn base_tree<'repo>(
+    repo: &'repo gix::Repository,
+    commit: &gix::Commit<'repo>,
+    base: Option<&str>,
+) -> Result<Option<(gix::ObjectId, gix::Tree<'repo>)>, AppError> {
+    let Some(base) = base else {
+        return first_parent_tree(repo, commit);
+    };
+    let base = repo.find_commit(parse_id(base)?).map_err(git)?;
+    let tree = base.tree().map_err(git)?;
+    Ok(Some((base.id, tree)))
+}
+
+pub fn commit_details(
+    repo: &gix::Repository,
+    commit_id: &str,
+    base: Option<&str>,
+) -> Result<CommitDetails, AppError> {
     let commit = repo.find_commit(parse_id(commit_id)?).map_err(git)?;
     let message = commit.message().map_err(git)?;
     let body = message
@@ -143,7 +164,7 @@ pub fn commit_details(repo: &gix::Repository, commit_id: &str) -> Result<CommitD
         .map(|b| b.to_string().trim().to_owned())
         .unwrap_or_default();
     let new_tree = commit.tree().map_err(git)?;
-    let parent = first_parent_tree(repo, &commit)?;
+    let parent = base_tree(repo, &commit, base)?;
 
     let changes = repo
         .diff_tree_to_tree(parent.as_ref().map(|(_, tree)| tree), Some(&new_tree), None)
@@ -303,17 +324,18 @@ fn is_binary(data: &[u8]) -> bool {
     data.iter().take(8_000).any(|&b| b == 0)
 }
 
-/// Diff of one file of a commit against its first parent. `old_path` is the file's previous path
-/// when it was renamed.
+/// Diff of one file of a commit against its first parent, or against `base` when given.
+/// `old_path` is the file's previous path when it was renamed.
 pub fn file_diff(
     repo: &gix::Repository,
     commit_id: &str,
     path: &str,
     old_path: Option<&str>,
+    base: Option<&str>,
 ) -> Result<FileDiff, AppError> {
     let commit = repo.find_commit(parse_id(commit_id)?).map_err(git)?;
     let new_tree = commit.tree().map_err(git)?;
-    let parent = first_parent_tree(repo, &commit)?;
+    let parent = base_tree(repo, &commit, base)?;
 
     let new = blob_at(repo, &new_tree, path)?;
     let old = match &parent {

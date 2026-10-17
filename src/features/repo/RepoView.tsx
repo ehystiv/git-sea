@@ -8,6 +8,7 @@ import { openUrl, useCi } from "../ci/useCi";
 import { CommitList } from "../commits/CommitList";
 import { LoadStatus } from "../commits/LoadStatus";
 import { useCommitStream } from "../commits/useCommitStream";
+import { ComparePanel } from "../details/ComparePanel";
 import { DetailsPanel } from "../details/DetailsPanel";
 import { useWorktreeStatus } from "../details/useWorktree";
 import { WorktreePanel } from "../details/WorktreePanel";
@@ -15,6 +16,7 @@ import { ancestorEmphasis, ancestorMask, matchEmphasis, type Emphasis } from "..
 import type { CiScene } from "../graph/ciDraw";
 import type { WorktreeMarker } from "../graph/draw";
 import { GraphCanvas, type GraphCanvasHandle } from "../graph/GraphCanvas";
+import { divergence, divergenceEmphasis } from "../graph/range";
 import { useCompressedIndex } from "../graph/useCompressedIndex";
 import { usePalette, usePaletteSource } from "../palette/paletteStore";
 import { stepMatch } from "../search/query";
@@ -23,6 +25,7 @@ import { useSearch } from "../search/useSearch";
 import { TimelineCanvas } from "../timeline/TimelineCanvas";
 import { describeFilter, pruneFilter, toggleRef } from "../sidebar/refFilter";
 import { Sidebar } from "../sidebar/Sidebar";
+import { branchDivergences, useUpstreams, type BranchDivergence } from "../sidebar/upstream";
 import { useFlow } from "../../lib/flow";
 import { useSea } from "../../lib/sea";
 import { formatCount, shortHash } from "../../lib/format";
@@ -85,6 +88,10 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   const [searchFocus, setSearchFocus] = useState(0);
   const [ancestors, setAncestors] = useState(false);
   const [selected, setSelected] = useState<CommitSummary | null>(null);
+  /** Two commits whose trees the panel compares; `base` is the older side. */
+  const [compare, setCompare] = useState<{ base: string; target: string } | null>(null);
+  /** A local branch whose divergence from its upstream is highlighted. */
+  const [divergenceOf, setDivergenceOf] = useState<string | null>(null);
   /** The details panel shows the local changes instead of the selected commit. */
   const [showWorktree, setShowWorktree] = useState(false);
   /** The details panel shows the CI of this commit instead of its details. */
@@ -117,8 +124,15 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
       void queryClient.invalidateQueries({ queryKey: ["stashes", repo.sessionId] });
       void queryClient.invalidateQueries({ queryKey: ["search", repo.sessionId] });
       void queryClient.invalidateQueries({ queryKey: ["worktree", repo.sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["upstreams", repo.sessionId] });
     }, [reload, queryClient, repo.sessionId]),
   );
+
+  // Ahead/behind of every local branch with an upstream, worked out on the loaded history.
+  const upstreams = useUpstreams(repo.sessionId);
+  const divergences = useMemo(() => branchDivergences(index, upstreams.data ?? []), [index, stream.version, upstreams.data]);
+  const focusedDivergence = divergenceOf === null ? null : (divergences.get(divergenceOf) ?? null);
+  const showDivergence = useCallback((d: BranchDivergence) => setDivergenceOf((current) => (current === d.branch ? null : d.branch)), []);
 
   // Remote branches are fetched in the background; new commits arrive through the refs.
   const remote = useFetchStatus(repo.sessionId);
@@ -161,6 +175,29 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     setPanelOpen(true);
   }, []);
 
+  // ⇧-click: compare the clicked commit with the selected one, the older one being the base.
+  const startCompare = useCallback(
+    (otherId: string, withId: string | null = selectedIdRef.current) => {
+      if (withId === null || withId === otherId) return;
+      const a = index.indexOf(otherId);
+      const b = index.indexOf(withId);
+      if (a === null || b === null) return;
+      // The base is the ancestor when one descends from the other, else the older by date (the
+      // walk position says nothing about age across branches).
+      const { ahead, behind } = divergence(index, a, b);
+      const timeA = index.commits[a]?.time ?? 0;
+      const timeB = index.commits[b]?.time ?? 0;
+      const otherIsBase = ahead === 0 ? true : behind === 0 ? false : timeA !== timeB ? timeA < timeB : a > b;
+      setCompare(otherIsBase ? { base: otherId, target: withId } : { base: withId, target: otherId });
+      setShowWorktree(false);
+      setCiCommit(null);
+      setPanelOpen(true);
+    },
+    [index],
+  );
+  const compareWithCommit = useCallback((commit: CommitSummary) => startCompare(commit.id), [startCompare]);
+  const swapCompare = useCallback(() => setCompare((c) => (c ? { base: c.target, target: c.base } : null)), []);
+
   // Picking another commit brings its details back. Views report their selection again when they
   // are created, so only a different commit counts.
   const selectedIdRef = useRef<string | null>(null);
@@ -168,6 +205,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     if (commit && commit.id !== selectedIdRef.current) {
       setShowWorktree(false);
       setCiCommit(null);
+      // Jumping between the two ends keeps the comparison; any other commit ends it.
+      setCompare((c) => (c && (c.base === commit.id || c.target === commit.id) ? c : null));
     }
     selectedIdRef.current = commit?.id ?? null;
     setSelected(commit);
@@ -188,6 +227,14 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     setSearchOpen(false);
     setSearchText("");
   }, []);
+  // The history of a file is a path search, so the search bar can step through it.
+  const showFileHistory = useCallback(
+    (path: string) => {
+      setSearchText(`path:${path}`);
+      openSearch();
+    },
+    [openSearch],
+  );
 
   // Enter shows or hides the details panel; 1, 2 and 3 switch between graph, topology and
   // timeline; / opens the search; a highlights the ancestors of the selected commit.
@@ -269,15 +316,30 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     [targets, selectedId, viewIndex, selectById],
   );
 
+  // A comparison, or else a highlighted branch divergence: the commits on either side only.
+  const rangeEnds = compare ? ([compare.target, compare.base] as const) : focusedDivergence ? ([focusedDivergence.branchCommit, focusedDivergence.upstreamCommit] as const) : null;
+  const rangeA = rangeEnds?.[0] ?? null;
+  const rangeB = rangeEnds?.[1] ?? null;
+  const range = useMemo(() => {
+    if (rangeA === null || rangeB === null) return null;
+    const a = index.indexOf(rangeA);
+    const b = index.indexOf(rangeB);
+    return a === null || b === null ? null : divergence(index, a, b);
+  }, [index, stream.version, rangeA, rangeB]);
+
   const emphasis = useMemo((): Emphasis | null => {
     if (mode === "list") return null;
     if (searchIds && searchIds.length > 0) return matchEmphasis(viewIndex, searchIds);
+    if (range && rangeA !== null && rangeB !== null) {
+      const lit = divergenceEmphasis(index, viewIndex, range, [rangeA, rangeB]);
+      return mode === "timeline" ? { nodes: lit.nodes, edges: null, edgeStart: null } : lit;
+    }
     if (!ancestors || selectedId === null) return null;
     const at = viewIndex.indexOf(selectedId);
     if (at === null) return null;
     // The timeline draws its own links between commits, so it only needs the commits.
     return mode === "timeline" ? { nodes: ancestorMask(viewIndex, at), edges: null, edgeStart: null } : ancestorEmphasis(viewIndex, at);
-  }, [mode, searchIds, ancestors, selectedId, viewIndex, viewVersion]);
+  }, [mode, searchIds, range, rangeA, rangeB, index, ancestors, selectedId, viewIndex, viewVersion]);
 
   const listCommits = useMemo(() => {
     if (!searchIds) return index.commits;
@@ -302,6 +364,11 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     toggleFlow,
     toggleSea,
     toggleAncestors: () => setAncestors((on) => !on),
+    compareWith: (id) => startCompare(id),
+    swapCompare,
+    stopCompare: () => setCompare(null),
+    showDivergence: (branch) => setDivergenceOf(branch),
+    stopDivergence: () => setDivergenceOf(null),
     openSearch,
     goHead,
     zoomIn: () => graphRef.current?.zoomIn(),
@@ -340,6 +407,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         sea,
         ancestors,
         hasSelection: selected !== null,
+        comparing: compare !== null,
+        divergences,
+        divergenceOf: focusedDivergence?.branch ?? null,
         canCollapse: mode === "topology" && compressed.expandedCount > 0,
         branchFilter,
         ci: ciCommands,
@@ -364,6 +434,13 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
       headHandled.current = true; // it never arrived (should not happen); give up quietly
     }
   }, [stream.version, stream.status, repo.head, index, selected, selectById]);
+
+  const compareCommits = useMemo(() => {
+    if (!compare) return null;
+    const base = index.commits[index.indexOf(compare.base) ?? -1];
+    const target = index.commits[index.indexOf(compare.target) ?? -1];
+    return base && target ? { base, target } : null;
+  }, [compare, index, stream.version]);
 
   const insetRight = panelOpen ? panelWidth + PANEL_GAP * 2 : 0;
   const drawer = useDrawer(panelOpen);
@@ -400,6 +477,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         onCiFocus={setCiFocus}
         tokenFor={tokenFor}
         onTokenFor={setTokenFor}
+        divergences={divergences}
+        onDivergence={showDivergence}
       />
 
       <div className={styles.content}>
@@ -442,6 +521,18 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
             </svg>
             {m.repo.only(describeFilter(branchFilter, m))}
             <button type="button" aria-label={m.repo.showAllBranches} title={m.repo.showAllBranches} onClick={() => setBranchFilter(null)}>
+              ×
+            </button>
+          </span>
+        )}
+
+        {focusedDivergence && (
+          <span className={styles.chip} title={m.sidebar.divergence(focusedDivergence.ahead, focusedDivergence.behind, focusedDivergence.upstream)}>
+            {m.repo.divergence(focusedDivergence.branch, focusedDivergence.upstream)}
+            <span className={styles.counts}>
+              {focusedDivergence.ahead}↑ {focusedDivergence.behind}↓
+            </span>
+            <button type="button" aria-label={m.repo.stopDivergence} title={m.repo.stopDivergence} onClick={() => setDivergenceOf(null)}>
               ×
             </button>
           </span>
@@ -543,6 +634,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               flow={flow}
               emphasis={emphasis}
               onSelect={selectCommit}
+              onCompare={compareWithCommit}
               insetRight={insetRight}
             />
           ) : mode !== "list" ? (
@@ -555,6 +647,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               flow={flow}
               emphasis={emphasis}
               onSelect={selectCommit}
+              onCompare={compareWithCommit}
               onExpandGroup={mode === "topology" ? compressed.expand : undefined}
               onCollapseGroup={mode === "topology" ? compressed.collapse : undefined}
               worktree={worktreeMarker}
@@ -565,7 +658,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               sea={sea}
             />
           ) : (
-            <CommitList commits={listCommits} selectedId={selected?.id ?? null} onSelect={selectCommit} />
+            <CommitList commits={listCommits} selectedId={selected?.id ?? null} onSelect={selectCommit} onCompare={compareWithCommit} />
           )}
           {searchOpen && (
             <SearchBar
@@ -606,8 +699,19 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
                 ci={ci}
                 onShowCommit={() => setCiCommit(null)}
               />
+            ) : compareCommits ? (
+              <ComparePanel
+                sessionId={repo.sessionId}
+                base={compareCommits.base}
+                target={compareCommits.target}
+                counts={range && compare ? { onlyTarget: range.ahead, onlyBase: range.behind } : null}
+                onSelectCommit={selectById}
+                onSwap={swapCompare}
+                onClose={() => setCompare(null)}
+                onFileHistory={showFileHistory}
+              />
             ) : (
-              <DetailsPanel sessionId={repo.sessionId} commit={selected} index={index} onSelectCommit={selectById} />
+              <DetailsPanel sessionId={repo.sessionId} commit={selected} index={index} onSelectCommit={selectById} onFileHistory={showFileHistory} />
             )}
           </div>
         )}

@@ -6,6 +6,7 @@ import type { GraphIndex } from "../graph/GraphIndex";
 import { useT } from "../../lib/i18n";
 import { inFilter } from "./refFilter";
 import { buildSections, type SidebarItem } from "./sections";
+import type { BranchDivergence } from "./upstream";
 import { useStashes } from "./useStashes";
 import styles from "./Sidebar.module.css";
 
@@ -26,6 +27,10 @@ interface SidebarProps {
   /** The CI service whose token field is open. */
   tokenFor: CiProvider | null;
   onTokenFor: (provider: CiProvider | null) => void;
+  /** How far each local branch is from its upstream, by branch name. */
+  divergences: Map<string, BranchDivergence>;
+  /** The divergence badge of a branch was clicked. */
+  onDivergence: (divergence: BranchDivergence) => void;
 }
 
 const icon = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
@@ -47,6 +52,8 @@ export function Sidebar({
   onCiFocus,
   tokenFor,
   onTokenFor,
+  divergences,
+  onDivergence,
 }: SidebarProps) {
   const stashes = useStashes(sessionId);
   const m = useT();
@@ -97,6 +104,7 @@ export function Sidebar({
                   const ref = item.ref;
                   const filtered = ref !== undefined && inFilter(branchFilter, ref);
                   const missing = branchFilter !== null ? m.sidebar.outsideFilter : m.sidebar.notLoaded;
+                  const diverged = section.id === "branches" ? divergences.get(item.label) : undefined;
                   return (
                     <li key={item.key} className={styles.row}>
                       <button
@@ -115,6 +123,17 @@ export function Sidebar({
                         )}
                         <span className={styles.label}>{item.label}</span>
                       </button>
+                      {diverged && (diverged.ahead > 0 || diverged.behind > 0) && (
+                        <button
+                          type="button"
+                          className={styles.divergence}
+                          title={m.sidebar.divergence(diverged.ahead, diverged.behind, diverged.upstream)}
+                          onClick={() => onDivergence(diverged)}
+                        >
+                          {diverged.ahead > 0 && <span>{diverged.ahead}↑</span>}
+                          {diverged.behind > 0 && <span>{diverged.behind}↓</span>}
+                        </button>
+                      )}
                       {ref && (
                         <button
                           type="button"

@@ -124,6 +124,8 @@ export const it: Messages = {
     panelTitle: "Pannello dettagli (Invio)",
     close: "Chiudi",
     resizePanel: "Ridimensiona il pannello",
+    divergence: (branch, upstream) => `${branch} ↔ ${upstream}`,
+    stopDivergence: "Smetti di evidenziare la divergenza",
   },
 
   commands: {
@@ -158,6 +160,12 @@ export const it: Messages = {
     removeFromFilter: (name) => `Togli ${name} dal filtro`,
     noMessage: "(senza messaggio)",
     kind: { Head: "branch (HEAD)", Branch: "branch", Remote: "remote", Tag: "tag" },
+    compareWithHead: "Confronta il commit selezionato con HEAD",
+    compareWith: (name) => `Confronta il commit selezionato con ${name}`,
+    stopCompare: "Chiudi il confronto",
+    swapCompare: "Inverti i due lati del confronto",
+    highlightDivergence: (branch, upstream) => `Evidenzia dove ${branch} e ${upstream} divergono`,
+    stopDivergence: "Smetti di evidenziare la divergenza",
   },
 
   filter: {
@@ -179,6 +187,9 @@ export const it: Messages = {
     showOnlyThis: "Mostra solo questo",
     sections: { branches: "Branch locali", remotes: "Remote", tags: "Tag", stashes: "Stash" },
     stashTitle: (index) => `stash@{${index}}: salta al commit su cui è stato creato`,
+    upToDate: (upstream) => `Allineato con ${upstream}`,
+    divergence: (ahead, behind, upstream) =>
+      `${ahead} commit avanti rispetto a ${upstream} e ${behind} indietro. Clic per evidenziarli.`,
   },
 
   ci: {
@@ -258,7 +269,9 @@ export const it: Messages = {
     ref: "Ref",
     loading: "Carico i dettagli…",
     changedFiles: "File modificati",
-    vsFirstParent: "Differenze rispetto al primo parent.",
+    comparedWith: "Confrontato con",
+    parentOrdinal: (n) => (n === 1 ? "primo parent" : n === 2 ? "secondo parent" : `parent ${n}`),
+    fileHistory: (name) => `Mostra i commit che hanno cambiato ${name}`,
     statsTruncated: "Righe aggiunte e tolte calcolate solo per i primi file.",
     noFiles: "Nessun file cambiato.",
     diffMode: "Modalità diff",
@@ -283,8 +296,21 @@ export const it: Messages = {
     showAll: (n) => `Mostra tutte le ${n} righe`,
     truncated: "Differenze troncate: file molto lungo.",
     binary: "File binario: nessuna anteprima.",
+    binaryShort: "binario",
     tooLarge: "File troppo grande per mostrare le differenze.",
     noChanges: "Nessuna differenza nel contenuto.",
+  },
+
+  compare: {
+    title: "Confronto",
+    label: "Confronto tra due commit",
+    from: "Da",
+    to: "A",
+    swap: "Inverti",
+    close: "Chiudi il confronto",
+    onlyIn: (n, side) => `${n} commit solo in ${side}`,
+    sameHistory: "I due lati hanno gli stessi commit.",
+    hint: "⇧-clic su un altro commit per confrontarlo con quello selezionato.",
   },
 
   status: {
