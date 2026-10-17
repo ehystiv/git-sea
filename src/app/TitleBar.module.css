@@ -14,6 +14,8 @@
   .tab:hover { background: var(--hover); }
   .active, .active:hover { background: var(--surface); color: var(--text); box-shadow: 0 0 0 0.5px var(--border-strong), 0 1px 2px rgb(0 0 0 / 0.05); }
 
+  .tab[data-dragging] { opacity: 0.75; cursor: grabbing; }
+
   .select { display: flex; align-items: center; gap: 7px; min-width: 0; height: 100%; padding: 0 2px 0 10px; font-weight: 500; }
   .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
   .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

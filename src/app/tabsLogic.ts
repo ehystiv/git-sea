@@ -74,3 +74,61 @@ export function activateAt(data: TabsData, position: number, last = false): Tabs
 export function removeRecent(data: TabsData, path: string): TabsData {
   return { ...data, recents: data.recents.filter((r) => r.path !== path) };
 }
+
+/** Moves a tab to position `to` (clamped), keeping the others in order. */
+export function moveTab(data: TabsData, id: string, to: number): TabsData {
+  const from = data.tabs.findIndex((tab) => tab.id === id);
+  if (from < 0) return data;
+  const target = Math.max(0, Math.min(data.tabs.length - 1, to));
+  if (target === from) return data;
+  const tabs = data.tabs.slice();
+  const [tab] = tabs.splice(from, 1);
+  if (tab) tabs.splice(target, 0, tab);
+  return { ...data, tabs };
+}
+
+/** The open tabs as they are saved for the next launch. */
+export interface SavedSession {
+  paths: string[];
+  active: string | null;
+}
+
+export const emptySession: SavedSession = { paths: [], active: null };
+
+export function sessionOf(data: TabsData): SavedSession {
+  const active = data.tabs.find((tab) => tab.id === data.activeId);
+  return {
+    paths: data.tabs.map((tab) => normalizePath(tab.repo.path)),
+    active: active ? normalizePath(active.repo.path) : null,
+  };
+}
+
+/**
+ * Adds the tabs reopened from a saved session, in their saved order, after any tab opened in the
+ * meantime. Repositories that already have a tab are skipped (their ids are returned so the
+ * caller can release those sessions). The saved active tab takes focus unless the user already
+ * opened one.
+ */
+export function restoreTabs(data: TabsData, repos: RepoInfo[], activePath: string | null): { data: TabsData; duplicates: string[] } {
+  const duplicates: string[] = [];
+  let next = data;
+  for (const repo of repos) {
+    if (findTabByPath(next, repo.path)) duplicates.push(repo.sessionId);
+    else next = { ...addTab(next, repo), recents: next.recents };
+  }
+  if (data.activeId) next = { ...next, activeId: data.activeId };
+  else {
+    const wanted = activePath ? findTabByPath(next, activePath) : undefined;
+    next = { ...next, activeId: wanted?.id ?? next.tabs[0]?.id ?? null };
+  }
+  return { data: next, duplicates };
+}
+
+/**
+ * Where a dragged tab goes: past every other tab whose centre is left of the dragged tab's
+ * centre. Comparing centres (not the pointer against tab bounds) keeps tabs of different widths
+ * from swapping back and forth.
+ */
+export function dropIndex(otherCenters: number[], draggedCenter: number): number {
+  return otherCenters.filter((center) => center < draggedCenter).length;
+}

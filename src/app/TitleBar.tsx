@@ -1,14 +1,16 @@
+import { useRef, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useT } from "../lib/i18n";
 import { modShortcut } from "../lib/platform";
 import { useTheme } from "../lib/theme";
 import type { ThemeMode } from "../lib/themeLogic";
-import type { Tab } from "./tabsLogic";
+import { dropIndex, type Tab } from "./tabsLogic";
 import styles from "./TitleBar.module.css";
 
 interface TitleBarProps {
   tabs: Tab[];
   activeId: string | null;
   onActivate: (id: string) => void;
+  onMove: (id: string, to: number) => void;
   onClose: (id: string) => void;
   onNew: () => void;
   onPalette: () => void;
@@ -37,20 +39,78 @@ function ThemeIcon({ mode }: { mode: ThemeMode }) {
   );
 }
 
+/** Pixels the pointer must travel before a press on a tab becomes a drag. */
+const DRAG_THRESHOLD = 4;
+
+/**
+ * Reorders tabs by dragging them. Pointer events rather than HTML drag and drop, which the
+ * webview's own file drop handling disables on Windows. The tab moves as soon as its centre
+ * passes a neighbour's, and the click that ends a drag does not activate it.
+ */
+function useTabDrag(onMove: (id: string, to: number) => void) {
+  const list = useRef<HTMLDivElement>(null);
+  const swallowClick = useRef(false);
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>, id: string) {
+    if (event.button !== 0 || (event.target as HTMLElement).closest("[data-tab-close]")) return;
+    const tab = event.currentTarget;
+    const startX = event.clientX;
+    const grab = startX - tab.getBoundingClientRect().left;
+    let dragging = false;
+
+    function move(e: PointerEvent) {
+      if (!dragging && Math.abs(e.clientX - startX) < DRAG_THRESHOLD) return;
+      dragging = true;
+      tab.dataset.dragging = "";
+      const tabs = Array.from(list.current?.querySelectorAll<HTMLElement>("[data-tab-id]") ?? []);
+      const centers = tabs.filter((el) => el !== tab).map((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.left + rect.width / 2;
+      });
+      const to = dropIndex(centers, e.clientX - grab + tab.offsetWidth / 2);
+      if (tabs.indexOf(tab) !== to) onMove(id, to);
+    }
+    function end() {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", end);
+      window.removeEventListener("pointercancel", end);
+      delete tab.dataset.dragging;
+      swallowClick.current = dragging;
+    }
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  }
+
+  function onClickCapture(event: MouseEvent) {
+    if (!swallowClick.current) return;
+    swallowClick.current = false;
+    event.stopPropagation();
+  }
+
+  return { list, onPointerDown, onClickCapture };
+}
+
 /**
  * Overlay title bar: the macOS traffic lights float over the reserved left padding and the empty
  * space is a drag region. Tabs and buttons are the only interactive parts.
  */
-export function TitleBar({ tabs, activeId, onActivate, onClose, onNew, onPalette, onSettings }: TitleBarProps) {
+export function TitleBar({ tabs, activeId, onActivate, onMove, onClose, onNew, onPalette, onSettings }: TitleBarProps) {
   const mode = useTheme((s) => s.mode);
   const cycleTheme = useTheme((s) => s.cycle);
   const m = useT();
   const themeLabel = m.titlebar.theme[mode];
+  const drag = useTabDrag(onMove);
   return (
     <header className={styles.titlebar} data-tauri-drag-region>
-      <div className={styles.tabs} role="tablist" aria-label={m.titlebar.openRepos}>
+      <div ref={drag.list} className={styles.tabs} role="tablist" aria-label={m.titlebar.openRepos} onClickCapture={drag.onClickCapture}>
         {tabs.map((tab, i) => (
-          <div key={tab.id} className={`${styles.tab} ${tab.id === activeId ? styles.active : ""}`}>
+          <div
+            key={tab.id}
+            data-tab-id={tab.id}
+            className={`${styles.tab} ${tab.id === activeId ? styles.active : ""}`}
+            onPointerDown={(event) => drag.onPointerDown(event, tab.id)}
+          >
             <button
               type="button"
               role="tab"
@@ -62,7 +122,7 @@ export function TitleBar({ tabs, activeId, onActivate, onClose, onNew, onPalette
               <span className={styles.dot} style={{ background: `var(--b${tab.color})` }} />
               <span className={styles.name}>{tab.repo.name}</span>
             </button>
-            <button type="button" className={styles.close} aria-label={m.titlebar.closeRepo(tab.repo.name)} title={m.titlebar.close(modShortcut("W"))} onClick={() => onClose(tab.id)}>
+            <button type="button" data-tab-close className={styles.close} aria-label={m.titlebar.closeRepo(tab.repo.name)} title={m.titlebar.close(modShortcut("W"))} onClick={() => onClose(tab.id)}>
               ×
             </button>
           </div>

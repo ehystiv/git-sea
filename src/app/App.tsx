@@ -20,7 +20,7 @@ import { TitleBar } from "./TitleBar";
 import styles from "./App.module.css";
 
 export function App() {
-  const { tabs, activeId, recents, addTab, closeTab, activate, activateAt, removeRecent } = useTabs();
+  const { tabs, activeId, recents, restored, addTab, closeTab, activate, activateAt, moveTab, removeRecent, restore } = useTabs();
   const open = useOpenRepo();
   const { mutate, reset, error, isPending } = open;
   const m = useT();
@@ -40,6 +40,11 @@ export function App() {
     [mutate, reset, addTab, activate],
   );
   const isDragging = useRepoDrop(openPath);
+
+  // The tabs open at the last quit come back at launch.
+  useEffect(() => {
+    void restore();
+  }, [restore]);
 
   const browse = useCallback(async () => {
     const path = await pickRepoFolder();
@@ -152,7 +157,7 @@ export function App() {
 
   return (
     <div className={styles.window}>
-      <TitleBar tabs={tabs} activeId={activeId} onActivate={activate} onClose={closeById} onNew={() => void browse()} onPalette={() => openPalette(true)} onSettings={() => openSettings(true)} />
+      <TitleBar tabs={tabs} activeId={activeId} onActivate={activate} onMove={moveTab} onClose={closeById} onNew={() => void browse()} onPalette={() => openPalette(true)} onSettings={() => openSettings(true)} />
       <CommandPalette />
       <SettingsDialog />
 
@@ -173,7 +178,8 @@ export function App() {
           </div>
         ))}
 
-        {!hasTabs && (
+        {/* While the saved tabs reopen, the start screen would only flash. */}
+        {!hasTabs && restored && (
           <div className={styles.empty}>
             <OpenRepoPanel
               isPending={isPending}
