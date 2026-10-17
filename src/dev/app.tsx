@@ -123,6 +123,10 @@ const ci = fakeCi();
       }
       case "list_stashes":
         return [];
+      case "cache_usage":
+        return { files: 3, bytes: 24_600_000 };
+      case "clear_cache":
+        return 3;
       case "repo_web":
         return { name: "GitHub", commitUrl: "https://github.com/example/repo/commit/" };
       case "list_upstreams":

@@ -29,6 +29,10 @@ export const commands = {
 	listStashes: (sessionId: string) => typedError<StashEntry[], AppError>(__TAURI_INVOKE("list_stashes", { sessionId })),
 	/**  The upstream of every local branch that has one. */
 	listUpstreams: (sessionId: string) => typedError<Upstream[], AppError>(__TAURI_INVOKE("list_upstreams", { sessionId })),
+	/**  How many graph files the cache holds and their size. */
+	cacheUsage: () => __TAURI_INVOKE<CacheUsage>("cache_usage"),
+	/**  Deletes every graph file of the cache; graphs are built again on the next load. */
+	clearCache: () => typedError<number, AppError>(__TAURI_INVOKE("clear_cache")),
 	/**
 	 *  Commits whose whole message contains `text`, or that changed the path `text`. Searches every
 	 *  ref (the frontend drops what the branch filter hides). A new search on the same session stops
@@ -73,6 +77,12 @@ export const commands = {
  *  to pick a user-facing message; `message` is for logs and debugging.
  */
 export type AppError = { kind: "PathNotFound"; message: string } | { kind: "NotARepository"; message: string } | { kind: "SessionNotFound"; message: string } | { kind: "Git"; message: string } | { kind: "Internal"; message: string };
+
+/**  What the cache directory holds. */
+export type CacheUsage = {
+	files: number,
+	bytes: number | null,
+};
 
 export type ChangeStatus = "Added" | "Modified" | "Deleted" | "Renamed" | 
 /**  The kind of entry changed (file, symlink, submodule). */

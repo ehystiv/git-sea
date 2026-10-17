@@ -62,14 +62,14 @@ fn main() {
     let print = Fingerprint::of(&snapshot.labels);
     let file = std::env::temp_dir().join(format!("bench-walk-{}.graph", std::process::id()));
     let written = Instant::now();
-    cache::store(&file, &print, &graph).expect("store");
+    cache::store(&file, repo.git_dir(), &print, &graph).expect("store");
     let write_ms = written.elapsed().as_millis();
     let size_mb = std::fs::metadata(&file)
         .map(|m| m.len() as f64 / 1_048_576.0)
         .unwrap_or(0.0);
 
     let reopened = Instant::now();
-    let loaded = cache::load(&file, &print).expect("fresh cache");
+    let loaded = cache::load(&file, repo.git_dir(), &print).expect("fresh cache");
     let load_ms = reopened.elapsed().as_millis();
     let cached = stream_cached(&loaded, &|| false, &mut |_, _| true);
     println!(

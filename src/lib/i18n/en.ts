@@ -84,6 +84,11 @@ export const en = {
     themeSystem: "System",
     themeLight: "Light",
     themeDark: "Dark",
+    cache: "Graph cache",
+    cacheUsage: (files: number, size: string) => (files === 0 ? "Empty." : `${files === 1 ? "1 repository" : `${files} repositories`}, ${size}.`),
+    cacheHint: "Large histories are kept laid out on disk, so they reopen at once. Files of repositories that no longer exist are removed at launch.",
+    clearCache: "Clear",
+    cleared: "Cleared",
   },
 
   openPanel: {

@@ -50,6 +50,20 @@ export function formatDateTime(unixSeconds: number): string {
   return dateTime().format(new Date(unixSeconds * 1000));
 }
 
+const UNITS = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
+const sizes = UNITS.map((unit) => cached((locale) => new Intl.NumberFormat(locale, { style: "unit", unit, unitDisplay: "short", maximumFractionDigits: 1 })));
+
+/** "740 kB", "17.4 MB" ("17,4 MB" in Italian): a size in bytes, in the unit that fits. */
+export function formatBytes(bytes: number): string {
+  let value = Math.max(0, bytes);
+  let unit = 0;
+  while (value >= 1000 && unit < UNITS.length - 1) {
+    value /= 1000;
+    unit++;
+  }
+  return (sizes[unit] ?? sizes[0])?.().format(value) ?? `${bytes} B`;
+}
+
 /** "1,284" or "1.284", by the UI locale. */
 export function formatCount(n: number): string {
   return integer().format(n);

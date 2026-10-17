@@ -64,8 +64,8 @@ fn a_cached_graph_streams_exactly_like_a_walk() {
     let (walked, graph, fingerprint) = walk(&repo);
 
     let file = cache::path_for(&scratch("cache-same-dir"), repo.git_dir());
-    cache::store(&file, &fingerprint, &graph).unwrap();
-    let loaded = cache::load(&file, &fingerprint).expect("fresh cache");
+    cache::store(&file, repo.git_dir(), &fingerprint, &graph).unwrap();
+    let loaded = cache::load(&file, repo.git_dir(), &fingerprint).expect("fresh cache");
 
     let mut cached: Chunks = Vec::new();
     let stats = stream_cached(&loaded, &|| false, &mut |c, r| {
@@ -92,8 +92,8 @@ fn a_cached_merge_history_keeps_a_valid_layout() {
     let (_, graph, fingerprint) = walk(&repo);
 
     let file = cache::path_for(&scratch("cache-merges-dir"), repo.git_dir());
-    cache::store(&file, &fingerprint, &graph).unwrap();
-    let loaded = cache::load(&file, &fingerprint).unwrap();
+    cache::store(&file, repo.git_dir(), &fingerprint, &graph).unwrap();
+    let loaded = cache::load(&file, repo.git_dir(), &fingerprint).unwrap();
 
     assert_eq!(loaded, graph);
     assert_eq!(validate_rows(&loaded.rows), Ok(0));
@@ -107,21 +107,27 @@ fn a_new_commit_or_branch_invalidates_the_cache() {
     let repo = gix::open(&dir).unwrap();
     let (_, graph, fingerprint) = walk(&repo);
     let file = cache::path_for(&scratch("cache-stale-dir"), repo.git_dir());
-    cache::store(&file, &fingerprint, &graph).unwrap();
+    cache::store(&file, repo.git_dir(), &fingerprint, &graph).unwrap();
 
     git(&dir, &["branch", "another"]);
     let after_branch = Fingerprint::of(&collect_refs(&gix::open(&dir).unwrap()).unwrap().labels);
-    assert!(cache::load(&file, &after_branch).is_none(), "new branch");
+    assert!(
+        cache::load(&file, repo.git_dir(), &after_branch).is_none(),
+        "new branch"
+    );
 
     // Same refs again: valid. Then a commit moves `main`: stale.
     git(&dir, &["branch", "-D", "another"]);
     let restored = Fingerprint::of(&collect_refs(&gix::open(&dir).unwrap()).unwrap().labels);
     assert!(
-        cache::load(&file, &restored).is_some(),
+        cache::load(&file, repo.git_dir(), &restored).is_some(),
         "back to the original refs"
     );
     git(&dir, &["commit", "--allow-empty", "-q", "-m", "more"]);
     let after_commit = Fingerprint::of(&collect_refs(&gix::open(&dir).unwrap()).unwrap().labels);
-    assert!(cache::load(&file, &after_commit).is_none(), "main moved");
+    assert!(
+        cache::load(&file, repo.git_dir(), &after_commit).is_none(),
+        "main moved"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }

@@ -1,4 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { commands } from "../../lib/bindings";
+import { formatBytes } from "../../lib/format";
 import { LANGUAGE_CHOICES, useLanguage, useSystemLanguage, useT, type LanguageChoice } from "../../lib/i18n";
 import { useTheme } from "../../lib/theme";
 import { THEME_MODES, type ThemeMode } from "../../lib/themeLogic";
@@ -55,8 +58,37 @@ function Dialog({ onClose }: { onClose: () => void }) {
           <h3 id="settings-theme">{m.settings.theme}</h3>
           <Segmented labelledBy="settings-theme" options={THEME_MODES} value={themeMode} label={(mode) => themeLabel[mode]} onChange={setTheme} />
         </section>
+
+        <CacheSection />
       </div>
     </div>
+  );
+}
+
+/** How much the graph cache takes, with a button to empty it. */
+function CacheSection() {
+  const m = useT();
+  const queryClient = useQueryClient();
+  const usage = useQuery({ queryKey: ["cache-usage"], queryFn: () => commands.cacheUsage(), staleTime: 0, retry: false });
+  const [cleared, setCleared] = useState(false);
+
+  async function clear() {
+    const result = await commands.clearCache().catch(() => null);
+    if (result?.status === "ok") setCleared(true);
+    await queryClient.invalidateQueries({ queryKey: ["cache-usage"] });
+  }
+
+  return (
+    <section className={styles.row}>
+      <h3>{m.settings.cache}</h3>
+      <div className={styles.cache}>
+        <span>{usage.data ? m.settings.cacheUsage(usage.data.files, formatBytes(usage.data.bytes ?? 0)) : "…"}</span>
+        <button type="button" className={styles.button} disabled={!usage.data || usage.data.files === 0} onClick={() => void clear()}>
+          {cleared && usage.data?.files === 0 ? m.settings.cleared : m.settings.clearCache}
+        </button>
+      </div>
+      <p className={styles.hint}>{m.settings.cacheHint}</p>
+    </section>
   );
 }
 

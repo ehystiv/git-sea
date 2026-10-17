@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use tauri::ipc::Channel;
 use tauri::{Emitter, State};
 
-use crate::cache::{self, CachedGraph, Fingerprint, MIN_CACHED_COMMITS};
+use crate::cache::{self, CacheUsage, CachedGraph, Fingerprint, MIN_CACHED_COMMITS};
 use crate::ci::remote::RepoWeb;
 use crate::ci::runs::CiRunsReport;
 use crate::ci::{self, CiOverview, CiProvider};
@@ -151,7 +151,7 @@ pub async fn load_commits(
 
         // A filtered graph is quick to rebuild and would only push the full one out of the cache.
         let cached = if only.is_none() {
-            cache::load(&cache_file, &fingerprint)
+            cache::load(&cache_file, repo.git_dir(), &fingerprint)
         } else {
             None
         };
@@ -190,7 +190,7 @@ pub async fn load_commits(
         if let Some(graph) = to_cache
             && graph.commits.len() >= MIN_CACHED_COMMITS
             && graph.commits.len() == stats.total as usize
-            && let Err(err) = cache::store(&cache_file, &fingerprint, &graph)
+            && let Err(err) = cache::store(&cache_file, repo.git_dir(), &fingerprint, &graph)
         {
             tracing::warn!(%err, "could not write the graph cache");
         }
@@ -257,6 +257,20 @@ pub async fn list_stashes(
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// How many graph files the cache holds and their size.
+#[tauri::command]
+#[specta::specta]
+pub fn cache_usage(state: State<'_, AppState>) -> CacheUsage {
+    cache::usage(state.cache_dir())
+}
+
+/// Deletes every graph file of the cache; graphs are built again on the next load.
+#[tauri::command]
+#[specta::specta]
+pub fn clear_cache(state: State<'_, AppState>) -> Result<u32, AppError> {
+    cache::clear(state.cache_dir()).map_err(|err| AppError::Internal(err.to_string()))
 }
 
 /// The upstream of every local branch that has one.

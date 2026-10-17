@@ -81,6 +81,11 @@ export const it: Messages = {
     themeSystem: "Sistema",
     themeLight: "Chiaro",
     themeDark: "Scuro",
+    cache: "Cache del grafo",
+    cacheUsage: (files, size) => (files === 0 ? "Vuota." : `${files === 1 ? "1 repository" : `${files} repository`}, ${size}.`),
+    cacheHint: "Le storie grandi restano salvate su disco già disposte, così si riaprono subito. I file dei repository che non esistono più vengono tolti all'avvio.",
+    clearCache: "Svuota",
+    cleared: "Svuotata",
   },
 
   openPanel: {

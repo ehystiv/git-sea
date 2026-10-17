@@ -22,6 +22,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::file_diff,
         commands::list_stashes,
         commands::list_upstreams,
+        commands::cache_usage,
+        commands::clear_cache,
         commands::search_commits,
         commands::worktree_status,
         commands::worktree_diff,
@@ -171,6 +173,14 @@ pub fn run() {
                 .path()
                 .app_cache_dir()
                 .unwrap_or_else(|_| std::env::temp_dir().join("git-sea"));
+            // Files of repositories that were moved or deleted would only take space.
+            let sweep_dir = cache_dir.clone();
+            std::thread::spawn(move || {
+                let removed = cache::sweep(&sweep_dir);
+                if removed > 0 {
+                    tracing::info!(removed, "removed unused graph cache files");
+                }
+            });
             app.manage(session::AppState::new(cache_dir));
             #[cfg(target_os = "macos")]
             apply_sidebar_vibrancy(app.handle());
