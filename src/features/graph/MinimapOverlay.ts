@@ -1,61 +1,61 @@
-import type { View } from "./draw";
-import type { GraphIndex } from "./GraphIndex";
-import {
-  drawMinimapGraph,
-  MINIMAP_H,
-  MINIMAP_W,
-  minimapGeometry,
-  viewCenteredAtMinimap,
-  viewportRect,
-  type MinimapGeometry,
-} from "./minimapMath";
+import type { Rect } from "./minimapMath";
+import { MINIMAP_H, MINIMAP_W } from "./minimapMath";
 import type { Palette } from "./palette";
 
 /** What the minimap needs to know about the main canvas each time it draws. */
-export interface MinimapFrame {
-  view: View;
+export interface MinimapFrame<V> {
+  view: V;
   width: number;
   height: number;
   palette: Palette;
 }
 
-/** The slice of `GraphController` the minimap talks to. */
-export interface MinimapHost {
+/** The slice of a view controller the minimap talks to. */
+export interface MinimapHost<V> {
   /** Registers a listener called after every main-canvas frame; returns the unsubscribe function. */
-  onFrame: (listener: (frame: MinimapFrame) => void) => () => void;
-  /** Moves the main view; `animate` is for clicks, dragging follows the pointer immediately. */
-  goTo: (view: View, animate: boolean) => void;
-  requestDraw: () => void;
+  onFrame: (listener: (frame: MinimapFrame<V>) => void) => () => void;
+  /** Moves the main view (clamped by the host); `animate` is for clicks, dragging follows at once. */
+  goTo: (view: V, animate: boolean) => void;
 }
 
+/** How one kind of view (graph, timeline) appears on the minimap. */
+export interface MinimapModel<V> {
+  /** Values that change when the picture must be painted again (new data). */
+  version: () => readonly unknown[];
+  /** Paints the whole history into a `MINIMAP_W` × `MINIMAP_H` context, cleared first. */
+  paint: (ctx: CanvasRenderingContext2D, palette: Palette) => void;
+  /** The part the main canvas shows; null when there is nothing to show. */
+  viewport: (view: V, width: number, height: number) => Rect | null;
+  /** The view with what is under the minimap point (x, y) in the middle of the screen. */
+  centeredAt: (view: V, x: number, y: number, width: number, height: number) => V;
+}
+
+const sameVersion = (a: readonly unknown[], b: readonly unknown[]) => a.length === b.length && a.every((v, i) => v === b[i]);
+
 /**
- * Overview of the whole history in a small canvas: the graph is painted once into an offscreen
- * layer (rebuilt only when the data, the size or the theme change) and every frame just copies it
- * and draws the viewport rectangle on top. Click or drag to move the main view.
+ * Overview of the whole history in a small canvas: the picture is painted once into an offscreen
+ * layer (again only when the data, the pixel density or the theme change) and every frame just
+ * copies it and draws the viewport rectangle on top. Click or drag to move the main view.
  */
-export class Minimap {
+export class Minimap<V> {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly layer: HTMLCanvasElement;
-  private geometry: MinimapGeometry;
-  private frame: MinimapFrame | null = null;
-  private dpr = 1;
-  private layerKey = "";
+  private frame: MinimapFrame<V> | null = null;
+  private dpr = 0;
+  private layerVersion: readonly unknown[] = [];
   private layerPalette: Palette | null = null;
-  private layerCommits: unknown = null;
   private dragging = false;
   private readonly disposers: Array<() => void> = [];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly index: GraphIndex,
-    private readonly host: MinimapHost,
+    private readonly model: MinimapModel<V>,
+    private readonly host: MinimapHost<V>,
   ) {
     const ctx = canvas.getContext("2d");
-    const layer = document.createElement("canvas");
     if (!ctx) throw new Error("Canvas 2D is not available");
     this.ctx = ctx;
-    this.layer = layer;
-    this.geometry = minimapGeometry(index);
+    this.layer = document.createElement("canvas");
     this.disposers.push(host.onFrame((frame) => this.draw(frame)));
 
     const on = <K extends keyof HTMLElementEventMap>(type: K, handler: (e: HTMLElementEventMap[K]) => void) => {
@@ -72,7 +72,7 @@ export class Minimap {
     this.disposers.forEach((dispose) => dispose());
   }
 
-  private draw(frame: MinimapFrame): void {
+  private draw(frame: MinimapFrame<V>): void {
     this.frame = frame;
     const dpr = window.devicePixelRatio || 1;
     this.ensureLayer(frame.palette, dpr);
@@ -81,9 +81,9 @@ export class Minimap {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, MINIMAP_W, MINIMAP_H);
     ctx.drawImage(this.layer, 0, 0, MINIMAP_W, MINIMAP_H);
-    if (this.index.length === 0) return;
 
-    const rect = viewportRect(this.geometry, frame.view, frame.width, frame.height);
+    const rect = this.model.viewport(frame.view, frame.width, frame.height);
+    if (!rect) return;
     ctx.fillStyle = frame.palette.accent;
     ctx.globalAlpha = 0.14;
     ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
@@ -94,43 +94,32 @@ export class Minimap {
   }
 
   private ensureLayer(palette: Palette, dpr: number): void {
-    const { index } = this;
-    const key = `${index.length}:${index.maxLane}:${dpr}`;
-    if (key === this.layerKey && palette === this.layerPalette && index.commits === this.layerCommits) return;
+    const version = this.model.version();
+    if (dpr === this.dpr && palette === this.layerPalette && sameVersion(version, this.layerVersion)) return;
 
-    if (dpr !== this.dpr || this.layer.width === 0) {
+    if (dpr !== this.dpr) {
       this.dpr = dpr;
       this.canvas.width = Math.round(MINIMAP_W * dpr);
       this.canvas.height = Math.round(MINIMAP_H * dpr);
       this.layer.width = this.canvas.width;
       this.layer.height = this.canvas.height;
     }
-    this.geometry = minimapGeometry(index);
     const layerCtx = this.layer.getContext("2d");
     if (layerCtx) {
       layerCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawMinimapGraph(layerCtx, index, this.geometry, palette);
+      this.model.paint(layerCtx, palette);
     }
-    this.layerKey = key;
+    this.layerVersion = version;
     this.layerPalette = palette;
-    this.layerCommits = index.commits;
   }
 
   // ---- input -----------------------------------------------------------------------------
 
   private moveTo(e: PointerEvent, animate: boolean): void {
     const frame = this.frame;
-    if (!frame || this.index.length === 0) return;
+    if (!frame || !this.model.viewport(frame.view, frame.width, frame.height)) return;
     const rect = this.canvas.getBoundingClientRect();
-    const target = viewCenteredAtMinimap(
-      this.geometry,
-      frame.view,
-      e.clientX - rect.left,
-      e.clientY - rect.top,
-      frame.width,
-      frame.height,
-    );
-    this.host.goTo(target, animate);
+    this.host.goTo(this.model.centeredAt(frame.view, e.clientX - rect.left, e.clientY - rect.top, frame.width, frame.height), animate);
   }
 
   private onPointerDown(e: PointerEvent): void {

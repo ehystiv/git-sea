@@ -1,6 +1,7 @@
 import { BRANCH_COLORS, COLUMN_W, LANE_H } from "./constants";
 import { withAlpha, type View } from "./draw";
 import type { GraphIndex } from "./GraphIndex";
+import type { MinimapModel } from "./MinimapOverlay";
 import type { Palette } from "./palette";
 
 export const MINIMAP_W = 220;
@@ -160,4 +161,24 @@ export function drawMinimapGraph(
       ctx.fillRect(px, y, 1, thickness);
     }
   }
+}
+
+/** The graph on the minimap: the geometry follows the index as it grows or is replaced. */
+export function graphMinimap(index: GraphIndex): MinimapModel<View> {
+  let geometry = minimapGeometry(index);
+  let geometryFor: readonly unknown[] = [];
+  const current = () => {
+    const version = [index.commits, index.length, index.maxLane];
+    if (!version.every((v, i) => v === geometryFor[i])) {
+      geometry = minimapGeometry(index);
+      geometryFor = version;
+    }
+    return geometry;
+  };
+  return {
+    version: () => [index.commits, index.length, index.maxLane],
+    paint: (ctx, palette) => drawMinimapGraph(ctx, index, current(), palette),
+    viewport: (view, width, height) => (index.length === 0 ? null : viewportRect(current(), view, width, height)),
+    centeredAt: (view, x, y, width, height) => viewCenteredAtMinimap(current(), view, x, y, width, height),
+  };
 }

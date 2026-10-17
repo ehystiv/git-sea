@@ -9,7 +9,7 @@ import type { Emphasis } from "./emphasis";
 import type { GraphIndex } from "./GraphIndex";
 import { Minimap } from "./MinimapOverlay";
 import { SeaLayer } from "../sea/SeaLayer";
-import { MINIMAP_H, MINIMAP_W } from "./minimapMath";
+import { MINIMAP_H, MINIMAP_W, graphMinimap } from "./minimapMath";
 import { ZoomControls } from "./ZoomControls";
 import styles from "./GraphCanvas.module.css";
 import minimapStyles from "./MinimapOverlay.module.css";
@@ -158,7 +158,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     controller.setBookmarks(bookmarksRef.current);
     controller.setCi(ciRef.current);
     controller.setInsetRight(insetRef.current);
-    const minimap = new Minimap(minimapCanvas, index, controller);
+    const minimap = new Minimap(minimapCanvas, graphMinimap(index), controller);
     const stopFollowing = controller.onFrame((frame) => seaLayer.follow(frame.view));
     const pointer = (e: PointerEvent) => {
       const rect = wrap.getBoundingClientRect();

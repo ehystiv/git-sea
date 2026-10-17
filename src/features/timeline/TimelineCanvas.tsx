@@ -4,7 +4,12 @@ import { useWindowFocused } from "../../lib/windowFocus";
 import type { Emphasis } from "../graph/emphasis";
 import type { GraphCanvasHandle } from "../graph/GraphCanvas";
 import type { GraphIndex } from "../graph/GraphIndex";
+import { MINIMAP_H, MINIMAP_W } from "../graph/minimapMath";
+import { Minimap } from "../graph/MinimapOverlay";
+import minimapStyles from "../graph/MinimapOverlay.module.css";
 import { ZoomControls } from "../graph/ZoomControls";
+import { useT } from "../../lib/i18n";
+import { timelineMinimap } from "./minimap";
 import { TimelineController } from "./TimelineController";
 import styles from "./TimelineCanvas.module.css";
 
@@ -34,9 +39,11 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
   { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, onContextMenu, insetRight },
   ref,
 ) {
+  const m = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const flowCanvasRef = useRef<HTMLCanvasElement>(null);
+  const minimapRef = useRef<HTMLCanvasElement>(null);
   const focused = useWindowFocused();
   const controllerRef = useRef<TimelineController | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -72,7 +79,8 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
     const canvas = canvasRef.current;
     const wrap = wrapRef.current;
     const flowCanvas = flowCanvasRef.current;
-    if (!canvas || !wrap || !flowCanvas) return;
+    const minimapCanvas = minimapRef.current;
+    if (!canvas || !wrap || !flowCanvas || !minimapCanvas) return;
 
     const controller = new TimelineController(canvas, index, {
       onSelect: (i) => onSelectRef.current(i === null ? null : (index.commits[i] ?? null)),
@@ -104,7 +112,10 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
     if (initial !== null) controller.select(initial);
     else pendingSelectRef.current = initialSelectedId;
 
+    const minimap = new Minimap(minimapCanvas, timelineMinimap(index, () => controller.timelineData()), controller);
+
     return () => {
+      minimap.destroy();
       observer.disconnect();
       controller.destroy();
       controllerRef.current = null;
@@ -149,6 +160,14 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
     <div ref={wrapRef} className={styles.wrap}>
       <canvas ref={canvasRef} className={styles.canvas} />
       <canvas ref={flowCanvasRef} className={styles.flow} aria-hidden="true" />
+      <canvas
+        ref={minimapRef}
+        className={minimapStyles.minimap}
+        style={{ width: MINIMAP_W, height: MINIMAP_H }}
+        role="img"
+        aria-label={m.graph.minimap}
+        title={m.graph.minimapTitle}
+      />
       <ZoomControls
         zoom={zoom}
         onFit={() => controllerRef.current?.fit()}

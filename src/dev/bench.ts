@@ -18,6 +18,7 @@ import { matchCommits, textQuery } from "../features/search/query";
 import { compressIndex } from "../features/graph/compress";
 import { GraphIndex } from "../features/graph/GraphIndex";
 import { Minimap } from "../features/graph/MinimapOverlay";
+import { graphMinimap } from "../features/graph/minimapMath";
 import { centeredOn } from "../features/graph/view";
 import { buildTimeline } from "../features/timeline/layout";
 import { TimelineController } from "../features/timeline/TimelineController";
@@ -138,7 +139,7 @@ async function main(): Promise<void> {
       index.replaceWith(compressIndex(full, expanded));
     },
   });
-  new Minimap(document.getElementById("minimap") as HTMLCanvasElement, index, controller);
+  new Minimap(document.getElementById("minimap") as HTMLCanvasElement, graphMinimap(index), controller);
   controller.setFlow(params.get("flow") === "1");
   const overlay = params.get("overlay") === "1" ? document.createElement("canvas") : null;
   if (overlay) {

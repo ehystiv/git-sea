@@ -1,4 +1,5 @@
 import { LANGUAGE_CHANGED } from "../../lib/i18n";
+import type { MinimapFrame } from "../graph/MinimapOverlay";
 import { hasModKey, IS_MAC } from "../../lib/platform";
 import { THEME_CHANGED } from "../../lib/theme";
 import type { Emphasis } from "../graph/emphasis";
@@ -72,6 +73,7 @@ export class TimelineController {
   private emphasis: Emphasis | null = null;
   private selectedBeforeReplace: string | null = null;
   private readonly disposers: Array<() => void> = [];
+  private frameListeners: Array<(frame: MinimapFrame<TimelineView>) => void> = [];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -213,6 +215,25 @@ export class TimelineController {
     this.animateTo(centeredOnTimeline(this.view, data.times[index] ?? 0, lane, this.visibleWidth, this.height));
   }
 
+  /** Registers a listener called after every drawn frame; returns the unsubscribe function. */
+  onFrame(listener: (frame: MinimapFrame<TimelineView>) => void): () => void {
+    this.frameListeners.push(listener);
+    return () => {
+      this.frameListeners = this.frameListeners.filter((l) => l !== listener);
+    };
+  }
+
+  /** Moves the view (clamped to the history), with a short animation or at once. */
+  goTo(view: TimelineView, animate: boolean): void {
+    if (animate) this.animateTo(view);
+    else this.setViewNow(view);
+  }
+
+  /** The history laid out in time, as the timeline draws it now. */
+  timelineData(): TimelineData {
+    return this.currentData();
+  }
+
   /** Sets the view directly (used by profiling scripts). */
   setView(view: TimelineView): void {
     this.animation = null;
@@ -282,6 +303,11 @@ export class TimelineController {
       emphasis: this.emphasis,
     });
     this.flowFrame = flow;
+    if (this.frameListeners.length > 0) {
+      // The part of the canvas not covered by the details panel is what the user sees.
+      const frame = { view: this.view, width: this.visibleWidth, height: this.height, palette: this.palette };
+      this.frameListeners.forEach((listener) => listener(frame));
+    }
     return flow !== null && (this.flowOverlay !== null || drawFlow(this.ctx, flow.links, { ...flow.style, time }) > 0);
   }
 

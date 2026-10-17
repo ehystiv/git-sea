@@ -113,7 +113,7 @@ export class GraphController {
   /** Ids of new commits not seen yet (they arrived off screen), and what was last reported. */
   private unseen: string[] = [];
   private unseenReported: Unseen | null = null;
-  private frameListeners: Array<(frame: MinimapFrame) => void> = [];
+  private frameListeners: Array<(frame: MinimapFrame<View>) => void> = [];
   private readonly disposers: Array<() => void> = [];
 
   /** Milliseconds the last frames took to issue their drawing commands (for profiling). */
@@ -324,7 +324,7 @@ export class GraphController {
   }
 
   /** Registers a listener called after every drawn frame; returns the unsubscribe function. */
-  onFrame(listener: (frame: MinimapFrame) => void): () => void {
+  onFrame(listener: (frame: MinimapFrame<View>) => void): () => void {
     this.frameListeners.push(listener);
     return () => {
       this.frameListeners = this.frameListeners.filter((l) => l !== listener);
