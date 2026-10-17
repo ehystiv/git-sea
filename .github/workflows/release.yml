@@ -1,9 +1,9 @@
 name: Release
 
-# Every push to main (direct or through a merged PR) builds the app for macOS and Linux.
+# Every push to main (direct or through a merged PR) builds the app for macOS, Linux and Windows.
 # A GitHub release is published only when the version in src-tauri/tauri.conf.json has no
 # `v<version>` tag yet, so bumping the version is what cuts a new release. The release is
-# created as a draft, both builds upload to it, and it is published only if both succeed.
+# created as a draft, every build uploads to it, and it is published only if all of them succeed.
 
 on:
   push:
@@ -81,6 +81,12 @@ jobs:
               src-tauri/target/release/bundle/deb/*.deb
               src-tauri/target/release/bundle/rpm/*.rpm
               src-tauri/target/release/bundle/appimage/*.AppImage
+          - platform: windows-latest
+            args: ""
+            rust-targets: ""
+            artifacts: |
+              src-tauri/target/release/bundle/msi/*.msi
+              src-tauri/target/release/bundle/nsis/*.exe
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4

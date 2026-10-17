@@ -1,6 +1,6 @@
 name: CI
 
-# Lints and tests on macOS and Linux before anything reaches main.
+# Lints and tests on macOS, Linux and Windows before anything reaches main.
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-22.04]
+        platform: [macos-latest, ubuntu-22.04, windows-latest]
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
