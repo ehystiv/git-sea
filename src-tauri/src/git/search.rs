@@ -1,13 +1,17 @@
 //! Searches that need more than the commit summaries the frontend already has: the whole commit
-//! message, and the commits that changed a path.
+//! message, the commits that changed a path, and the commits that added or removed a text.
 
 use std::collections::HashMap;
 use std::time::Instant;
+
+use gix::bstr::ByteSlice;
+use gix::object::tree::diff::ChangeDetached;
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use crate::error::AppError;
+use crate::git::diff::MAX_BLOB_BYTES;
 
 /// More matches than this are cut; the frontend says the list is incomplete.
 pub const MAX_RESULTS: usize = 20_000;
@@ -18,6 +22,9 @@ pub enum SearchField {
     Message,
     /// Commits whose first-parent diff touches a file or directory (path relative to the root).
     Path,
+    /// Commits that change how many times a text appears in some file, against their first
+    /// parent (like `git log -S`): they add or remove it. Case-sensitive.
+    Diff,
 }
 
 #[derive(Debug, Clone, Serialize, Type)]
@@ -57,6 +64,9 @@ pub fn search_commits(
     let needle = match field {
         SearchField::Message => text.trim().to_lowercase(),
         SearchField::Path => normalize_path(text),
+        // Spaces can be part of the code looked for; only an all-blank text means nothing.
+        SearchField::Diff if text.trim().is_empty() => String::new(),
+        SearchField::Diff => text.to_owned(),
     };
     let mut ids = Vec::new();
     let mut truncated = false;
@@ -86,6 +96,9 @@ pub fn search_commits(
                         None => own.is_some(),
                     }
                 }
+                SearchField::Diff => {
+                    changes_occurrences(repo, info.id, info.parent_ids.first().copied(), &needle)?
+                }
             };
             if matched {
                 if ids.len() == MAX_RESULTS {
@@ -103,6 +116,66 @@ pub fn search_commits(
         cancelled: was_cancelled,
         elapsed_ms: u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
     })
+}
+
+/// Whether some file changed by `commit` (against `parent`, or the empty tree for a root) holds
+/// `needle` a different number of times before and after. Renames are detected as git's
+/// configuration says (on by default), so a file moved without changing the text is no match, as
+/// with `git log -S`.
+fn changes_occurrences(
+    repo: &gix::Repository,
+    commit: gix::ObjectId,
+    parent: Option<gix::ObjectId>,
+    needle: &str,
+) -> Result<bool, AppError> {
+    let tree = repo.find_commit(commit).map_err(git)?.tree().map_err(git)?;
+    let parent_tree = match parent {
+        Some(id) => Some(repo.find_commit(id).map_err(git)?.tree().map_err(git)?),
+        None => None,
+    };
+    let changes = repo
+        .diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)
+        .map_err(git)?;
+    let needle = needle.as_bytes();
+    let count = |id: Option<gix::ObjectId>| -> Result<usize, AppError> {
+        let Some(id) = id else { return Ok(0) };
+        let object = repo.find_object(id).map_err(git)?;
+        if object.data.len() > MAX_BLOB_BYTES {
+            return Ok(0);
+        }
+        Ok(object.data.find_iter(needle).count())
+    };
+    for change in &changes {
+        let (old, new, blob) = match change {
+            ChangeDetached::Addition { id, entry_mode, .. } => {
+                (None, Some(*id), entry_mode.is_blob())
+            }
+            ChangeDetached::Deletion { id, entry_mode, .. } => {
+                (Some(*id), None, entry_mode.is_blob())
+            }
+            ChangeDetached::Modification {
+                previous_id,
+                id,
+                entry_mode,
+                previous_entry_mode,
+                ..
+            } => (
+                previous_entry_mode.is_blob().then_some(*previous_id),
+                entry_mode.is_blob().then_some(*id),
+                entry_mode.is_blob() || previous_entry_mode.is_blob(),
+            ),
+            ChangeDetached::Rewrite {
+                source_id,
+                id,
+                entry_mode,
+                ..
+            } => (Some(*source_id), Some(*id), entry_mode.is_blob()),
+        };
+        if blob && count(old)? != count(new)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// The object a path points to in each commit's tree. A commit is usually asked about twice (as

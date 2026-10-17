@@ -361,7 +361,12 @@ export type SearchField =
 /**  The whole commit message (subject and body), case-insensitive. */
 "Message" | 
 /**  Commits whose first-parent diff touches a file or directory (path relative to the root). */
-"Path";
+"Path" | 
+/**
+ *  Commits that change how many times a text appears in some file, against their first
+ *  parent (like `git log -S`): they add or remove it. Case-sensitive.
+ */
+"Diff";
 
 export type SearchResult = {
 	/**  Full hex ids of the matching commits, in no particular order. */

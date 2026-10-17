@@ -173,3 +173,23 @@ fn the_branch_filter_walks_only_the_chosen_refs() {
     // A ref that no longer exists gives an empty graph, not the whole history.
     assert!(walked(&dir, Some(&[filter(RefKind::Branch, "gone")])).is_empty());
 }
+
+#[test]
+fn diff_search_finds_the_commits_that_add_or_remove_a_text() {
+    let dir = scratch("search-diff");
+    run_fixture("pickaxe.sh", &dir);
+
+    // Moving lines, editing around the text or renaming a file that holds it does not count,
+    // as with `git log -S`.
+    assert_eq!(
+        search(&dir, SearchField::Diff, "fetchUser"),
+        set(&["add", "second", "remove"])
+    );
+    assert_eq!(
+        search(&dir, SearchField::Diff, "fetchUser(other)"),
+        set(&["second", "remove"])
+    );
+    // Case-sensitive, like git.
+    assert!(search(&dir, SearchField::Diff, "FETCHUSER").is_empty());
+    assert!(search(&dir, SearchField::Diff, "   ").is_empty());
+}
