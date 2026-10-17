@@ -9,6 +9,7 @@ import {
   emptyTabs,
   findTabByPath,
   normalizePath,
+  dragOffset,
   dropIndex,
   moveTab,
   removeRecent,
@@ -165,5 +166,17 @@ describe("saved session", () => {
     expect(data.tabs.map((t) => t.id)).toEqual(["s1", "s2"]);
     expect(data.activeId).toBe("s1");
     expect(duplicates).toEqual(["s5"]);
+  });
+});
+
+describe("dragOffset", () => {
+  it("follows the pointer from the tab's place", () => {
+    expect(dragOffset(150, 100, 80, 0, 400)).toBe(50);
+    expect(dragOffset(60, 100, 80, 0, 400)).toBe(-40);
+  });
+
+  it("keeps the tab inside the row", () => {
+    expect(dragOffset(-50, 100, 80, 0, 400)).toBe(-100);
+    expect(dragOffset(390, 100, 80, 0, 400)).toBe(220);
   });
 });

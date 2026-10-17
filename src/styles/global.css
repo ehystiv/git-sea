@@ -40,3 +40,9 @@
 
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
+
+/* While a tab is dragged, the pointer keeps the grabbing hand wherever it goes. */
+:root[data-dragging-tab],
+:root[data-dragging-tab] * {
+  cursor: grabbing !important;
+}

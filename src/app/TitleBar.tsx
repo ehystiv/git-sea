@@ -1,10 +1,10 @@
-import { useRef, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useLayoutEffect, useRef, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { useUpdates } from "../features/updates/updatesStore";
 import { useT } from "../lib/i18n";
 import { modShortcut } from "../lib/platform";
 import { useTheme } from "../lib/theme";
 import type { ThemeMode } from "../lib/themeLogic";
-import { dropIndex, type Tab } from "./tabsLogic";
+import { dragOffset, dropIndex, type Tab } from "./tabsLogic";
 import styles from "./TitleBar.module.css";
 
 interface TitleBarProps {
@@ -42,41 +42,110 @@ function ThemeIcon({ mode }: { mode: ThemeMode }) {
 
 /** Pixels the pointer must travel before a press on a tab becomes a drag. */
 const DRAG_THRESHOLD = 4;
+/** How the other tabs slide into the room left free, and the dragged one into its place. */
+const SLIDE = { duration: 180, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" } as const;
+
+function reducedMotion(): boolean {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
+interface TabDrag {
+  id: string;
+  tab: HTMLElement;
+  /** Where the pointer and the tab (its place in the row) were when the drag started. */
+  startX: number;
+  startLeft: number;
+  pointerX: number;
+}
 
 /**
  * Reorders tabs by dragging them. Pointer events rather than HTML drag and drop, which the
- * webview's own file drop handling disables on Windows. The tab moves as soon as its centre
- * passes a neighbour's, and the click that ends a drag does not activate it.
+ * webview's own file drop handling disables on Windows. Once the pointer has moved a little the
+ * tab lifts and follows it; when its centre passes a neighbour's it takes that place and the
+ * others slide aside, and when let go it settles into its place. The click that ends a drag does
+ * not activate the tab. Positions are layout positions (`offsetLeft`), which the animations do
+ * not change, so a tab sliding aside is never mistaken for one in its new place.
  */
-function useTabDrag(onMove: (id: string, to: number) => void) {
+function useTabDrag(tabs: Tab[], onMove: (id: string, to: number) => void) {
   const list = useRef<HTMLDivElement>(null);
   const swallowClick = useRef(false);
+  const drag = useRef<TabDrag | null>(null);
+  /** Where each tab was just before a reorder, to slide it from there to its new place. */
+  const before = useRef<Map<string, number> | null>(null);
+
+  const tabElements = () => Array.from(list.current?.querySelectorAll<HTMLElement>("[data-tab-id]") ?? []);
+
+  /** Draws the dragged tab under the pointer, whatever its place in the row is now. */
+  function follow(current: TabDrag) {
+    const all = tabElements();
+    const rowStart = Math.min(...all.map((el) => el.offsetLeft));
+    const rowEnd = Math.max(...all.map((el) => el.offsetLeft + el.offsetWidth));
+    const left = current.startLeft + (current.pointerX - current.startX);
+    current.tab.style.transform = `translateX(${dragOffset(left, current.tab.offsetLeft, current.tab.offsetWidth, rowStart, rowEnd)}px)`;
+  }
+
+  // After a reorder: the dragged tab stays under the pointer, the others slide to their places.
+  useLayoutEffect(() => {
+    const current = drag.current;
+    const previous = before.current;
+    before.current = null;
+    if (current) follow(current);
+    if (!previous || reducedMotion()) return;
+    for (const el of tabElements()) {
+      if (el === current?.tab) continue;
+      const was = previous.get(el.dataset.tabId ?? "");
+      const delta = was === undefined ? 0 : was - el.offsetLeft;
+      if (delta !== 0) el.animate([{ transform: `translateX(${delta}px)` }, { transform: "translateX(0)" }], SLIDE);
+    }
+  }, [tabs]);
 
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>, id: string) {
     if (event.button !== 0 || (event.target as HTMLElement).closest("[data-tab-close]")) return;
     const tab = event.currentTarget;
     const startX = event.clientX;
-    const grab = startX - tab.getBoundingClientRect().left;
     let dragging = false;
 
     function move(e: PointerEvent) {
       if (!dragging && Math.abs(e.clientX - startX) < DRAG_THRESHOLD) return;
-      dragging = true;
-      tab.dataset.dragging = "";
-      const tabs = Array.from(list.current?.querySelectorAll<HTMLElement>("[data-tab-id]") ?? []);
-      const centers = tabs.filter((el) => el !== tab).map((el) => {
-        const rect = el.getBoundingClientRect();
-        return rect.left + rect.width / 2;
-      });
-      const to = dropIndex(centers, e.clientX - grab + tab.offsetWidth / 2);
-      if (tabs.indexOf(tab) !== to) onMove(id, to);
+      if (!dragging) {
+        dragging = true;
+        drag.current = { id, tab, startX, startLeft: tab.offsetLeft, pointerX: e.clientX };
+        tab.getAnimations().forEach((a) => a.cancel());
+        tab.dataset.dragging = "";
+        document.documentElement.dataset.draggingTab = "";
+      }
+      const current = drag.current;
+      if (!current) return;
+      current.pointerX = e.clientX;
+      follow(current);
+
+      const all = tabElements();
+      const left = current.startLeft + (e.clientX - startX);
+      const centers = all.filter((el) => el !== tab).map((el) => el.offsetLeft + el.offsetWidth / 2);
+      const to = dropIndex(centers, left + tab.offsetWidth / 2);
+      if (all.indexOf(tab) !== to) {
+        before.current = new Map(all.map((el) => [el.dataset.tabId ?? "", el.offsetLeft]));
+        onMove(id, to);
+      }
     }
     function end() {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
       window.removeEventListener("pointercancel", end);
-      delete tab.dataset.dragging;
       swallowClick.current = dragging;
+      if (!dragging) return;
+      drag.current = null;
+      delete document.documentElement.dataset.draggingTab;
+      // From under the pointer down into its place.
+      const from = tab.style.transform;
+      tab.style.transform = "";
+      const settle = () => delete tab.dataset.dragging;
+      if (reducedMotion() || !from) settle();
+      else tab.animate([{ transform: from }, { transform: "translateX(0)" }], SLIDE).finished.then(settle, settle);
     }
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
@@ -101,7 +170,7 @@ export function TitleBar({ tabs, activeId, onActivate, onMove, onClose, onNew, o
   const cycleTheme = useTheme((s) => s.cycle);
   const m = useT();
   const themeLabel = m.titlebar.theme[mode];
-  const drag = useTabDrag(onMove);
+  const drag = useTabDrag(tabs, onMove);
   const update = useUpdates((s) => s.status);
   const showUpdate = useUpdates((s) => s.setOpen);
   const updateVersion = update.kind === "available" || update.kind === "downloading" || update.kind === "installed" ? update.version : null;

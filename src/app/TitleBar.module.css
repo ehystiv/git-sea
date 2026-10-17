@@ -14,7 +14,21 @@
   .tab:hover { background: var(--hover); }
   .active, .active:hover { background: var(--surface); color: var(--text); box-shadow: 0 0 0 0.5px var(--border-strong), 0 1px 2px rgb(0 0 0 / 0.05); }
 
-  .tab[data-dragging] { opacity: 0.75; cursor: grabbing; }
+  /* Lifted while dragged: above the others, with a shadow, a little larger. */
+  .tab { transition: box-shadow 140ms ease-out, scale 140ms ease-out, background-color 140ms; }
+  .tab[data-dragging] {
+    position: relative;
+    z-index: 2;
+    scale: 1.04;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 0 0 0.5px var(--border-strong), 0 6px 18px rgb(0 0 0 / 0.22);
+    cursor: grabbing;
+  }
+  .tab[data-dragging] button { cursor: grabbing; }
+  @media (prefers-reduced-motion: reduce) {
+    .tab { transition: none; }
+  }
 
   .select { display: flex; align-items: center; gap: 7px; min-width: 0; height: 100%; padding: 0 2px 0 10px; font-weight: 500; }
   .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }

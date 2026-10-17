@@ -178,14 +178,18 @@ if (new URLSearchParams(location.search).has("updates")) (window as unknown as R
 initTheme();
 initLanguage();
 const head = dump.refs.find((r) => r.kind === "Head");
-useTabs.getState().addTab({
-  sessionId: "s1",
-  name,
-  path: `/dev/${name}`,
-  head: head ? { kind: "Branch", name: head.name, commit: head.commit } : { kind: "Unborn", name: "main" },
-  refCount: dump.refs.length,
-  isBare: false,
-});
+// `?tabs=3`: more tabs on the same data, for trying out the tab bar.
+const tabCount = Math.max(1, Number(new URLSearchParams(location.search).get("tabs") ?? 1));
+for (let n = 1; n <= tabCount; n++) {
+  useTabs.getState().addTab({
+    sessionId: `s${n}`,
+    name: n === 1 ? name : `${name}-${n}`,
+    path: `/dev/${name}${n === 1 ? "" : `-${n}`}`,
+    head: head ? { kind: "Branch", name: head.name, commit: head.commit } : { kind: "Unborn", name: "main" },
+    refCount: dump.refs.length,
+    isBare: false,
+  });
+}
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>

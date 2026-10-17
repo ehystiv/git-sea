@@ -132,3 +132,12 @@ export function restoreTabs(data: TabsData, repos: RepoInfo[], activePath: strin
 export function dropIndex(otherCenters: number[], draggedCenter: number): number {
   return otherCenters.filter((center) => center < draggedCenter).length;
 }
+
+/**
+ * Where a dragged tab is drawn, as an offset from its place in the row: it follows the pointer
+ * (`left` = where it started plus how far the pointer went) but stays within the row of tabs.
+ */
+export function dragOffset(left: number, place: number, width: number, rowStart: number, rowEnd: number): number {
+  const clamped = Math.max(rowStart, Math.min(rowEnd - width, left));
+  return clamped - place;
+}
