@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 git-sea is a Git history viewer for macOS, Linux and Windows built with Tauri 2: a Rust backend (`src-tauri/`, using `gix`) and a React 19 + TypeScript + Vite frontend (`src/`). It never writes to repositories, with one exception: a background `git fetch --all` (`src-tauri/src/git/fetch.rs`) that updates remote refs.
 
-`PLAN.md` (in Italian) is the full project plan: requirements, phases, conventions and technical notes. Read its sections 6 and 7 before you make non-trivial changes.
+`PROPOSTE.md` (in Italian) lists the proposed features and improvements, and which ones are done.
 
 ## Commands
 
@@ -64,7 +64,7 @@ macOS is the main target; Linux and Windows are built and released too. Platform
 
 The UI is in English and Italian. Every user-visible text goes through `src/lib/i18n/`: `en.ts` is the reference (its type is `Messages`) and `it.ts` must have the same keys, which `tsc` and `messages.test.ts` check. Components read texts with `useT()` (named `m` by convention, since `t` is often a loop variable); code outside React, like canvas tooltips and pure helpers, uses `t()` or takes `m: Messages = t()` as its last parameter so tests can pass a language. Dates and numbers go through the helpers in `lib/format.ts` (`formatDateTime`, `formatAgo`, `formatCount`, `dateFormatter`), which follow the UI locale. The choice ("system", "en", "it") is persisted; "system" uses the locale the backend reads with `sys-locale`. The backend's own texts (native menu, CI and fetch messages) use `i18n::tr(en, it)` in `src-tauri/src/i18n.rs`; the frontend keeps it in step with the `set_language` command, which also rebuilds the menu.
 
-## Conventions (from PLAN.md)
+## Conventions
 
 - Rust: errors are typed with `thiserror` (`AppError` in `error.rs`), and there is no `unwrap()` outside tests.
 - TypeScript: `strict` is on and `any` is not allowed.
@@ -72,3 +72,9 @@ The UI is in English and Italian. Every user-visible text goes through `src/lib/
 - Commits follow Conventional Commits.
 - Code and comments are in English, and communication with the user is in Italian.
 - New dependencies can be added without asking, but each one must be mentioned with the reason for it.
+
+## Technical notes
+
+- `gix` needs the `sha1` feature (with `max-performance-safe`). Its open errors are opaque, so "not a repository" is detected first by checking for `.git` (or `HEAD` + `objects/` for bare repos).
+- Topological order comes from `gix::traverse::commit::topo::Builder`, not `gix::revision::walk::Sorting`. `build()` first visits everything to count in-degrees; the 64 MB object cache keeps it fast.
+- `data-tauri-drag-region` applies only to the element itself, so non-interactive children of the title bar have `pointer-events: none`. Window dragging needs the `core:window:allow-start-dragging` and `allow-internal-toggle-maximize` permissions.

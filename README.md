@@ -126,4 +126,4 @@ These pages are for development only and are not part of the app build:
 - [ ] Horizontal timeline
 - [ ] Command palette, search and filters
 
-See [`PLAN.md`](PLAN.md) for the full project plan (in Italian).
+See [`PROPOSTE.md`](PROPOSTE.md) for the proposed features and improvements (in Italian).

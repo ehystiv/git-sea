@@ -1,6 +1,6 @@
 # Proposte di feature e miglioramenti
 
-Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" di `PLAN.md`. Valgono i vincoli del piano: l'app resta di sola lettura sui repository.
+Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del vecchio piano di progetto. L'app resta di sola lettura sui repository.
 
 ## Top 5 ✅
 
