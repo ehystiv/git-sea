@@ -1,9 +1,9 @@
 name: Release
 
-# Every push to main (direct or through a merged PR) builds the app.
-# A GitHub release is published only when the version in
-# src-tauri/tauri.conf.json has no `v<version>` tag yet, so bumping the
-# version is what cuts a new release.
+# Every push to main (direct or through a merged PR) builds the app for macOS and Linux.
+# A GitHub release is published only when the version in src-tauri/tauri.conf.json has no
+# `v<version>` tag yet, so bumping the version is what cuts a new release. The release is
+# created as a draft, both builds upload to it, and it is published only if both succeed.
 
 on:
   push:
@@ -40,11 +40,56 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           fi
 
-  build:
+  create-release:
     needs: version
-    runs-on: macos-latest
+    if: needs.version.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.create.outputs.id }}
+    steps:
+      - name: Create a draft release
+        id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          id=$(gh api -X POST "repos/$GITHUB_REPOSITORY/releases" \
+            -f tag_name="v$VERSION" \
+            -f target_commitish="$GITHUB_SHA" \
+            -f name="git-sea v$VERSION" \
+            -f body="See the commits since the previous release for the changes." \
+            -F draft=true \
+            --jq .id)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: [version, create-release]
+    # runs also when create-release was skipped (build only)
+    if: ${{ !cancelled() && needs.version.result == 'success' && needs.create-release.result != 'failure' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            artifacts: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          - platform: ubuntu-22.04
+            args: ""
+            rust-targets: ""
+            artifacts: |
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/rpm/*.rpm
+              src-tauri/target/release/bundle/appimage/*.AppImage
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - uses: pnpm/action-setup@v4
         with:
@@ -57,7 +102,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: ${{ matrix.rust-targets }}
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -73,23 +118,28 @@ jobs:
         working-directory: src-tauri
         run: cargo test
 
-      - name: Build and publish
+      - name: Build (and upload to the draft release)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          args: --target universal-apple-darwin
-          tagName: ${{ needs.version.outputs.publish == 'true' && 'v__VERSION__' || '' }}
-          releaseName: git-sea v__VERSION__
-          releaseBody: See the commits since the previous release for the changes.
-          releaseDraft: false
-          prerelease: false
-          releaseCommitish: ${{ github.sha }}
+          args: ${{ matrix.args }}
+          releaseId: ${{ needs.create-release.outputs.id }}
 
       - name: Upload build artifacts
         if: needs.version.outputs.publish != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: git-sea-${{ needs.version.outputs.version }}-${{ github.sha }}
-          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          name: git-sea-${{ needs.version.outputs.version }}-${{ runner.os }}-${{ github.sha }}
+          path: ${{ matrix.artifacts }}
           retention-days: 14
+
+  publish-release:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ needs.create-release.outputs.id }}
+        run: gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" -F draft=false
