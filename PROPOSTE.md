@@ -19,6 +19,13 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 - **Termini combinati, date e regex** ✅. `login author:Anna Rossi after:2024-05 path:src`; `after:`/`before:` con date assolute o relative (`2w`, `oggi`); `re:` su oggetto e autore; un solo termine tra `msg:`, `path:` e `diff:`.
 - **Ricerca tra gli antenati** ✅. Con gli antenati accesi la ricerca guarda solo la storia del commit selezionato all'inizio, che resta fermo mentre si scorrono i risultati.
 
+## Distribuzione e qualità ✅
+
+- **Aggiornamento automatico** ✅. `tauri-plugin-updater` + `tauri-plugin-process`: controllo all'avvio e ogni 6 ore (disattivabile), avviso nella barra del titolo, download, installazione e riavvio. Le release firmano gli archivi con il secret `TAURI_SIGNING_PRIVATE_KEY` (chiave pubblica in `tauri.conf.json`). Su Linux si aggiorna l'AppImage; per `.deb` e `.rpm` l'app rimanda alla pagina delle release.
+- **Pulizia della cache** ✅. Formato 2 con il percorso di `.git` in testa al file; all'avvio si tolgono i file dei repository spariti, quelli vecchi o illeggibili e i temporanei di un crash. Nelle impostazioni: spazio occupato e "Svuota". Non alla chiusura del repo: la cache serve proprio a riaprirlo in fretta.
+- **Cloni parziali** ✅. Errore `MissingObjects` quando un clone parziale non ha gli oggetti richiesti: la ricerca dice che `path:` e `diff:` non possono cercare (`msg:` sì), il pannello spiega cosa manca.
+- **Ricarica incrementale**: scartata. Dopo un fetch la ricarica completa costa ~0,3 s su 50k commit; aggiornare solo una parte vuol dire ricalcolare le corsie di tutto ciò che sta sotto i commit nuovi, con un rischio alto di layout incoerenti.
+
 ## Da valutare dopo
 
 ### Navigazione
@@ -34,9 +41,3 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 - **Minimappa nella timeline** (Fase 10, "Non fatto"): adattare `MinimapOverlay` tramite `onFrame`/`goTo`.
 - **Esportazione del grafo visibile** in PNG/SVG.
 - ~~Numero di nodi in Topologia~~: c'è già, nella toolbar.
-
-### Distribuzione e qualità
-- **Aggiornamento automatico** con `tauri-plugin-updater` (le release su GitHub ci sono già).
-- **Pulizia della cache** alla chiusura o per i repo spariti dal disco (Fase 7).
-- **Messaggio chiaro per `path:` su un clone treeless**, invece di "Errore" con il dettaglio nel tooltip.
-- **Ricarica incrementale** quando cambiano solo i ref remoti dopo un fetch (bassa priorità: con la cache bastano ~0,3 s, e le corsie rendono il cambiamento delicato).
