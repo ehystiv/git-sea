@@ -105,3 +105,23 @@ fn repo_name(repo: &gix::Repository, fallback: &Path) -> String {
         .unwrap_or_else(|| "repository".to_string());
     name.strip_suffix(".git").map(str::to_owned).unwrap_or(name)
 }
+
+/// True for a partial clone, whose trees or blobs are fetched on demand by git and may be missing.
+pub fn is_partial_clone(repo: &gix::Repository) -> bool {
+    let config = repo.config_snapshot();
+    if config.string("extensions.partialClone").is_some() {
+        return true;
+    }
+    repo.remote_names()
+        .iter()
+        .any(|name| config.boolean(format!("remote.{name}.promisor").as_str()) == Some(true))
+}
+
+/// A git error, told apart as missing objects when the repository is a partial clone: then the
+/// cause is almost always an object that was never fetched.
+pub fn in_partial_clone(repo: &gix::Repository, err: AppError) -> AppError {
+    match err {
+        AppError::Git(message) if is_partial_clone(repo) => AppError::MissingObjects(message),
+        other => other,
+    }
+}

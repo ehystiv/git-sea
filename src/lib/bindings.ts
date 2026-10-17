@@ -76,7 +76,12 @@ export const commands = {
  *  Error returned by every Tauri command. The frontend switches on `kind`
  *  to pick a user-facing message; `message` is for logs and debugging.
  */
-export type AppError = { kind: "PathNotFound"; message: string } | { kind: "NotARepository"; message: string } | { kind: "SessionNotFound"; message: string } | { kind: "Git"; message: string } | { kind: "Internal"; message: string };
+export type AppError = { kind: "PathNotFound"; message: string } | { kind: "NotARepository"; message: string } | { kind: "SessionNotFound"; message: string } | { kind: "Git"; message: string } | 
+/**
+ *  Objects the command needed are not stored locally because the repository is a partial
+ *  clone (`--filter=tree:0`, `--filter=blob:none`…), and this app does not fetch them.
+ */
+{ kind: "MissingObjects"; message: string } | { kind: "Internal"; message: string };
 
 /**  What the cache directory holds. */
 export type CacheUsage = {

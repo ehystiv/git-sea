@@ -15,6 +15,7 @@ export const en = {
     sessionNotFound: "The repository is no longer open.",
     git: (message: string) => `Cannot read the repository: ${message}`,
     internal: (message: string) => `Internal error: ${message}`,
+    missingObjects: "This repository is a partial clone: part of its history (trees or file contents) is not stored locally, and git-sea does not download it.",
     backend: "Cannot reach the app's backend.",
   },
 
@@ -368,6 +369,7 @@ export const en = {
     scope: (hash: string) => `in ${hash}`,
     scopeTitle: (hash: string) => `Only among the ancestors of ${hash} (a turns it off)`,
     twoBackend: "Only one of msg:, path: and diff: at a time",
+    partialClone: "Partial clone: the files of older commits are not local, so path: and diff: cannot search (msg: can)",
     label: "Search the commits",
     previous: "Previous result",
     previousTitle: "Previous (⇧↩)",

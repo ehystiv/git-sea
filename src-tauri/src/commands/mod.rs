@@ -212,7 +212,9 @@ pub async fn commit_details(
 ) -> Result<CommitDetails, AppError> {
     let session = state.get(&session_id)?;
     tauri::async_runtime::spawn_blocking(move || {
-        diff::commit_details(&session.repo.to_thread_local(), &commit_id, base.as_deref())
+        let repo = session.repo.to_thread_local();
+        diff::commit_details(&repo, &commit_id, base.as_deref())
+            .map_err(|err| repo::in_partial_clone(&repo, err))
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?
@@ -232,13 +234,15 @@ pub async fn file_diff(
 ) -> Result<FileDiff, AppError> {
     let session = state.get(&session_id)?;
     tauri::async_runtime::spawn_blocking(move || {
+        let repo = session.repo.to_thread_local();
         diff::file_diff(
-            &session.repo.to_thread_local(),
+            &repo,
             &commit_id,
             &path,
             old_path.as_deref(),
             base.as_deref(),
         )
+        .map_err(|err| repo::in_partial_clone(&repo, err))
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?
@@ -306,6 +310,7 @@ pub async fn search_commits(
         let tips = commits::collect_refs(&repo)?.tips;
         let cancelled = || !session.is_current_search(generation);
         search::search_commits(&repo, tips, field, &text, &cancelled)
+            .map_err(|err| repo::in_partial_clone(&repo, err))
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?

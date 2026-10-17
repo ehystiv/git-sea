@@ -23,6 +23,8 @@ export function describeError(error: unknown, m: Messages = t()): string {
         return m.errors.sessionNotFound;
       case "Git":
         return m.errors.git(error.appError.message);
+      case "MissingObjects":
+        return m.errors.missingObjects;
       case "Internal":
         return m.errors.internal(error.appError.message);
     }

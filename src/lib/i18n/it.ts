@@ -13,6 +13,7 @@ export const it: Messages = {
     sessionNotFound: "Il repository non è più aperto.",
     git: (message) => `Impossibile leggere il repository: ${message}`,
     internal: (message) => `Errore interno: ${message}`,
+    missingObjects: "Questo repository è un clone parziale: una parte della storia (alberi o contenuto dei file) non è in locale, e git-sea non la scarica.",
     backend: "Impossibile contattare il backend dell'app.",
   },
 
@@ -365,6 +366,7 @@ export const it: Messages = {
     scope: (hash) => `in ${hash}`,
     scopeTitle: (hash) => `Solo tra gli antenati di ${hash} (a lo spegne)`,
     twoBackend: "Un solo termine tra msg:, path: e diff: per volta",
+    partialClone: "Clone parziale: i file dei commit vecchi non sono in locale, quindi path: e diff: non possono cercare (msg: sì)",
     label: "Cerca nei commit",
     previous: "Risultato precedente",
     previousTitle: "Precedente (⇧↩)",

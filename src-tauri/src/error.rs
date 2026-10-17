@@ -14,6 +14,10 @@ pub enum AppError {
     SessionNotFound(String),
     #[error("git error: {0}")]
     Git(String),
+    /// Objects the command needed are not stored locally because the repository is a partial
+    /// clone (`--filter=tree:0`, `--filter=blob:none`…), and this app does not fetch them.
+    #[error("objects missing from a partial clone: {0}")]
+    MissingObjects(String),
     #[error("internal error: {0}")]
     Internal(String),
 }

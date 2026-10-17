@@ -89,6 +89,10 @@ export function useSearch(sessionId: string, index: GraphIndex, version: number,
   if ("error" in parsed) return { ...none, invalid: describeQueryError(parsed.error, m) };
   if (query === null) return { ...none, query: parsed, pending: true };
   if (remote === null) return { ...none, query, ids: local };
+  // Missing objects are a fact about the repository, not a failure: said in place, in words.
+  if (result.error instanceof CommandError && result.error.appError.kind === "MissingObjects") {
+    return { ...none, query, pending: false, invalid: m.search.partialClone };
+  }
   const failed = result.error && !(result.error instanceof Superseded) ? describeError(result.error) : null;
   return {
     query,
