@@ -65,6 +65,8 @@ export interface Scene {
   worktree: WorktreeMarker | null;
   /** CI runs and the places a workflow would start; null for none. */
   ci: CiScene | null;
+  /** Ids of the bookmarked commits, marked with a ribbon on their node. */
+  bookmarks: ReadonlySet<string>;
 }
 
 /** How many files have local changes, and the commit they sit on. */
@@ -507,6 +509,8 @@ function drawNode(ctx: Ctx, scene: Scene, r: number, cx: number, cy: number): vo
     ctx.stroke();
   }
 
+  if (z >= LOD_TILE && scene.bookmarks.has(commit.id)) drawRibbon(ctx, palette.accent, left + size - 16 * z, top, z);
+
   if (!card) return;
 
   drawPorts(ctx, palette, cx, cy, size, z, commit.parents.length > 0, hasChildren);
@@ -519,6 +523,21 @@ function drawNode(ctx: Ctx, scene: Scene, r: number, cx: number, cy: number): vo
   else drawIcon(ctx, palette, described.kind, row.color, cx, cy, z);
   drawLabel(ctx, scene, r, described, cx, cy + size / 2 + 8 * z);
   drawBadges(ctx, scene, index.refs.get(commit.id), row.color, cx, top - 8 * z);
+}
+
+/** A bookmark ribbon hanging from the top edge of a node, near its right corner. */
+function drawRibbon(ctx: Ctx, color: string, x: number, top: number, z: number): void {
+  const w = 9 * z;
+  const h = 13 * z;
+  ctx.beginPath();
+  ctx.moveTo(x, top);
+  ctx.lineTo(x + w, top);
+  ctx.lineTo(x + w, top + h);
+  ctx.lineTo(x + w / 2, top + h - 3.5 * z);
+  ctx.lineTo(x, top + h);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
 }
 
 /** Two outlines peeking out behind a node that stands for several commits. */

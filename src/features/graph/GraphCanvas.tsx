@@ -37,6 +37,8 @@ interface GraphCanvasProps {
   onCollapseGroup?: (id: string) => void;
   /** Local changes to show as a badge on their commit; null for none. */
   worktree: WorktreeMarker | null;
+  /** Ids of the bookmarked commits. */
+  bookmarks: ReadonlySet<string>;
   /** The badge of local changes was clicked. */
   onOpenWorktree?: () => void;
   /** CI runs and hypothetical workflow starts to show on the links; null for none. */
@@ -61,7 +63,7 @@ export interface GraphCanvasHandle {
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, onContextMenu, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree, ci, onOpenCi, insetRight, sea },
+  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, onContextMenu, onExpandGroup, onCollapseGroup, worktree, bookmarks, onOpenWorktree, ci, onOpenCi, insetRight, sea },
   ref,
 ) {
   const m = useT();
@@ -83,6 +85,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const onExpandRef = useRef(onExpandGroup);
   const onCollapseRef = useRef(onCollapseGroup);
   const worktreeRef = useRef(worktree);
+  const bookmarksRef = useRef(bookmarks);
   const insetRef = useRef(insetRight);
   const onOpenWorktreeRef = useRef(onOpenWorktree);
   const ciRef = useRef(ci);
@@ -152,6 +155,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     controller.setFlow(flowRef.current);
     controller.setEmphasis(emphasisRef.current);
     controller.setWorktree(worktreeRef.current);
+    controller.setBookmarks(bookmarksRef.current);
     controller.setCi(ciRef.current);
     controller.setInsetRight(insetRef.current);
     const minimap = new Minimap(minimapCanvas, index, controller);
@@ -236,6 +240,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     worktreeRef.current = worktree;
     controllerRef.current?.setWorktree(worktree);
   }, [worktree]);
+
+  useEffect(() => {
+    bookmarksRef.current = bookmarks;
+    controllerRef.current?.setBookmarks(bookmarks);
+  }, [bookmarks]);
 
   useEffect(() => {
     ciRef.current = ci;

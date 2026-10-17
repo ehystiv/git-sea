@@ -34,6 +34,8 @@ import { useSea } from "../../lib/sea";
 import { formatCount, shortHash } from "../../lib/format";
 import { useT, type Messages } from "../../lib/i18n";
 import { headCommitId } from "./head";
+import { normalizePath } from "../../app/tabsLogic";
+import { useBookmarks } from "../bookmarks/bookmarksStore";
 import { commitMenuItems } from "./commitMenu";
 import { emptyHistory, go, visit, type SelectionHistory } from "./history";
 import { useRepoWeb } from "./useRepoWeb";
@@ -45,6 +47,7 @@ import { useRepoCommands, type RepoCommandActions, type ViewMode } from "./useRe
 import type { CiProvider, CommitSummary, HeadInfo, RefFilter, RepoInfo } from "../../lib/bindings";
 import styles from "./RepoView.module.css";
 
+const NO_BOOKMARKS: readonly string[] = [];
 const PANEL_MIN = 320;
 const PANEL_MAX = 900;
 const PANEL_DEFAULT = 440;
@@ -204,6 +207,13 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   );
   const compareWithCommit = useCallback((commit: CommitSummary) => startCompare(commit.id), [startCompare]);
 
+  // Bookmarks, kept per repository across launches.
+  const repoKey = normalizePath(repo.path);
+  const bookmarks = useBookmarks((s) => s.all[repoKey] ?? NO_BOOKMARKS);
+  const toggleBookmark = useBookmarks((s) => s.toggle);
+  const bookmarkSet = useMemo(() => new Set(bookmarks), [bookmarks]);
+  const toggleBookmarkOf = useCallback((id: string) => toggleBookmark(repoKey, id), [toggleBookmark, repoKey]);
+
   // Right-click on a commit, in any view.
   const [menu, setMenu] = useState<{ commit: CommitSummary; x: number; y: number } | null>(null);
   const openMenu = useCallback((commit: CommitSummary, x: number, y: number) => setMenu({ commit, x, y }), []);
@@ -312,11 +322,14 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
       } else if (event.key === "a") {
         event.preventDefault();
         setAncestors((on) => !on);
+      } else if (event.key === "b" && selectedIdRef.current !== null) {
+        event.preventDefault();
+        toggleBookmarkOf(selectedIdRef.current);
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [active, openSearch]);
+  }, [active, openSearch, toggleBookmarkOf]);
 
   const selectById = useCallback(
     (id: string) => {
@@ -465,6 +478,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     stopCompare: () => setCompare(null),
     showDivergence: (branch) => setDivergenceOf(branch),
     stopDivergence: () => setDivergenceOf(null),
+    toggleBookmark: () => {
+      if (selectedIdRef.current !== null) toggleBookmarkOf(selectedIdRef.current);
+    },
     goBack: () => goHistory(-1),
     goForward: () => goHistory(1),
     openSearch,
@@ -508,6 +524,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         comparing: compare !== null,
         divergences,
         divergenceOf: focusedDivergence?.branch ?? null,
+        bookmarks,
+        selectionBookmarked: selected !== null && bookmarkSet.has(selected.id),
         canGoBack: historyMoves.back,
         canGoForward: historyMoves.forward,
         canCollapse: mode === "topology" && compressed.expandedCount > 0,
@@ -579,6 +597,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         onTokenFor={setTokenFor}
         divergences={divergences}
         onDivergence={showDivergence}
+        bookmarks={bookmarks}
+        onRemoveBookmark={toggleBookmarkOf}
       />
 
       <div className={styles.content}>
@@ -753,6 +773,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               onExpandGroup={mode === "topology" ? compressed.expand : undefined}
               onCollapseGroup={mode === "topology" ? compressed.collapse : undefined}
               worktree={worktreeMarker}
+              bookmarks={bookmarkSet}
               onOpenWorktree={openWorktree}
               ci={ciScene}
               onOpenCi={openCi}
@@ -825,10 +846,11 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
           y={menu.y}
           label={m.menu.label}
           onClose={closeMenu}
-          items={commitMenuItems(menu.commit, selected?.id ?? null, web, {
+          items={commitMenuItems(menu.commit, selected?.id ?? null, web, bookmarkSet.has(menu.commit.id), {
             copy: (text) => void copyText(text),
             copyMessage: (commit) => void copyMessage(commit),
             compare: compareWithCommit,
+            toggleBookmark: (commit) => toggleBookmarkOf(commit.id),
             openUrl,
           })}
         />

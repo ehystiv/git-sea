@@ -8,6 +8,7 @@ export interface CommitMenuActions {
   /** Copies the whole message, which the summary does not hold. */
   copyMessage: (commit: CommitSummary) => void;
   compare: (commit: CommitSummary) => void;
+  toggleBookmark: (commit: CommitSummary) => void;
   openUrl: (url: string) => void;
 }
 
@@ -16,6 +17,7 @@ export function commitMenuItems(
   commit: CommitSummary,
   selectedId: string | null,
   web: RepoWeb | null,
+  bookmarked: boolean,
   actions: CommitMenuActions,
   m: Messages = t(),
 ): MenuItem[] {
@@ -27,6 +29,13 @@ export function commitMenuItems(
   if (selectedId !== null && selectedId !== commit.id) {
     items.push({ id: "compare", label: m.menu.compareWithSelected, hint: m.menu.shiftClick, run: () => actions.compare(commit), separated: true });
   }
+  items.push({
+    id: "bookmark",
+    label: bookmarked ? m.menu.removeBookmark : m.menu.addBookmark,
+    hint: commit.id === selectedId ? "b" : undefined,
+    run: () => actions.toggleBookmark(commit),
+    separated: !items.some((i) => i.id === "compare"),
+  });
   if (web) {
     items.push({ id: "open-web", label: m.menu.openOn(web.name), run: () => actions.openUrl(`${web.commitUrl}${commit.id}`), separated: true });
   }

@@ -5,7 +5,7 @@ import type { CiState } from "../ci/useCi";
 import type { GraphIndex } from "../graph/GraphIndex";
 import { useT } from "../../lib/i18n";
 import { inFilter } from "./refFilter";
-import { buildSections, type SidebarItem } from "./sections";
+import { bookmarkSection, buildSections, type SidebarItem } from "./sections";
 import type { BranchDivergence } from "./upstream";
 import { useStashes } from "./useStashes";
 import styles from "./Sidebar.module.css";
@@ -31,12 +31,16 @@ interface SidebarProps {
   divergences: Map<string, BranchDivergence>;
   /** The divergence badge of a branch was clicked. */
   onDivergence: (divergence: BranchDivergence) => void;
+  /** Bookmarked commit ids, latest first. */
+  bookmarks: readonly string[];
+  onRemoveBookmark: (id: string) => void;
 }
 
 const icon = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
 const TAG = "M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z";
 const FUNNEL = "M22 3H2l8 9.46V19l4 2v-8.54z";
+const BOOKMARK = "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z";
 const STASH = "M2 3h20v5H2z M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8 M10 12h4";
 
 export function Sidebar({
@@ -54,6 +58,8 @@ export function Sidebar({
   onTokenFor,
   divergences,
   onDivergence,
+  bookmarks,
+  onRemoveBookmark,
 }: SidebarProps) {
   const stashes = useStashes(sessionId);
   const m = useT();
@@ -61,7 +67,15 @@ export function Sidebar({
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 
   // `version` is what tells us the (mutable) index changed.
-  const sections = useMemo(() => buildSections(index.refs.values(), stashes.data ?? [], filter, m), [index, version, stashes.data, filter, m]);
+  const sections = useMemo(() => {
+    const marked = bookmarkSection(
+      bookmarks.map((id) => ({ id, summary: index.commits[index.indexOf(id) ?? -1]?.summary ?? null })),
+      filter,
+      m,
+    );
+    const refs = buildSections(index.refs.values(), stashes.data ?? [], filter, m);
+    return marked ? [marked, ...refs] : refs;
+  }, [index, version, stashes.data, filter, m, bookmarks]);
 
   function toggle(id: string) {
     setCollapsed((prev) => {
@@ -114,9 +128,9 @@ export function Sidebar({
                         title={item.title ?? (at === null ? missing : item.label)}
                         onClick={() => item.commit !== null && onSelectCommit(item.commit)}
                       >
-                        {section.id === "tags" || section.id === "stashes" ? (
+                        {section.id === "tags" || section.id === "stashes" || section.id === "bookmarks" ? (
                           <svg viewBox="0 0 24 24" width="12" height="12" {...icon} className={styles.glyph}>
-                            <path d={section.id === "tags" ? TAG : STASH} />
+                            <path d={section.id === "tags" ? TAG : section.id === "stashes" ? STASH : BOOKMARK} />
                           </svg>
                         ) : (
                           <span className={styles.dot} style={{ background: color == null ? "var(--text-3)" : `var(--b${color % 8})` }} />
@@ -132,6 +146,17 @@ export function Sidebar({
                         >
                           {diverged.ahead > 0 && <span>{diverged.ahead}↑</span>}
                           {diverged.behind > 0 && <span>{diverged.behind}↓</span>}
+                        </button>
+                      )}
+                      {item.bookmark && item.commit !== null && (
+                        <button
+                          type="button"
+                          className={styles.filter}
+                          aria-label={m.sidebar.removeBookmarkLabel(item.label)}
+                          title={m.sidebar.removeBookmark}
+                          onClick={() => item.commit !== null && onRemoveBookmark(item.commit)}
+                        >
+                          ×
                         </button>
                       )}
                       {ref && (

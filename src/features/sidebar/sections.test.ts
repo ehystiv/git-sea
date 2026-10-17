@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RefLabel, StashEntry } from "../../lib/bindings";
-import { buildSections } from "./sections";
+import { bookmarkSection, buildSections } from "./sections";
 
 const ref = (name: string, kind: RefLabel["kind"], commit = "c"): RefLabel => ({ name, kind, commit });
 const labels = (...list: RefLabel[]): RefLabel[][] => list.map((l) => [l]);
@@ -48,5 +48,27 @@ describe("buildSections", () => {
 
   it("shows nothing for a repository without refs", () => {
     expect(buildSections([], [], "")).toEqual([]);
+  });
+});
+
+describe("bookmarkSection", () => {
+  it("lists the bookmarks in their order, with the hash for commits not loaded", () => {
+    const section = bookmarkSection(
+      [
+        { id: "aaaaaaa111", summary: "fix: login" },
+        { id: "bbbbbbb222", summary: null },
+      ],
+      "",
+    );
+    expect(section?.items.map((i) => [i.label, i.commit, i.bookmark])).toEqual([
+      ["fix: login", "aaaaaaa111", true],
+      ["bbbbbbb", "bbbbbbb222", true],
+    ]);
+  });
+
+  it("is filtered like the refs and missing when empty", () => {
+    expect(bookmarkSection([{ id: "a", summary: "fix: login" }], "LOG")?.items).toHaveLength(1);
+    expect(bookmarkSection([{ id: "a", summary: "fix: login" }], "zzz")).toBeNull();
+    expect(bookmarkSection([], "")).toBeNull();
   });
 });

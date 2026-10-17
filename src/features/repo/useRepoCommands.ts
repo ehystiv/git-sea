@@ -41,6 +41,9 @@ export interface RepoCommandState {
   divergences: Map<string, BranchDivergence>;
   /** The branch whose divergence is highlighted. */
   divergenceOf: string | null;
+  /** Bookmarked commit ids, latest first. */
+  bookmarks: readonly string[];
+  selectionBookmarked: boolean;
   /** There is a selection to go back or forward to. */
   canGoBack: boolean;
   canGoForward: boolean;
@@ -68,6 +71,7 @@ export interface RepoCommandActions {
   stopCompare: () => void;
   showDivergence: (branch: string) => void;
   stopDivergence: () => void;
+  toggleBookmark: () => void;
   goBack: () => void;
   goForward: () => void;
   openSearch: () => void;
@@ -88,7 +92,7 @@ export interface RepoCommandActions {
 
 /** What the active repository offers to the command palette. Null for a tab in the background. */
 export function useRepoCommands(active: boolean, state: RepoCommandState, actions: RepoCommandActions): PaletteSource | null {
-  const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, canGoBack, canGoForward, canCollapse, branchFilter, ci } = state;
+  const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci } = state;
   const m = useT();
 
   return useMemo(() => {
@@ -116,6 +120,14 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
     add({ id: "search", title: m.commands.search, shortcut: "/", keywords: "trova find search messaggio message autore author hash percorso path file", run: actions.openSearch }, g.navigation);
     if (canGoBack) add({ id: "back", title: m.commands.back, shortcut: modShortcut("["), keywords: "indietro back history cronologia precedente", run: actions.goBack }, g.navigation);
     if (canGoForward) add({ id: "forward", title: m.commands.forward, shortcut: modShortcut("]"), keywords: "avanti forward history cronologia successivo", run: actions.goForward }, g.navigation);
+    if (hasSelection) {
+      add({ id: "bookmark", title: selectionBookmarked ? m.commands.removeBookmark : m.commands.addBookmark, shortcut: "b", keywords: "segnalibro bookmark preferito pin", run: actions.toggleBookmark }, g.navigation);
+    }
+    for (const id of bookmarks) {
+      const commit = index.commits[index.indexOf(id) ?? -1];
+      if (!commit) continue;
+      add({ id: `bookmark:${id}`, title: m.commands.goToBookmark(commit.summary || shortHash(id)), detail: shortHash(id), keywords: "segnalibro bookmark vai go", run: () => actions.selectCommit(id) }, g.navigation);
+    }
     add({ id: "head", title: m.commands.goHead, shortcut: "g h", keywords: "head corrente current", run: actions.goHead }, g.navigation);
     if (hasSelection || ancestors) {
       add(
@@ -195,5 +207,5 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
 
     return { commands, search };
     // `version` is what tells us the (mutable) index changed.
-  }, [m, active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, canGoBack, canGoForward, canCollapse, branchFilter, ci, actions]);
+  }, [m, active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci, actions]);
 }

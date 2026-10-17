@@ -101,6 +101,7 @@ export class GraphController {
   private focused = true;
   private emphasis: Emphasis | null = null;
   private worktree: WorktreeMarker | null = null;
+  private bookmarks: ReadonlySet<string> = new Set();
   private ci: CiScene | null = null;
   private overBadge = false;
   private anchor: ViewAnchor | null = null;
@@ -439,6 +440,7 @@ export class GraphController {
       morph: morphScene,
       worktree: this.worktree,
       ci: this.ci,
+      bookmarks: this.bookmarks,
     });
     this.flowFrame = flow;
     const moving = flow !== null && (this.flowOverlay !== null || drawFlow(this.ctx, flow.links, { ...flow.style, time }) > 0);
@@ -461,6 +463,12 @@ export class GraphController {
   /** Shows a badge with the number of locally changed files on a commit; null hides it. */
   setWorktree(marker: WorktreeMarker | null): void {
     this.worktree = marker;
+    this.requestDraw();
+  }
+
+  /** Marks these commits with a bookmark ribbon. */
+  setBookmarks(bookmarks: ReadonlySet<string>): void {
+    this.bookmarks = bookmarks;
     this.requestDraw();
   }
 

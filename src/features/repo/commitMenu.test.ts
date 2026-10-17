@@ -4,22 +4,22 @@ import { en } from "../../lib/i18n/en";
 import { commitMenuItems, type CommitMenuActions } from "./commitMenu";
 
 const commit: CommitSummary = { id: "0123456789abcdef0123456789abcdef01234567", summary: "feat: x", author: "A", time: 0, parents: [] };
-const actions = (): CommitMenuActions => ({ copy: vi.fn(), copyMessage: vi.fn(), compare: vi.fn(), openUrl: vi.fn() });
+const actions = (): CommitMenuActions => ({ copy: vi.fn(), copyMessage: vi.fn(), compare: vi.fn(), toggleBookmark: vi.fn(), openUrl: vi.fn() });
 
 describe("commitMenuItems", () => {
   it("always offers to copy the hashes and the message", () => {
-    const items = commitMenuItems(commit, null, null, actions(), en);
-    expect(items.map((i) => i.id)).toEqual(["copy-hash", "copy-short", "copy-message"]);
+    const items = commitMenuItems(commit, null, null, false, actions(), en);
+    expect(items.map((i) => i.id)).toEqual(["copy-hash", "copy-short", "copy-message", "bookmark"]);
   });
 
   it("offers a comparison only with another selected commit", () => {
-    expect(commitMenuItems(commit, commit.id, null, actions(), en).some((i) => i.id === "compare")).toBe(false);
-    expect(commitMenuItems(commit, "other", null, actions(), en).some((i) => i.id === "compare")).toBe(true);
+    expect(commitMenuItems(commit, commit.id, null, false, actions(), en).some((i) => i.id === "compare")).toBe(false);
+    expect(commitMenuItems(commit, "other", null, false, actions(), en).some((i) => i.id === "compare")).toBe(true);
   });
 
   it("opens the commit's page on the hosting service", () => {
     const a = actions();
-    const items = commitMenuItems(commit, null, { name: "GitHub", commitUrl: "https://github.com/o/r/commit/" }, a, en);
+    const items = commitMenuItems(commit, null, { name: "GitHub", commitUrl: "https://github.com/o/r/commit/" }, false, a, en);
     const open = items.find((i) => i.id === "open-web");
     expect(open?.label).toBe("Open on GitHub");
     open?.run();
@@ -28,10 +28,16 @@ describe("commitMenuItems", () => {
 
   it("copies the full and the short hash", () => {
     const a = actions();
-    const items = commitMenuItems(commit, null, null, a, en);
+    const items = commitMenuItems(commit, null, null, false, a, en);
     items[0]?.run();
     items[1]?.run();
     expect(a.copy).toHaveBeenNthCalledWith(1, commit.id);
     expect(a.copy).toHaveBeenNthCalledWith(2, "0123456");
+  });
+
+  it("adds or removes the bookmark", () => {
+    const label = (bookmarked: boolean) => commitMenuItems(commit, null, null, bookmarked, actions(), en).find((i) => i.id === "bookmark")?.label;
+    expect(label(false)).toBe("Add a bookmark");
+    expect(label(true)).toBe("Remove the bookmark");
   });
 });

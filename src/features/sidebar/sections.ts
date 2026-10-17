@@ -1,4 +1,5 @@
 import type { RefKind, RefLabel, StashEntry } from "../../lib/bindings";
+import { shortHash } from "../../lib/format";
 import { t, type Messages } from "../../lib/i18n";
 
 export interface SidebarItem {
@@ -10,12 +11,34 @@ export interface SidebarItem {
   title?: string;
   /** The ref behind the item, for the branch filter (not for stashes). */
   ref?: { kind: RefKind; name: string };
+  /** A bookmark, which can be removed from the sidebar. */
+  bookmark?: boolean;
 }
 
 export interface SidebarSection {
-  id: "branches" | "remotes" | "tags" | "stashes";
+  id: "bookmarks" | "branches" | "remotes" | "tags" | "stashes";
   title: string;
   items: SidebarItem[];
+}
+
+const matches = (filter: string) => {
+  const needle = filter.trim().toLowerCase();
+  return (item: SidebarItem) => needle === "" || item.label.toLowerCase().includes(needle);
+};
+
+/**
+ * The bookmarked commits, in the order they were added (latest first), filtered like the refs.
+ * A commit that is not loaded shows its short hash. Null when nothing is left.
+ */
+export function bookmarkSection(
+  bookmarks: ReadonlyArray<{ id: string; summary: string | null }>,
+  filter: string,
+  m: Messages = t(),
+): SidebarSection | null {
+  const items = bookmarks
+    .map(({ id, summary }): SidebarItem => ({ key: `bookmark:${id}`, label: summary ?? shortHash(id), commit: id, title: `${shortHash(id)} ${summary ?? ""}`.trim(), bookmark: true }))
+    .filter(matches(filter));
+  return items.length > 0 ? { id: "bookmarks", title: m.sidebar.sections.bookmarks, items } : null;
 }
 
 const byName = (a: SidebarItem, b: SidebarItem) =>
@@ -53,8 +76,7 @@ export function buildSections(
     title: m.sidebar.stashTitle(s.index),
   }));
 
-  const needle = filter.trim().toLowerCase();
-  const keep = (item: SidebarItem) => needle === "" || item.label.toLowerCase().includes(needle);
+  const keep = matches(filter);
 
   return (
     [
