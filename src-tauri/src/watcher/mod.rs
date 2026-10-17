@@ -6,7 +6,7 @@ use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread;
 use std::time::Duration;
 
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 /// Changes closer together than this count as one (a commit or a fetch touches several files).
 const QUIET: Duration = Duration::from_millis(300);
@@ -65,6 +65,7 @@ impl RepoWatcher {
         let mut watcher =
             notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
                 if let Ok(event) = event
+                    && is_change(&event.kind)
                     && event.paths.iter().any(|path| relevant(path))
                 {
                     let _ = tx.send(());
@@ -95,6 +96,13 @@ impl RepoWatcher {
 /// Events report real paths (macOS: /private/var, not /var), so compare against those.
 fn real(dir: &Path) -> PathBuf {
     dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf())
+}
+
+/// Whether an event can be a change. On Linux inotify also reports files being opened and closed
+/// (`Access`): git, and the app itself while counting the local changes, read `HEAD`, refs and
+/// working-copy files all the time, which would otherwise look like changes.
+pub fn is_change(kind: &EventKind) -> bool {
+    !kind.is_access()
 }
 
 /// Whether a changed path can change the local changes: any file of the working copy, or the
@@ -133,6 +141,22 @@ mod tests {
 
     fn roots() -> Vec<PathBuf> {
         vec![PathBuf::from("/repo/.git")]
+    }
+
+    #[test]
+    fn opening_or_reading_a_file_is_not_a_change() {
+        use notify::event::{AccessKind, AccessMode, CreateKind, ModifyKind};
+        assert!(!is_change(&EventKind::Access(AccessKind::Open(
+            AccessMode::Any
+        ))));
+        assert!(!is_change(&EventKind::Access(AccessKind::Close(
+            AccessMode::Read
+        ))));
+        assert!(!is_change(&EventKind::Access(AccessKind::Close(
+            AccessMode::Write
+        ))));
+        assert!(is_change(&EventKind::Create(CreateKind::File)));
+        assert!(is_change(&EventKind::Modify(ModifyKind::Any)));
     }
 
     #[test]
