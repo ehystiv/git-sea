@@ -2,7 +2,7 @@
 
 # git-sea
 
-A read-only Git history viewer for macOS and Linux, built to make the commit graph easy to understand: where branches go, how they merge, and what the commit tree looks like.
+A read-only Git history viewer for macOS, Linux and Windows, built to make the commit graph easy to understand: where branches go, how they merge, and what the commit tree looks like.
 
 It takes inspiration from GitKraken, with a denser, modern UI (Linear / Raycast style) and an n8n-style node canvas for the graph. It is a personal project and never writes to your repositories.
 
@@ -16,7 +16,7 @@ It takes inspiration from GitKraken, with a denser, modern UI (Linear / Raycast 
 - **Multiple repos in tabs**, plus a list of recent repositories.
 - **Live updates**: a file watcher on `.git` reloads the graph when refs change, keeping your position and selection.
 - **On-disk layout cache**, invalidated by an exact fingerprint of the refs.
-- **Keyboard-first**: `j`/`k` next/previous commit, `h`/`l` parent/child, `Enter` toggles details, `g h` goes to HEAD, `⌘O` opens a repo, `⌘W` closes a tab, `⌘1`–`⌘9` switches tabs (Ctrl instead of ⌘ on Linux).
+- **Keyboard-first**: `j`/`k` next/previous commit, `h`/`l` parent/child, `Enter` toggles details, `g h` goes to HEAD, `⌘O` opens a repo, `⌘W` closes a tab, `⌘1`–`⌘9` switches tabs (Ctrl instead of ⌘ on Linux and Windows).
 - **Light and dark themes**, following the system setting, with sidebar vibrancy on macOS.
 
 ## Stack
@@ -35,11 +35,12 @@ It takes inspiration from GitKraken, with a denser, modern UI (Linear / Raycast 
 
 ### Prerequisites
 
-- macOS or Linux
+- macOS, Linux or Windows
 - [Rust](https://rustup.rs) (stable)
 - Node.js and [pnpm](https://pnpm.io)
 - macOS: Xcode Command Line Tools
 - Linux: the WebKitGTK development packages listed in the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/#linux) (on Debian/Ubuntu: `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`)
+- Windows: the Microsoft C++ Build Tools and WebView2, see the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/#windows)
 
 ### Run
 
@@ -65,6 +66,14 @@ cd src-tauri && cargo test
 ```
 
 The Rust integration tests build fixture repositories from the shell scripts in `src-tauri/tests/fixtures/`.
+
+### Run the CI locally
+
+The workflows can be run with [act](https://nektosact.com/) (`.actrc` picks the Ubuntu images). act runs jobs in Linux containers, so only the Ubuntu variants run locally; the macOS and Windows ones are skipped and run on GitHub.
+
+```sh
+act push -W .github/workflows/ci.yml -j check --matrix platform:ubuntu-22.04
+```
 
 ## Project structure
 

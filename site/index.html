@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>git-sea</title>
-  <meta name="description" content="A fast, read-only Git history viewer for macOS and Linux that makes the commit graph easy to understand.">
+  <meta name="description" content="A fast, read-only Git history viewer for macOS, Linux and Windows that makes the commit graph easy to understand.">
   <meta property="og:title" content="git-sea">
-  <meta property="og:description" content="A fast, read-only Git history viewer for macOS and Linux.">
+  <meta property="og:description" content="A fast, read-only Git history viewer for macOS, Linux and Windows.">
   <meta property="og:image" content="logo.png">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -275,7 +275,7 @@
     <div class="wrap">
       <img class="logo" src="logo.svg" alt="git-sea logo">
       <h1>See where your <span class="grad">branches go</span>.</h1>
-      <p class="lead">git-sea is a fast, read-only Git history viewer for macOS and Linux. It lays out your commit graph as a node canvas, so you can see at a glance how branches split, merge and flow.</p>
+      <p class="lead">git-sea is a fast, read-only Git history viewer for macOS, Linux and Windows. It lays out your commit graph as a node canvas, so you can see at a glance how branches split, merge and flow.</p>
       <div class="cta">
         <a class="btn primary" href="https://github.com/ehystiv/git-sea/releases/latest">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.37 12.6c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.14-2.76.83-3.48.83-.72 0-1.82-.81-3-.79-1.54.02-2.96.9-3.76 2.27-1.6 2.78-.41 6.9 1.15 9.16.76 1.1 1.67 2.34 2.86 2.3 1.15-.05 1.58-.74 2.97-.74 1.38 0 1.77.74 2.98.72 1.23-.02 2.01-1.12 2.76-2.23.87-1.28 1.23-2.52 1.25-2.58-.03-.01-2.4-.92-2.42-3.66zM14.1 5.86c.63-.77 1.06-1.83.94-2.89-.91.04-2.01.61-2.66 1.37-.58.67-1.09 1.75-.96 2.79 1.02.08 2.05-.52 2.68-1.27z"/></svg>
@@ -285,12 +285,16 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
           Download for Linux
         </a>
+        <a class="btn" href="https://github.com/ehystiv/git-sea/releases/latest">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.5v7H3zM11.5 4.4 21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.4z"/></svg>
+          Download for Windows
+        </a>
         <a class="btn" href="https://github.com/ehystiv/git-sea">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.08-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.8 1.19 1.82 1.19 3.08 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
           View on GitHub
         </a>
       </div>
-      <p class="note">Free and open source · Universal build for Apple Silicon and Intel · .deb, .rpm and AppImage for Linux</p>
+      <p class="note">Free and open source · Universal build for Apple Silicon and Intel · .deb, .rpm and AppImage for Linux · installer for Windows</p>
 
       <div class="window" aria-hidden="true">
         <div class="titlebar">
@@ -464,8 +468,10 @@ sudo dnf install ./git-sea-*.x86_64.rpm
 <span class="c"># anywhere else</span>
 chmod +x git-sea_*_amd64.AppImage
 ./git-sea_*_amd64.AppImage</pre>
+        <h3>Windows</h3>
+        <p>Run the <code>-setup.exe</code> or the <code>.msi</code> from the <a href="https://github.com/ehystiv/git-sea/releases/latest">latest release</a>; it installs WebView2 if it's missing. The installer isn't signed yet, so SmartScreen may stop it: choose <b>More info</b>, then <b>Run anyway</b>. CI tokens are saved in the Credential Manager.</p>
         <h3>Build from source</h3>
-        <p>You need Rust (stable) and Node.js with pnpm, plus the Xcode Command Line Tools on macOS or the <a href="https://v2.tauri.app/start/prerequisites/#linux">WebKitGTK packages</a> on Linux.</p>
+        <p>You need Rust (stable) and Node.js with pnpm, plus the Xcode Command Line Tools on macOS, the <a href="https://v2.tauri.app/start/prerequisites/#linux">WebKitGTK packages</a> on Linux, or the <a href="https://v2.tauri.app/start/prerequisites/#windows">Microsoft C++ Build Tools</a> on Windows.</p>
         <pre><span class="c"># clone and run</span>
 git clone https://github.com/ehystiv/git-sea
 cd git-sea
@@ -478,7 +484,7 @@ pnpm tauri build</pre>
       <div>
         <div class="eyebrow">Keyboard</div>
         <h2>Keep your hands on the keys.</h2>
-        <p class="sub" style="margin-bottom: 20px">On Linux, <kbd>Ctrl</kbd> takes the place of <kbd>⌘</kbd>.</p>
+        <p class="sub" style="margin-bottom: 20px">On Linux and Windows, <kbd>Ctrl</kbd> takes the place of <kbd>⌘</kbd>.</p>
         <div class="keys">
           <div>Next / previous commit<span><kbd>j</kbd><kbd>k</kbd></span></div>
           <div>Parent / child<span><kbd>h</kbd><kbd>l</kbd></span></div>
