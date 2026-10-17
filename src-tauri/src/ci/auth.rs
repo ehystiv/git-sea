@@ -1,10 +1,9 @@
 //! Tokens for the CI services' APIs: the ones the GitHub and GitLab CLIs (`gh`, `glab`) are
-//! logged in with, or one saved from the app in the system keychain (the macOS Keychain, or the
-//! Secret Service on Linux). Tokens never leave this module except as an HTTP header to the
-//! service they belong to.
+//! logged in with, or one saved from the app in the system keychain (the macOS Keychain, the
+//! Secret Service on Linux, the Credential Manager on Windows). Tokens never leave this module
+//! except as an HTTP header to the service they belong to.
 
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 use serde::Serialize;
 use specta::Type;
@@ -38,8 +37,8 @@ fn cli_token(provider: CiProvider, host: &str) -> Option<String> {
         CiProvider::GitLab => ("glab", vec!["config", "get", "token", "--host", host]),
         _ => return None,
     };
-    let path = find_program(program)?;
-    let output = Command::new(path)
+    let path = crate::process::find(program)?;
+    let output = crate::process::command(path)
         .args(args)
         .stdin(Stdio::null())
         .stderr(Stdio::null())
@@ -55,19 +54,10 @@ fn cli_token(provider: CiProvider, host: &str) -> Option<String> {
 /// Whether the provider's command line tool is installed, for a hint in the UI.
 pub fn has_cli(provider: CiProvider) -> bool {
     match provider {
-        CiProvider::GitHub => find_program("gh").is_some(),
-        CiProvider::GitLab => find_program("glab").is_some(),
+        CiProvider::GitHub => crate::process::find("gh").is_some(),
+        CiProvider::GitLab => crate::process::find("glab").is_some(),
         _ => false,
     }
-}
-
-/// An app started from the Finder gets a minimal PATH, so the usual install places are tried too.
-fn find_program(name: &str) -> Option<PathBuf> {
-    let path = std::env::var_os("PATH").unwrap_or_default();
-    std::env::split_paths(&path)
-        .chain(["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"].map(PathBuf::from))
-        .map(|dir| dir.join(name))
-        .find(|p| Path::is_file(p))
 }
 
 #[cfg(target_os = "macos")]
@@ -98,13 +88,18 @@ pub fn keychain_delete(provider: CiProvider) -> Result<(), String> {
     }
 }
 
-/// The Secret Service store (GNOME Keyring, KWallet) as keyring-core's default, set up once.
-#[cfg(target_os = "linux")]
-fn secret_service_entry(provider: CiProvider) -> Result<keyring_core::Entry, String> {
+/// The system store as keyring-core's default, set up once: the Secret Service (GNOME Keyring,
+/// KWallet) on Linux, the Credential Manager on Windows.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn keyring_entry(provider: CiProvider) -> Result<keyring_core::Entry, String> {
     static STORE: std::sync::OnceLock<Result<(), String>> = std::sync::OnceLock::new();
     STORE
         .get_or_init(|| {
-            zbus_secret_service_keyring_store::Store::new()
+            #[cfg(target_os = "linux")]
+            let store = zbus_secret_service_keyring_store::Store::new();
+            #[cfg(target_os = "windows")]
+            let store = windows_native_keyring_store::Store::new();
+            store
                 .map(|store| keyring_core::set_default_store(store))
                 .map_err(|e| format!("portachiavi non disponibile: {e}"))
         })
@@ -112,39 +107,39 @@ fn secret_service_entry(provider: CiProvider) -> Result<keyring_core::Entry, Str
     keyring_core::Entry::new(KEYCHAIN_SERVICE, provider.key()).map_err(|e| e.to_string())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 pub fn keychain_get(provider: CiProvider) -> Option<String> {
-    let token = secret_service_entry(provider).ok()?.get_password().ok()?;
+    let token = keyring_entry(provider).ok()?.get_password().ok()?;
     (!token.is_empty()).then_some(token)
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 pub fn keychain_set(provider: CiProvider, token: &str) -> Result<(), String> {
-    secret_service_entry(provider)?
+    keyring_entry(provider)?
         .set_password(token)
         .map_err(|e| e.to_string())
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 pub fn keychain_delete(provider: CiProvider) -> Result<(), String> {
-    match secret_service_entry(provider)?.delete_credential() {
+    match keyring_entry(provider)?.delete_credential() {
         // Nothing saved: nothing to delete.
         Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
         Err(e) => Err(e.to_string()),
     }
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
 pub fn keychain_get(_provider: CiProvider) -> Option<String> {
     None
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
 pub fn keychain_set(_provider: CiProvider, _token: &str) -> Result<(), String> {
-    Err("il portachiavi è disponibile solo su macOS e Linux".to_owned())
+    Err("il portachiavi è disponibile solo su macOS, Linux e Windows".to_owned())
 }
 
-#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
 pub fn keychain_delete(_provider: CiProvider) -> Result<(), String> {
     Ok(())
 }

@@ -389,9 +389,5 @@ pub fn open_url(url: String) -> Result<(), AppError> {
     if !url.starts_with("https://") || url.contains(char::is_whitespace) {
         return Err(AppError::Internal(format!("not an https link: {url}")));
     }
-    std::process::Command::new("/usr/bin/open")
-        .arg(&url)
-        .spawn()
-        .map(|_| ())
-        .map_err(|err| AppError::Internal(err.to_string()))
+    crate::process::open_url(&url).map_err(|err| AppError::Internal(err.to_string()))
 }

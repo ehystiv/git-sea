@@ -101,6 +101,8 @@ describe("paths", () => {
     expect(findTabByPath(data, "/repos/other")).toBeUndefined();
     expect(normalizePath("/")).toBe("/");
     expect(normalizePath(" /a/b// ")).toBe("/a/b");
+    expect(normalizePath("C:\\repos\\r1\\")).toBe("C:\\repos\\r1");
+    expect(normalizePath("C:\\")).toBe("C:\\");
   });
 
   it("removes a repository from the recents", () => {

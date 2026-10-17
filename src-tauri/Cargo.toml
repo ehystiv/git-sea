@@ -38,9 +38,14 @@ ureq = { version = "3.4.2", default-features = false, features = ["rustls", "gzi
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "3.7.0"
 
-[target.'cfg(target_os = "linux")'.dependencies]
+[target.'cfg(any(target_os = "linux", target_os = "windows"))'.dependencies]
 keyring-core = "1"
+
+[target.'cfg(target_os = "linux")'.dependencies]
 zbus-secret-service-keyring-store = { version = "1", features = ["crypto-rust"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store = { version = "1", default-features = false }
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

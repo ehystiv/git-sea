@@ -29,7 +29,9 @@ export const emptyTabs: TabsData = { tabs: [], activeId: null, recents: [], next
 /** Trailing slashes do not make a different repository. */
 export function normalizePath(path: string): string {
   const trimmed = path.trim();
-  return trimmed.length > 1 ? trimmed.replace(/\/+$/, "") : trimmed;
+  // A root keeps its separator: "/" on Unix, "C:\" on Windows.
+  if (/^([A-Za-z]:)?[\\/]$/.test(trimmed)) return trimmed;
+  return trimmed.replace(/[\\/]+$/, "");
 }
 
 export function findTabByPath(data: TabsData, path: string): Tab | undefined {

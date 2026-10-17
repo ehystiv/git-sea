@@ -1,0 +1,2 @@
+# The test fixtures are shell scripts: with CRLF endings (git's default on Windows) sh rejects them.
+*.sh text eol=lf

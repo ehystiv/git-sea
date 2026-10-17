@@ -115,7 +115,7 @@ fn now_ms() -> f64 {
 /// `git fetch --all` in `dir`. The error is what git said, or why it could not run.
 pub fn fetch(dir: &Path) -> Result<(), String> {
     let git = find_git().ok_or_else(|| "git non trovato".to_owned())?;
-    let mut child = Command::new(git)
+    let mut child = crate::process::command(git)
         .arg("-C")
         .arg(dir)
         .args(["fetch", "--all", "--quiet", "--no-write-fetch-head"])
@@ -158,24 +158,12 @@ pub fn fetch(dir: &Path) -> Result<(), String> {
         .to_owned())
 }
 
-/// The `git` to run. An app started from the Finder gets a minimal PATH, so the usual install
-/// places are tried too. On macOS `/usr/bin/git` is only a stub until the developer tools are
+/// The `git` to run. On macOS `/usr/bin/git` is only a stub until the developer tools are
 /// installed, and running it then opens an installation dialog: it is used only when they are.
 fn find_git() -> Option<PathBuf> {
-    let path = std::env::var_os("PATH").unwrap_or_default();
-    let dirs = std::env::split_paths(&path)
-        .chain(["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"].map(PathBuf::from));
-    for dir in dirs {
-        let git = dir.join("git");
-        if !git.is_file() {
-            continue;
-        }
-        if cfg!(target_os = "macos") && git == Path::new("/usr/bin/git") && !developer_tools() {
-            continue;
-        }
-        return Some(git);
-    }
-    None
+    crate::process::candidates("git").find(|git| {
+        !(cfg!(target_os = "macos") && git == Path::new("/usr/bin/git") && !developer_tools())
+    })
 }
 
 fn developer_tools() -> bool {

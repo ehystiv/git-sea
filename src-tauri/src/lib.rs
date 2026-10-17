@@ -4,6 +4,7 @@ pub mod commands;
 pub mod error;
 pub mod git;
 pub mod graph;
+pub mod process;
 pub mod session;
 pub mod watcher;
 
