@@ -26,7 +26,7 @@ export function LoadStatus({
       <span className={styles.count}>{m.status.commits(formatCount(index.length))}</span>
       {status === "loading" && <span>{m.status.loading}</span>}
       {refreshing && <span>{m.status.refreshing}</span>}
-      {maxLanes !== null && <span>{m.status.lanes(maxLanes)}</span>}
+      {maxLanes !== null && <span>{m.status.branches(maxLanes)}</span>}
       {fetch?.hasRemotes && <FetchInfo fetch={fetch} onFetchNow={onFetchNow} />}
       {selected && (
         <span className={styles.selected}>

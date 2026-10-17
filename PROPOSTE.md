@@ -24,11 +24,11 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 - **Aggiornamento automatico** ✅. `tauri-plugin-updater` + `tauri-plugin-process`: controllo all'avvio e ogni 6 ore (disattivabile), avviso nella barra del titolo, download, installazione e riavvio. Le release firmano gli archivi con il secret `TAURI_SIGNING_PRIVATE_KEY` (chiave pubblica in `tauri.conf.json`). Su Linux si aggiorna l'AppImage; per `.deb` e `.rpm` l'app rimanda alla pagina delle release.
 - **Pulizia della cache** ✅. Formato 2 con il percorso di `.git` in testa al file; all'avvio si tolgono i file dei repository spariti, quelli vecchi o illeggibili e i temporanei di un crash. Nelle impostazioni: spazio occupato e "Svuota". Non alla chiusura del repo: la cache serve proprio a riaprirlo in fretta.
 - **Cloni parziali** ✅. Errore `MissingObjects` quando un clone parziale non ha gli oggetti richiesti: la ricerca dice che `path:` e `diff:` non possono cercare (`msg:` sì), il pannello spiega cosa manca.
-- **Ricarica incrementale**: scartata. Dopo un fetch la ricarica completa costa ~0,3 s su 50k commit; aggiornare solo una parte vuol dire ricalcolare le corsie di tutto ciò che sta sotto i commit nuovi, con un rischio alto di layout incoerenti.
+- **Ricarica incrementale**: scartata. Dopo un fetch la ricarica completa costa ~0,3 s su 50k commit; aggiornare solo una parte vuol dire ricalcolare la disposizione dei branch di tutto ciò che sta sotto i commit nuovi, con un rischio alto di layout incoerenti.
 
 ## Viste ✅
 
-- **Minimappa nella timeline** ✅. La minimappa è diventata generica (`MinimapModel`): la timeline ha il tempo in orizzontale e una fascia per corsia, con il viewport fatto dell'intervallo di tempo e delle corsie visibili.
+- **Minimappa nella timeline** ✅. La minimappa è diventata generica (`MinimapModel`): la timeline ha il tempo in orizzontale e una fascia per branch, con il viewport fatto dell'intervallo di tempo e dei branch visibili.
 - **Esportazione della vista in PNG** ✅. Grafo, topologia e timeline: "Salva come PNG…" (finestra di salvataggio aperta dal backend) e "Copia come immagine", dal pulsante accanto allo zoom o dalla palette. Disegnata almeno a 2×, senza hover né pallini animati.
 - **SVG**: scartato per ora. Il grafo è disegnato con `Path2D`, che le librerie di emulazione Canvas→SVG non sanno leggere; servirebbe un secondo renderer.
 - ~~Numero di nodi in Topologia~~: c'era già, nella toolbar.
