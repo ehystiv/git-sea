@@ -26,6 +26,13 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 - **Cloni parziali** ✅. Errore `MissingObjects` quando un clone parziale non ha gli oggetti richiesti: la ricerca dice che `path:` e `diff:` non possono cercare (`msg:` sì), il pannello spiega cosa manca.
 - **Ricarica incrementale**: scartata. Dopo un fetch la ricarica completa costa ~0,3 s su 50k commit; aggiornare solo una parte vuol dire ricalcolare le corsie di tutto ciò che sta sotto i commit nuovi, con un rischio alto di layout incoerenti.
 
+## Viste ✅
+
+- **Minimappa nella timeline** ✅. La minimappa è diventata generica (`MinimapModel`): la timeline ha il tempo in orizzontale e una fascia per corsia, con il viewport fatto dell'intervallo di tempo e delle corsie visibili.
+- **Esportazione della vista in PNG** ✅. Grafo, topologia e timeline: "Salva come PNG…" (finestra di salvataggio aperta dal backend) e "Copia come immagine", dal pulsante accanto allo zoom o dalla palette. Disegnata almeno a 2×, senza hover né pallini animati.
+- **SVG**: scartato per ora. Il grafo è disegnato con `Path2D`, che le librerie di emulazione Canvas→SVG non sanno leggere; servirebbe un secondo renderer.
+- ~~Numero di nodi in Topologia~~: c'era già, nella toolbar.
+
 ## Da valutare dopo
 
 ### Navigazione
@@ -36,8 +43,3 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 - **Statistiche** del repo o del branch: commit per autore, heatmap nel tempo.
 - **`.mailmap`** per unificare gli autori in ricerca e statistiche.
 - **Firme GPG/SSH** come badge nel pannello dettagli.
-
-### Viste
-- **Minimappa nella timeline** (Fase 10, "Non fatto"): adattare `MinimapOverlay` tramite `onFrame`/`goTo`.
-- **Esportazione del grafo visibile** in PNG/SVG.
-- ~~Numero di nodi in Topologia~~: c'è già, nella toolbar.
