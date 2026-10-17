@@ -7,6 +7,8 @@ import { RepoView } from "../features/repo/RepoView";
 import { useOpenRepo } from "../features/repo/useOpenRepo";
 import { useRepoDrop } from "../features/repo/useRepoDrop";
 import { SettingsDialog } from "../features/settings/SettingsDialog";
+import { UpdateDialog } from "../features/updates/UpdateDialog";
+import { useAutoUpdateCheck } from "../features/updates/useAutoUpdateCheck";
 import { useSettings } from "../features/settings/settingsStore";
 import { commands } from "../lib/bindings";
 import { pickRepoFolder } from "../lib/dialog";
@@ -40,6 +42,8 @@ export function App() {
     [mutate, reset, addTab, activate],
   );
   const isDragging = useRepoDrop(openPath);
+
+  useAutoUpdateCheck();
 
   // The tabs open at the last quit come back at launch.
   useEffect(() => {
@@ -160,6 +164,7 @@ export function App() {
       <TitleBar tabs={tabs} activeId={activeId} onActivate={activate} onMove={moveTab} onClose={closeById} onNew={() => void browse()} onPalette={() => openPalette(true)} onSettings={() => openSettings(true)} />
       <CommandPalette />
       <SettingsDialog />
+      <UpdateDialog />
 
       {hasTabs && errorText && (
         <div className={styles.banner} role="alert">

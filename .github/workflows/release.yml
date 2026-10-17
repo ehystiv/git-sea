@@ -124,10 +124,14 @@ jobs:
         working-directory: src-tauri
         run: cargo test
 
+      # The updater artifacts (and `latest.json`, which the app reads to find updates) are signed
+      # with the key in the TAURI_SIGNING_PRIVATE_KEY secret; its public half is in tauri.conf.json.
       - name: Build (and upload to the draft release)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
           args: ${{ matrix.args }}
           releaseId: ${{ needs.create-release.outputs.id }}

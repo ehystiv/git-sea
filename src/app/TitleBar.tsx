@@ -1,4 +1,5 @@
 import { useRef, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { useUpdates } from "../features/updates/updatesStore";
 import { useT } from "../lib/i18n";
 import { modShortcut } from "../lib/platform";
 import { useTheme } from "../lib/theme";
@@ -101,6 +102,9 @@ export function TitleBar({ tabs, activeId, onActivate, onMove, onClose, onNew, o
   const m = useT();
   const themeLabel = m.titlebar.theme[mode];
   const drag = useTabDrag(onMove);
+  const update = useUpdates((s) => s.status);
+  const showUpdate = useUpdates((s) => s.setOpen);
+  const updateVersion = update.kind === "available" || update.kind === "downloading" || update.kind === "installed" ? update.version : null;
   return (
     <header className={styles.titlebar} data-tauri-drag-region>
       <div ref={drag.list} className={styles.tabs} role="tablist" aria-label={m.titlebar.openRepos} onClickCapture={drag.onClickCapture}>
@@ -133,6 +137,14 @@ export function TitleBar({ tabs, activeId, onActivate, onMove, onClose, onNew, o
           </svg>
         </button>
       </div>
+      {updateVersion && (
+        <button type="button" className={styles.update} onClick={() => showUpdate(true)}>
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+          </svg>
+          {m.updates.available(updateVersion)}
+        </button>
+      )}
       <button type="button" className={styles.palette} title={m.titlebar.commandsTitle(modShortcut("K"))} onClick={onPalette}>
         <svg viewBox="0 0 24 24" width="13" height="13" {...stroke}>
           <circle cx="11" cy="11" r="7" />

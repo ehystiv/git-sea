@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { commands } from "../../lib/bindings";
 import { formatBytes } from "../../lib/format";
+import { useAppVersion } from "../updates/UpdateDialog";
+import { useUpdates } from "../updates/updatesStore";
 import { LANGUAGE_CHOICES, useLanguage, useSystemLanguage, useT, type LanguageChoice } from "../../lib/i18n";
 import { useTheme } from "../../lib/theme";
 import { THEME_MODES, type ThemeMode } from "../../lib/themeLogic";
@@ -59,9 +61,54 @@ function Dialog({ onClose }: { onClose: () => void }) {
           <Segmented labelledBy="settings-theme" options={THEME_MODES} value={themeMode} label={(mode) => themeLabel[mode]} onChange={setTheme} />
         </section>
 
+        <UpdatesSection />
+
         <CacheSection />
       </div>
     </div>
+  );
+}
+
+/** The running version, a manual check and whether to check at launch. */
+function UpdatesSection() {
+  const m = useT();
+  const version = useAppVersion();
+  const status = useUpdates((s) => s.status);
+  const check = useUpdates((s) => s.check);
+  const autoCheck = useUpdates((s) => s.autoCheck);
+  const setAutoCheck = useUpdates((s) => s.setAutoCheck);
+  const showUpdate = useUpdates((s) => s.setOpen);
+  const found = status.kind === "available" || status.kind === "downloading" || status.kind === "installed";
+
+  let text: string | null = null;
+  if (status.kind === "checking") text = m.updates.checking;
+  else if (status.kind === "upToDate") text = m.updates.upToDate;
+  else if (status.kind === "error") text = status.during === "check" ? m.updates.checkFailed : m.updates.failed;
+  else if (found) text = m.updates.available(status.version);
+
+  return (
+    <section className={styles.row}>
+      <h3>{m.updates.section}</h3>
+      <div className={styles.cache}>
+        <span title={status.kind === "error" ? status.message : undefined}>
+          {version ? m.updates.version(version) : "…"}
+          {text && <span className={styles.status}> · {text}</span>}
+        </span>
+        {found ? (
+          <button type="button" className={styles.button} onClick={() => showUpdate(true)}>
+            {m.updates.show}
+          </button>
+        ) : (
+          <button type="button" className={styles.button} disabled={status.kind === "checking"} onClick={() => void check()}>
+            {m.updates.checkNow}
+          </button>
+        )}
+      </div>
+      <label className={styles.check}>
+        <input type="checkbox" checked={autoCheck} onChange={(e) => setAutoCheck(e.target.checked)} />
+        {m.updates.autoCheck}
+      </label>
+    </section>
   );
 }
 

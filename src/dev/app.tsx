@@ -103,6 +103,9 @@ function fakeCi(): { overview: CiOverview; runs: CiRunsReport } {
 }
 const ci = fakeCi();
 
+// The updater only runs inside the app; `?updates=1` pretends to be there.
+if (new URLSearchParams(location.search).has("updates")) (window as unknown as Record<string, unknown>).isTauri = true;
+
 (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {
   metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main", windowLabel: "main" } },
   transformCallback: (callback: (message: unknown) => void) => {
@@ -123,6 +126,16 @@ const ci = fakeCi();
       }
       case "list_stashes":
         return [];
+      case "plugin:app|version":
+        return "0.3.0";
+      case "plugin:updater|check":
+        // `?updates=1`: a newer release is out.
+        return new URLSearchParams(location.search).has("updates")
+          ? { rid: 1, currentVersion: "0.3.0", version: "0.4.0", date: "2026-10-20", body: "- Compare two commits\n- Bookmarks\n- Search by date", rawJson: {} }
+          : null;
+      case "plugin:updater|download_and_install":
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return null;
       case "cache_usage":
         return { files: 3, bytes: 24_600_000 };
       case "clear_cache":

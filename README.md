@@ -18,6 +18,7 @@ It takes inspiration from GitKraken, with a denser, modern UI (Linear / Raycast 
 - **On-disk layout cache**, invalidated by an exact fingerprint of the refs.
 - **Keyboard-first**: `j`/`k` next/previous commit, `h`/`l` parent/child, `Enter` toggles details, `g h` goes to HEAD, `⌘O` opens a repo, `⌘W` closes a tab, `⌘1`–`⌘9` switches tabs (Ctrl instead of ⌘ on Linux and Windows).
 - **Light and dark themes**, following the system setting, with sidebar vibrancy on macOS.
+- **Automatic updates**: the app looks for a new release at launch and every few hours, and installs it on request (on Linux, from the AppImage). This can be turned off in Settings.
 - **English and Italian**: the app follows the system language (Italian if the system is in Italian, English otherwise), and both language and theme can be changed in Settings (`⌘,`).
 
 ## Stack
@@ -52,9 +53,13 @@ pnpm tauri dev
 
 ### Build
 
+Release builds also produce signed update archives, so they need the updater's private key (its public half is in `src-tauri/tauri.conf.json`):
+
 ```sh
-pnpm tauri build
+TAURI_SIGNING_PRIVATE_KEY="$HOME/.tauri/git-sea.key" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" pnpm tauri build
 ```
+
+The release workflow reads the same key from the `TAURI_SIGNING_PRIVATE_KEY` secret.
 
 ### Test
 
