@@ -16,6 +16,8 @@ interface SearchBarProps {
   onChange: (value: string) => void;
   onClose: () => void;
   search: SearchState;
+  /** The commit whose ancestors alone are searched, or null for the whole history. */
+  scope: string | null;
   /** The full history, to show the matching commits. */
   index: GraphIndex;
   /** Position of the selected commit among the matches, or null. */
@@ -29,7 +31,7 @@ interface SearchBarProps {
 }
 
 /** Find-in-history bar floating over the canvas, with the matches listed under it. */
-export function SearchBar({ value, onChange, onClose, search, index, current, targets, onStep, onPick, focusSignal }: SearchBarProps) {
+export function SearchBar({ value, onChange, onClose, search, scope, index, current, targets, onStep, onPick, focusSignal }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(true);
@@ -94,6 +96,11 @@ export function SearchBar({ value, onChange, onClose, search, index, current, ta
           spellCheck={false}
           aria-label={m.search.label}
         />
+        {scope !== null && (
+          <span className={styles.scope} title={m.search.scopeTitle(shortHash(scope))}>
+            {m.search.scope(shortHash(scope))}
+          </span>
+        )}
         <span
           className={`${styles.status} ${search.invalid ? styles.invalid : ""}`}
           title={search.invalid ?? search.error ?? (targets !== ids.length ? m.search.inView(targets) : undefined)}

@@ -357,6 +357,8 @@ export const it: Messages = {
     placeholder: "Cerca nei commit…  (author:, msg:, path:, diff:, after:)",
     badDate: (value) => `“${value}” non è una data (2024-05-17, 2024-05, 2s, oggi)`,
     badRegex: "Espressione regolare non valida",
+    scope: (hash) => `in ${hash}`,
+    scopeTitle: (hash) => `Solo tra gli antenati di ${hash} (a lo spegne)`,
     twoBackend: "Un solo termine tra msg:, path: e diff: per volta",
     label: "Cerca nei commit",
     previous: "Risultato precedente",

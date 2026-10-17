@@ -360,6 +360,8 @@ export const en = {
     placeholder: "Search the commits…  (author:, msg:, path:, diff:, after:)",
     badDate: (value: string) => `“${value}” is not a date (2024-05-17, 2024-05, 2w, today)`,
     badRegex: "Invalid regular expression",
+    scope: (hash: string) => `in ${hash}`,
+    scopeTitle: (hash: string) => `Only among the ancestors of ${hash} (a turns it off)`,
     twoBackend: "Only one of msg:, path: and diff: at a time",
     label: "Search the commits",
     previous: "Previous result",

@@ -390,7 +390,28 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   /** The index the current view draws: the compressed one in topology, else the full one. */
   const viewIndex = mode === "topology" ? compressed.index : index;
   const viewVersion = mode === "topology" ? compressed.version : stream.version;
-  const searchIds = searchOpen ? search.ids : null;
+  // With the ancestors on, a search looks only in the history of one commit: the one selected
+  // when the search started or the ancestors were turned on. It stays put while stepping through
+  // the results moves the selection.
+  const searching = searchOpen && searchText.trim() !== "";
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!searching) setAnchorId(selected?.id ?? null);
+  }, [searching, selected]);
+  useEffect(() => {
+    if (ancestors) setAnchorId(selectedIdRef.current);
+  }, [ancestors]);
+  const scopeId = ancestors && searching ? anchorId : null;
+  const scopeMask = useMemo(() => {
+    const at = scopeId === null ? null : index.indexOf(scopeId);
+    return at === null ? null : ancestorMask(index, at);
+  }, [scopeId, index, stream.version]);
+  const searchIds = useMemo(() => {
+    const ids = searchOpen ? search.ids : null;
+    if (!ids || !scopeMask) return ids;
+    return ids.filter((id) => scopeMask[index.indexOf(id) ?? -1] === 1);
+  }, [searchOpen, search.ids, scopeMask, index]);
+  const scopedSearch = useMemo(() => ({ ...search, ids: searchIds }), [search, searchIds]);
 
   // Stepping goes from place to place in the view: matches hidden in one compressed node count once.
   const targets = useMemo(() => {
@@ -438,7 +459,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
 
   const emphasis = useMemo((): Emphasis | null => {
     if (mode === "list") return null;
-    if (searchIds && searchIds.length > 0) return matchEmphasis(viewIndex, searchIds);
+    // A scoped search keeps the commit it looks under lit, as a landmark.
+    if (searchIds && searchIds.length > 0) return matchEmphasis(viewIndex, scopeMask && scopeId !== null ? [...searchIds, scopeId] : searchIds);
     if (range && rangeA !== null && rangeB !== null) {
       const lit = divergenceEmphasis(index, viewIndex, range, [rangeA, rangeB]);
       return mode === "timeline" ? { nodes: lit.nodes, edges: null, edgeStart: null } : lit;
@@ -448,7 +470,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     if (at === null) return null;
     // The timeline draws its own links between commits, so it only needs the commits.
     return mode === "timeline" ? { nodes: ancestorMask(viewIndex, at), edges: null, edgeStart: null } : ancestorEmphasis(viewIndex, at);
-  }, [mode, searchIds, range, rangeA, rangeB, index, ancestors, selectedId, viewIndex, viewVersion]);
+  }, [mode, searchIds, scopeMask, scopeId, range, rangeA, rangeB, index, ancestors, selectedId, viewIndex, viewVersion]);
 
   const listCommits = useMemo(() => {
     if (!searchIds) return index.commits;
@@ -788,7 +810,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               value={searchText}
               onChange={setSearchText}
               onClose={closeSearch}
-              search={search}
+              search={scopedSearch}
+              scope={scopeMask && scopeId !== null ? scopeId : null}
               index={index}
               current={currentMatch}
               targets={targets.length}
