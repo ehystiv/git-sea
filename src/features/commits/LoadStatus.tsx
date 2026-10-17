@@ -18,7 +18,7 @@ export function LoadStatus({
   fetch: FetchState | null;
   onFetchNow: () => void;
 }) {
-  const { index, status, maxLanes, refreshing, error } = stream;
+  const { index, status, refreshing, error } = stream;
   const m = useT();
 
   return (
@@ -26,7 +26,6 @@ export function LoadStatus({
       <span className={styles.count}>{m.status.commits(formatCount(index.length))}</span>
       {status === "loading" && <span>{m.status.loading}</span>}
       {refreshing && <span>{m.status.refreshing}</span>}
-      {maxLanes !== null && <span>{m.status.branches(maxLanes)}</span>}
       {fetch?.hasRemotes && <FetchInfo fetch={fetch} onFetchNow={onFetchNow} />}
       {selected && (
         <span className={styles.selected}>

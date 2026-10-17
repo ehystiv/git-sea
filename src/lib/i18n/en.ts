@@ -373,7 +373,6 @@ export const en = {
     commits: (n: string) => `${n} commits`,
     loading: "Loading…",
     refreshing: "Refreshing…",
-    branches: (n: number) => (n === 1 ? "1 branch" : `${n} branches`),
     fetching: "Updating from the remote…",
     fetchFailed: "Updating from the remote failed",
     notFetched: "Remote not updated yet",

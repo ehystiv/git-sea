@@ -370,7 +370,6 @@ export const it: Messages = {
     commits: (n) => `${n} commit`,
     loading: "Caricamento…",
     refreshing: "Aggiornamento…",
-    branches: (n) => `${n} branch`,
     fetching: "Aggiorno dal remoto…",
     fetchFailed: "Aggiornamento dal remoto non riuscito",
     notFetched: "Remoto non ancora aggiornato",
