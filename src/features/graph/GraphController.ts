@@ -168,14 +168,20 @@ export class GraphController {
   resize(width: number, height: number, dpr: number): void {
     // A hidden canvas reports no size; keep the last real one and the view as it is.
     if (width === 0 || height === 0) return;
+    const pixelWidth = Math.round(width * dpr);
+    const pixelHeight = Math.round(height * dpr);
+    if (width === this.width && height === this.height && pixelWidth === this.canvas.width && pixelHeight === this.canvas.height) return;
     this.width = width;
     this.height = height;
     this.dpr = dpr;
-    this.canvas.width = Math.round(width * dpr);
-    this.canvas.height = Math.round(height * dpr);
+    // Resizing a canvas clears it: it is drawn again right away, before the browser shows the
+    // frame, or every step of a resize (dragging the sidebar) would flash an empty canvas.
+    this.canvas.width = pixelWidth;
+    this.canvas.height = pixelHeight;
     this.flowOverlay?.resize(width, height, dpr);
     if (this.placed) this.view = clampView(this.view, width, height, this.index);
-    this.requestDraw();
+    this.dirty = true;
+    this.step(performance.now());
   }
 
   /**

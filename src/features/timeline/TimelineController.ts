@@ -133,15 +133,20 @@ export class TimelineController {
 
   resize(width: number, height: number, dpr: number): void {
     if (width === 0 || height === 0) return;
+    const pixelWidth = Math.round(width * dpr);
+    const pixelHeight = Math.round(height * dpr);
+    if (width === this.width && height === this.height && pixelWidth === this.canvas.width && pixelHeight === this.canvas.height) return;
     this.width = width;
     this.height = height;
     this.dpr = dpr;
-    this.canvas.width = Math.round(width * dpr);
-    this.canvas.height = Math.round(height * dpr);
+    // Resizing a canvas clears it: it is drawn again right away (see GraphController.resize).
+    this.canvas.width = pixelWidth;
+    this.canvas.height = pixelHeight;
     this.flowOverlay?.resize(width, height, dpr);
     const data = this.currentData();
     if (this.placed && data.count > 0) this.view = this.clamp(this.view);
-    this.requestDraw();
+    this.needsDraw = true;
+    this.step(performance.now());
   }
 
   /** Call after the index changed (new chunk, refs, reset). */
