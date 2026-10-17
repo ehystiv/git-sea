@@ -60,6 +60,10 @@ Outside Tauri, `getCurrentWebview()` throws synchronously, so calls to it are wr
 
 macOS is the main target; Linux and Windows are built and released too. Platform differences live in a few places: `src-tauri/tauri.linux.conf.json` and `tauri.windows.conf.json` (opaque window with system decorations instead of the transparent overlay title bar), `#[cfg(target_os = ...)]` in `lib.rs` (vibrancy, native menu) and `ci/auth.rs` (Keychain on macOS, Secret Service on Linux, Credential Manager on Windows), `src-tauri/src/process.rs` (finding and running `git`/`gh`/`glab` and the browser; always go through it so programs get `.exe` and no console window on Windows), and `src/lib/platform.ts` on the frontend (`hasModKey`/`modShortcut` for ⌘ vs Ctrl, `data-platform` on `<html>` for the CSS). Use those helpers for new shortcuts instead of checking `metaKey`. `.github/workflows/ci.yml` runs lint and tests on all three platforms. `act` (see `.actrc`) can run the Ubuntu jobs locally; it cannot run the macOS or Windows ones.
 
+## Languages
+
+The UI is in English and Italian. Every user-visible text goes through `src/lib/i18n/`: `en.ts` is the reference (its type is `Messages`) and `it.ts` must have the same keys, which `tsc` and `messages.test.ts` check. Components read texts with `useT()` (named `m` by convention, since `t` is often a loop variable); code outside React, like canvas tooltips and pure helpers, uses `t()` or takes `m: Messages = t()` as its last parameter so tests can pass a language. Dates and numbers go through the helpers in `lib/format.ts` (`formatDateTime`, `formatAgo`, `formatCount`, `dateFormatter`), which follow the UI locale. The choice ("system", "en", "it") is persisted; "system" uses the locale the backend reads with `sys-locale`. The backend's own texts (native menu, CI and fetch messages) use `i18n::tr(en, it)` in `src-tauri/src/i18n.rs`; the frontend keeps it in step with the `set_language` command, which also rebuilds the menu.
+
 ## Conventions (from PLAN.md)
 
 - Rust: errors are typed with `thiserror` (`AppError` in `error.rs`), and there is no `unwrap()` outside tests.

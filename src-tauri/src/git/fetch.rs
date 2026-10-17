@@ -114,7 +114,7 @@ fn now_ms() -> f64 {
 
 /// `git fetch --all` in `dir`. The error is what git said, or why it could not run.
 pub fn fetch(dir: &Path) -> Result<(), String> {
-    let git = find_git().ok_or_else(|| "git non trovato".to_owned())?;
+    let git = find_git().ok_or_else(|| crate::i18n::tr("git not found", "git non trovato"))?;
     let mut child = crate::process::command(git)
         .arg("-C")
         .arg(dir)
@@ -137,7 +137,7 @@ pub fn fetch(dir: &Path) -> Result<(), String> {
         if started.elapsed() > TIMEOUT {
             let _ = child.kill();
             let _ = child.wait();
-            return Err("tempo scaduto".to_owned());
+            return Err(crate::i18n::tr("timed out", "tempo scaduto"));
         }
         thread::sleep(Duration::from_millis(200));
     };
@@ -149,13 +149,11 @@ pub fn fetch(dir: &Path) -> Result<(), String> {
         let _ = std::io::Read::read_to_string(&mut pipe, &mut stderr);
     }
     // git ends with the line that matters ("fatal: Could not read from remote repository.").
-    Err(stderr
-        .lines()
-        .rev()
-        .find(|l| !l.trim().is_empty())
-        .unwrap_or("git fetch non riuscito")
-        .trim()
-        .to_owned())
+    let last = stderr.lines().rev().find(|l| !l.trim().is_empty());
+    Err(last.map_or_else(
+        || crate::i18n::tr("git fetch failed", "git fetch non riuscito"),
+        |line| line.trim().to_owned(),
+    ))
 }
 
 /// The `git` to run. On macOS `/usr/bin/git` is only a stub until the developer tools are

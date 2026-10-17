@@ -1,3 +1,4 @@
+import { useT } from "../lib/i18n";
 import { modShortcut } from "../lib/platform";
 import { useTheme } from "../lib/theme";
 import type { ThemeMode } from "../lib/themeLogic";
@@ -11,9 +12,9 @@ interface TitleBarProps {
   onClose: (id: string) => void;
   onNew: () => void;
   onPalette: () => void;
+  onSettings: () => void;
 }
 
-const THEME_LABEL: Record<ThemeMode, string> = { system: "Tema: sistema", light: "Tema: chiaro", dark: "Tema: scuro" };
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 
 function ThemeIcon({ mode }: { mode: ThemeMode }) {
@@ -40,12 +41,14 @@ function ThemeIcon({ mode }: { mode: ThemeMode }) {
  * Overlay title bar: the macOS traffic lights float over the reserved left padding and the empty
  * space is a drag region. Tabs and buttons are the only interactive parts.
  */
-export function TitleBar({ tabs, activeId, onActivate, onClose, onNew, onPalette }: TitleBarProps) {
+export function TitleBar({ tabs, activeId, onActivate, onClose, onNew, onPalette, onSettings }: TitleBarProps) {
   const mode = useTheme((s) => s.mode);
   const cycleTheme = useTheme((s) => s.cycle);
+  const m = useT();
+  const themeLabel = m.titlebar.theme[mode];
   return (
     <header className={styles.titlebar} data-tauri-drag-region>
-      <div className={styles.tabs} role="tablist" aria-label="Repository aperti">
+      <div className={styles.tabs} role="tablist" aria-label={m.titlebar.openRepos}>
         {tabs.map((tab, i) => (
           <div key={tab.id} className={`${styles.tab} ${tab.id === activeId ? styles.active : ""}`}>
             <button
@@ -59,27 +62,33 @@ export function TitleBar({ tabs, activeId, onActivate, onClose, onNew, onPalette
               <span className={styles.dot} style={{ background: `var(--b${tab.color})` }} />
               <span className={styles.name}>{tab.repo.name}</span>
             </button>
-            <button type="button" className={styles.close} aria-label={`Chiudi ${tab.repo.name}`} title={`Chiudi (${modShortcut("W")})`} onClick={() => onClose(tab.id)}>
+            <button type="button" className={styles.close} aria-label={m.titlebar.closeRepo(tab.repo.name)} title={m.titlebar.close(modShortcut("W"))} onClick={() => onClose(tab.id)}>
               ×
             </button>
           </div>
         ))}
-        <button type="button" className={styles.add} aria-label="Apri repository" title={`Apri repository (${modShortcut("O")})`} onClick={onNew}>
+        <button type="button" className={styles.add} aria-label={m.titlebar.openRepo} title={m.titlebar.openRepoTitle(modShortcut("O"))} onClick={onNew}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M5 12h14M12 5v14" />
           </svg>
         </button>
       </div>
-      <button type="button" className={styles.palette} title={`Comandi (${modShortcut("K")})`} onClick={onPalette}>
+      <button type="button" className={styles.palette} title={m.titlebar.commandsTitle(modShortcut("K"))} onClick={onPalette}>
         <svg viewBox="0 0 24 24" width="13" height="13" {...stroke}>
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-3.5-3.5" />
         </svg>
-        <span>Comandi</span>
+        <span>{m.titlebar.commands}</span>
         <kbd>{modShortcut("K")}</kbd>
       </button>
-      <button type="button" className={styles.theme} aria-label={THEME_LABEL[mode]} title={`${THEME_LABEL[mode]} (clic per cambiare)`} onClick={cycleTheme}>
+      <button type="button" className={styles.theme} aria-label={themeLabel} title={m.titlebar.themeTitle(themeLabel)} onClick={cycleTheme}>
         <ThemeIcon mode={mode} />
+      </button>
+      <button type="button" className={styles.theme} aria-label={m.titlebar.settings} title={m.titlebar.settingsTitle(modShortcut(","))} onClick={onSettings}>
+        <svg viewBox="0 0 24 24" width="14" height="14" {...stroke}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
       </button>
     </header>
   );

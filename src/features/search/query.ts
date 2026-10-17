@@ -1,4 +1,5 @@
 import type { CommitSummary } from "../../lib/bindings";
+import { t, type Messages } from "../../lib/i18n";
 
 /**
  * What a search looks at. `text` (no prefix) matches the subject, the author or the start of the
@@ -24,13 +25,15 @@ const PREFIXES: Record<string, SearchMode> = {
 };
 
 /** Help shown under the search field, one line per prefix. */
-export const SEARCH_HELP: Array<{ prefix: string; meaning: string }> = [
-  { prefix: "", meaning: "oggetto, autore o inizio dell'hash" },
-  { prefix: "author:", meaning: "solo l'autore" },
-  { prefix: "hash:", meaning: "solo l'hash" },
-  { prefix: "msg:", meaning: "tutto il messaggio, corpo compreso" },
-  { prefix: "path:", meaning: "commit che hanno cambiato un file o una cartella" },
-];
+export function searchHelp(m: Messages = t()): Array<{ prefix: string; meaning: string }> {
+  return [
+    { prefix: "", meaning: m.search.help.text },
+    { prefix: "author:", meaning: m.search.help.author },
+    { prefix: "hash:", meaning: m.search.help.hash },
+    { prefix: "msg:", meaning: m.search.help.msg },
+    { prefix: "path:", meaning: m.search.help.path },
+  ];
+}
 
 /** Reads `author:anna`, `path: src/lib`, or plain words. Null when there is nothing to look for. */
 export function parseQuery(raw: string): SearchQuery | null {

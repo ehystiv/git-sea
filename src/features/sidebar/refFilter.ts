@@ -1,4 +1,5 @@
 import type { RefFilter, RefKind } from "../../lib/bindings";
+import { t, type Messages } from "../../lib/i18n";
 
 /** Anything naming a ref: a filter entry or a label from the backend. */
 interface NamedRef {
@@ -40,10 +41,10 @@ export function pruneFilter(filter: RefFilter[] | null, existing: Iterable<Named
 }
 
 /** "main", "main, dev" or "main e altri 2", for the toolbar. */
-export function describeFilter(filter: readonly RefFilter[]): string {
+export function describeFilter(filter: readonly RefFilter[], m: Messages = t()): string {
   const [first, second] = filter;
   if (!first) return "";
   if (filter.length === 1) return first.name;
   if (filter.length === 2 && second) return `${first.name}, ${second.name}`;
-  return `${first.name} e altri ${filter.length - 1}`;
+  return m.filter.andMore(first.name, filter.length - 1);
 }

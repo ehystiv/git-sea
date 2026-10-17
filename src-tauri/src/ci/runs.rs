@@ -99,7 +99,10 @@ pub fn fetch_runs(providers: &[CiProvider], remote: Option<&RemoteRepo>) -> CiRu
         let (access, runs) = match remote {
             None => (
                 CiAccess::Unavailable {
-                    message: "Il repository non ha un remote".to_owned(),
+                    message: crate::i18n::tr(
+                        "The repository has no remote",
+                        "Il repository non ha un remote",
+                    ),
                 },
                 Vec::new(),
             ),
@@ -116,10 +119,10 @@ pub fn fetch_runs(providers: &[CiProvider], remote: Option<&RemoteRepo>) -> CiRu
     report
 }
 
-fn unavailable(message: &str) -> (CiAccess, Vec<CiRun>) {
+fn unavailable(en: &str, it: &str) -> (CiAccess, Vec<CiRun>) {
     (
         CiAccess::Unavailable {
-            message: message.to_owned(),
+            message: crate::i18n::tr(en, it),
         },
         Vec::new(),
     )
@@ -134,22 +137,31 @@ fn provider_runs(
         CiProvider::GitHub if remote.is_github() => {
             with_token(provider, &remote.host, |token| github(agent, remote, token))
         }
-        CiProvider::GitHub => unavailable("Il remote non è su GitHub"),
+        CiProvider::GitHub => {
+            unavailable("The remote is not on GitHub", "Il remote non è su GitHub")
+        }
         CiProvider::GitLab if remote.is_gitlab() => {
             with_token(provider, &remote.host, |token| gitlab(agent, remote, token))
         }
-        CiProvider::GitLab => unavailable("Il remote non è su un server GitLab riconoscibile"),
+        CiProvider::GitLab => unavailable(
+            "The remote is not on a recognizable GitLab server",
+            "Il remote non è su un server GitLab riconoscibile",
+        ),
         CiProvider::CircleCi if remote.is_github() || remote.is_bitbucket() => {
             with_token(provider, &remote.host, |token| {
                 circleci(agent, remote, token)
             })
         }
-        CiProvider::CircleCi => unavailable("CircleCI legge solo progetti su GitHub o Bitbucket"),
+        CiProvider::CircleCi => unavailable(
+            "CircleCI only reads projects on GitHub or Bitbucket",
+            "CircleCI legge solo progetti su GitHub o Bitbucket",
+        ),
         CiProvider::Azure => match remote.azure() {
             Some(project) => with_token(provider, &remote.host, |token| {
                 azure(agent, &project, token)
             }),
             None => unavailable(
+                "The remote is not on Azure Repos: the organization and project cannot be worked out",
                 "Il remote non è su Azure Repos: organizzazione e progetto non si possono dedurre",
             ),
         },
@@ -158,12 +170,21 @@ fn provider_runs(
                 bitbucket(agent, remote, token)
             })
         }
-        CiProvider::Bitbucket => unavailable("Il remote non è su Bitbucket"),
+        CiProvider::Bitbucket => unavailable(
+            "The remote is not on Bitbucket",
+            "Il remote non è su Bitbucket",
+        ),
         CiProvider::Travis if remote.is_github() => {
             with_token(provider, &remote.host, |token| travis(agent, remote, token))
         }
-        CiProvider::Travis => unavailable("Travis CI legge solo progetti su GitHub"),
-        CiProvider::Jenkins => unavailable("Il server Jenkins non si può dedurre dal repository"),
+        CiProvider::Travis => unavailable(
+            "Travis CI only reads projects on GitHub",
+            "Travis CI legge solo progetti su GitHub",
+        ),
+        CiProvider::Jenkins => unavailable(
+            "The Jenkins server cannot be worked out from the repository",
+            "Il server Jenkins non si può dedurre dal repository",
+        ),
     }
 }
 
@@ -188,16 +209,17 @@ fn with_token(
         // Private projects answer "not found" to whoever cannot see them.
         Err(HttpError::Unauthorized | HttpError::NotFound) => {
             let message = if token.is_some() {
-                "Il token non è valido o non può leggere questo progetto"
+                crate::i18n::tr(
+                    "The token is not valid or cannot read this project",
+                    "Il token non è valido o non può leggere questo progetto",
+                )
             } else {
-                "Serve un token per leggere le run di questo progetto"
+                crate::i18n::tr(
+                    "A token is needed to read this project's runs",
+                    "Serve un token per leggere le run di questo progetto",
+                )
             };
-            (
-                CiAccess::NeedsToken {
-                    message: message.to_owned(),
-                },
-                Vec::new(),
-            )
+            (CiAccess::NeedsToken { message }, Vec::new())
         }
         Err(HttpError::Other(message)) => (CiAccess::Failed { message }, Vec::new()),
     }

@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { CommitSummary } from "../../lib/bindings";
+import { useT } from "../../lib/i18n";
 import { useWindowFocused } from "../../lib/windowFocus";
 import { GraphController, type Unseen } from "./GraphController";
 import type { CiScene } from "./ciDraw";
@@ -59,6 +60,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   { index, version, initialSelectedId, active, flow, emphasis, onSelect, onExpandGroup, onCollapseGroup, worktree, onOpenWorktree, ci, onOpenCi, insetRight, sea },
   ref,
 ) {
+  const m = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const seaCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -234,13 +236,13 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         className={minimapStyles.minimap}
         style={{ width: MINIMAP_W, height: MINIMAP_H }}
         role="img"
-        aria-label="Minimappa"
-        title="Minimappa: clic o trascina per spostarti"
+        aria-label={m.graph.minimap}
+        title={m.graph.minimapTitle}
       />
       {unseen && (
         <button type="button" className={styles.unseen} onClick={() => controllerRef.current?.showUnseen()}>
           {unseen.side === "left" && <span aria-hidden="true">←</span>}
-          {unseen.count} {unseen.count === 1 ? "nuovo commit" : "nuovi commit"}
+          {m.graph.newCommits(unseen.count)}
           {unseen.side !== "left" && <span aria-hidden="true">{ARROW[unseen.side]}</span>}
         </button>
       )}

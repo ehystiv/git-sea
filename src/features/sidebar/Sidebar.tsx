@@ -3,6 +3,7 @@ import type { CiProvider, RefFilter } from "../../lib/bindings";
 import { CiSection } from "../ci/CiSection";
 import type { CiState } from "../ci/useCi";
 import type { GraphIndex } from "../graph/GraphIndex";
+import { useT } from "../../lib/i18n";
 import { inFilter } from "./refFilter";
 import { buildSections, type SidebarItem } from "./sections";
 import { useStashes } from "./useStashes";
@@ -48,11 +49,12 @@ export function Sidebar({
   onTokenFor,
 }: SidebarProps) {
   const stashes = useStashes(sessionId);
+  const m = useT();
   const [filter, setFilter] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 
   // `version` is what tells us the (mutable) index changed.
-  const sections = useMemo(() => buildSections(index.refs.values(), stashes.data ?? [], filter), [index, version, stashes.data, filter]);
+  const sections = useMemo(() => buildSections(index.refs.values(), stashes.data ?? [], filter, m), [index, version, stashes.data, filter, m]);
 
   function toggle(id: string) {
     setCollapsed((prev) => {
@@ -63,16 +65,16 @@ export function Sidebar({
   }
 
   return (
-    <nav className={styles.sidebar} aria-label="Riferimenti">
+    <nav className={styles.sidebar} aria-label={m.sidebar.label}>
       <div className={styles.search}>
         <svg viewBox="0 0 24 24" width="13" height="13" {...icon}>
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.3-4.3" />
         </svg>
-        <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtra…" spellCheck={false} aria-label="Filtra i riferimenti" />
+        <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={m.sidebar.filter} spellCheck={false} aria-label={m.sidebar.filterLabel} />
       </div>
 
-      {sections.length === 0 && !ci.overview?.workflows.length && <p className={styles.none}>{filter ? "Nessun risultato." : "Nessun riferimento."}</p>}
+      {sections.length === 0 && !ci.overview?.workflows.length && <p className={styles.none}>{filter ? m.sidebar.noResults : m.sidebar.noRefs}</p>}
 
       {sections.map((section) => {
         const open = !collapsed.has(section.id);
@@ -94,7 +96,7 @@ export function Sidebar({
                   const color = at === null ? null : index.rows[at]?.color;
                   const ref = item.ref;
                   const filtered = ref !== undefined && inFilter(branchFilter, ref);
-                  const missing = branchFilter !== null ? "Fuori dal filtro dei branch" : "Commit non ancora caricato";
+                  const missing = branchFilter !== null ? m.sidebar.outsideFilter : m.sidebar.notLoaded;
                   return (
                     <li key={item.key} className={styles.row}>
                       <button
@@ -118,8 +120,8 @@ export function Sidebar({
                           type="button"
                           className={`${styles.filter} ${filtered ? styles.on : ""}`}
                           aria-pressed={filtered}
-                          aria-label={filtered ? `Togli ${ref.name} dal filtro` : `Mostra solo ${ref.name}`}
-                          title={filtered ? "Togli dal filtro" : branchFilter ? "Aggiungi al filtro" : "Mostra solo questo"}
+                          aria-label={filtered ? m.sidebar.removeFromFilterLabel(ref.name) : m.sidebar.showOnlyLabel(ref.name)}
+                          title={filtered ? m.sidebar.removeFromFilter : branchFilter ? m.sidebar.addToFilter : m.sidebar.showOnlyThis}
                           onClick={() => onToggleFilter(ref)}
                         >
                           <svg viewBox="0 0 24 24" width="11" height="11" {...icon} fill={filtered ? "currentColor" : "none"}>

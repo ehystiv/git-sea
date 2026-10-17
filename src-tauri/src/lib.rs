@@ -4,6 +4,7 @@ pub mod commands;
 pub mod error;
 pub mod git;
 pub mod graph;
+pub mod i18n;
 pub mod process;
 pub mod session;
 pub mod watcher;
@@ -28,68 +29,80 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::ci_overview,
         commands::ci_runs,
         commands::ci_set_token,
-        commands::open_url
+        commands::open_url,
+        commands::system_locale,
+        commands::set_language
     ])
 }
 
 /// Event the native menu sends to the frontend; the payload is the id of the menu item.
 const MENU_EVENT: &str = "menu";
 
-/// The native menus, with "Open" and "Close Tab" in the File menu. The default menu binds
-/// ⌘W to "Close Window", which would close the app instead of the current tab.
-fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
-    let open = MenuItemBuilder::with_id("open_repo", "Apri repository…")
+/// The native menus, in the current language (see `i18n`), with "Open" and "Close Tab" in the
+/// File menu. The default menu binds ⌘W to "Close Window", which would close the app instead of
+/// the current tab. Rebuilt by the `set_language` command.
+pub(crate) fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
+    use i18n::tr;
+
+    let open = MenuItemBuilder::with_id("open_repo", tr("Open Repository…", "Apri repository…"))
         .accelerator("CmdOrCtrl+O")
         .build(app)?;
-    let close = MenuItemBuilder::with_id("close_tab", "Chiudi tab")
+    let close = MenuItemBuilder::with_id("close_tab", tr("Close Tab", "Chiudi tab"))
         .accelerator("CmdOrCtrl+W")
+        .build(app)?;
+    let settings = MenuItemBuilder::with_id("settings", tr("Settings…", "Impostazioni…"))
+        .accelerator("CmdOrCtrl+,")
         .build(app)?;
 
     #[cfg(target_os = "macos")]
     {
         let app_menu = SubmenuBuilder::new(app, "git-sea")
-            .about(None)
+            .about_with_text(tr("About git-sea", "Informazioni su git-sea"), None)
             .separator()
-            .services()
+            .item(&settings)
             .separator()
-            .hide()
-            .hide_others()
-            .show_all()
+            .services_with_text(tr("Services", "Servizi"))
             .separator()
-            .quit()
+            .hide_with_text(tr("Hide git-sea", "Nascondi git-sea"))
+            .hide_others_with_text(tr("Hide Others", "Nascondi altre"))
+            .show_all_with_text(tr("Show All", "Mostra tutte"))
+            .separator()
+            .quit_with_text(tr("Quit git-sea", "Esci da git-sea"))
             .build()?;
         let file_menu = SubmenuBuilder::new(app, "File")
             .item(&open)
             .item(&close)
             .build()?;
         // Without an Edit menu, ⌘C / ⌘V / ⌘A do not work in text fields on macOS.
-        let edit_menu = SubmenuBuilder::new(app, "Modifica")
-            .undo()
-            .redo()
+        let edit_menu = SubmenuBuilder::new(app, tr("Edit", "Modifica"))
+            .undo_with_text(tr("Undo", "Annulla"))
+            .redo_with_text(tr("Redo", "Ripeti"))
             .separator()
-            .cut()
-            .copy()
-            .paste()
-            .select_all()
+            .cut_with_text(tr("Cut", "Taglia"))
+            .copy_with_text(tr("Copy", "Copia"))
+            .paste_with_text(tr("Paste", "Incolla"))
+            .select_all_with_text(tr("Select All", "Seleziona tutto"))
             .build()?;
-        let window_menu = SubmenuBuilder::new(app, "Finestra")
-            .minimize()
-            .maximize()
-            .fullscreen()
+        let window_menu = SubmenuBuilder::new(app, tr("Window", "Finestra"))
+            .minimize_with_text(tr("Minimize", "Riduci a icona"))
+            .maximize_with_text(tr("Zoom", "Ridimensiona"))
+            .fullscreen_with_text(tr("Enter Full Screen", "Entra in modalità a tutto schermo"))
             .build()?;
 
         Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu, &window_menu])
     }
 
-    // Elsewhere the menu bar sits inside the window: only File, with Quit. Text fields handle
-    // Ctrl+C / Ctrl+V on their own, and the window manager has its own window controls.
+    // Elsewhere the menu bar sits inside the window: only File, with Settings and Quit. Text
+    // fields handle Ctrl+C / Ctrl+V on their own, and the window manager has its own controls.
     #[cfg(not(target_os = "macos"))]
     {
         let file_menu = SubmenuBuilder::new(app, "File")
             .item(&open)
             .item(&close)
             .separator()
-            .quit()
+            .item(&settings)
+            .separator()
+            .quit_with_text(tr("Quit", "Esci"))
             .build()?;
 
         Menu::with_items(app, &[&file_menu])

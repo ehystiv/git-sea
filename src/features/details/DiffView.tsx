@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ThemedToken } from "shiki/core";
 import type { DiffLine, FileDiff } from "../../lib/bindings";
+import { formatCount } from "../../lib/format";
+import { useT } from "../../lib/i18n";
 import { hunkHeader, limitHunks, splitRows, totalLines } from "./diffModel";
 import { highlightHunks, type HunkTokens } from "./highlight";
 import styles from "./DiffView.module.css";
@@ -34,6 +36,7 @@ function Code({ text, tokens }: { text: string; tokens?: ThemedToken[] }) {
 const SIGN: Record<DiffLine["kind"], string> = { Context: " ", Add: "+", Del: "−" };
 
 export function DiffView({ diff, mode }: { diff: FileDiff; mode: DiffMode }) {
+  const m = useT();
   const [showAll, setShowAll] = useState(false);
   const [tokens, setTokens] = useState<HunkTokens | null>(null);
 
@@ -88,10 +91,10 @@ export function DiffView({ diff, mode }: { diff: FileDiff; mode: DiffMode }) {
         <div className={styles.more}>
           {!showAll && total > INITIAL_LINES ? (
             <button type="button" onClick={() => setShowAll(true)}>
-              Mostra tutte le {total.toLocaleString("it-IT")} righe
+              {m.diff.showAll(formatCount(total))}
             </button>
           ) : (
-            <span>Differenze troncate: file molto lungo.</span>
+            <span>{m.diff.truncated}</span>
           )}
         </div>
       )}

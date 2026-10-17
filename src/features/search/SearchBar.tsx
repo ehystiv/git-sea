@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Kbd } from "../../components/Kbd/Kbd";
-import { formatRelative, shortHash } from "../../lib/format";
+import { formatCount, formatRelative, shortHash } from "../../lib/format";
+import { useT } from "../../lib/i18n";
 import type { GraphIndex } from "../graph/GraphIndex";
-import { SEARCH_HELP } from "./query";
+import { searchHelp } from "./query";
 import type { SearchState } from "./useSearch";
 import styles from "./SearchBar.module.css";
 
@@ -32,6 +33,7 @@ export function SearchBar({ value, onChange, onClose, search, index, current, ta
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(true);
+  const m = useT();
   const [now] = useState(() => Date.now());
   const ids = search.ids ?? [];
 
@@ -54,12 +56,12 @@ export function SearchBar({ value, onChange, onClose, search, index, current, ta
 
   let status: string;
   if (search.query === null) status = "";
-  else if (search.error) status = "Errore";
-  else if (search.ids === null) status = "Cerco…";
-  else if (ids.length === 0) status = search.pending ? "Cerco…" : "Nessun risultato";
+  else if (search.error) status = m.search.error;
+  else if (search.ids === null) status = m.search.searching;
+  else if (ids.length === 0) status = search.pending ? m.search.searching : m.search.noResults;
   else {
-    const total = `${ids.length.toLocaleString("it-IT")}${search.truncated ? "+" : ""}`;
-    status = current === null ? `${total} risultati` : `${(current + 1).toLocaleString("it-IT")} di ${total}`;
+    const total = `${formatCount(ids.length)}${search.truncated ? "+" : ""}`;
+    status = current === null ? m.search.results(total) : m.search.position(formatCount(current + 1), total);
   }
 
   const showList = focused && ids.length > 0;
@@ -87,33 +89,33 @@ export function SearchBar({ value, onChange, onClose, search, index, current, ta
               onStep(e.shiftKey || e.key === "ArrowUp" ? -1 : 1);
             }
           }}
-          placeholder="Cerca nei commit…  (author:, hash:, msg:, path:)"
+          placeholder={m.search.placeholder}
           spellCheck={false}
-          aria-label="Cerca nei commit"
+          aria-label={m.search.label}
         />
-        <span className={styles.status} title={search.error ?? (targets !== ids.length ? `${targets} posizioni nella vista` : undefined)}>
+        <span className={styles.status} title={search.error ?? (targets !== ids.length ? m.search.inView(targets) : undefined)}>
           {status}
         </span>
-        <button type="button" className={styles.icon} aria-label="Risultato precedente" title="Precedente (⇧↩)" disabled={ids.length === 0} onClick={() => onStep(-1)}>
+        <button type="button" className={styles.icon} aria-label={m.search.previous} title={m.search.previousTitle} disabled={ids.length === 0} onClick={() => onStep(-1)}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m18 15-6-6-6 6" />
           </svg>
         </button>
-        <button type="button" className={styles.icon} aria-label="Risultato successivo" title="Successivo (↩)" disabled={ids.length === 0} onClick={() => onStep(1)}>
+        <button type="button" className={styles.icon} aria-label={m.search.next} title={m.search.nextTitle} disabled={ids.length === 0} onClick={() => onStep(1)}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m6 9 6 6 6-6" />
           </svg>
         </button>
-        <button type="button" className={styles.icon} aria-label="Chiudi la ricerca" title="Chiudi (esc)" onClick={onClose}>
+        <button type="button" className={styles.icon} aria-label={m.search.close} title={m.search.closeTitle} onClick={onClose}>
           ×
         </button>
       </div>
 
       {showHelp && (
         <ul className={styles.help}>
-          {SEARCH_HELP.map(({ prefix, meaning }) => (
+          {searchHelp(m).map(({ prefix, meaning }) => (
             <li key={prefix || "text"}>
-              {prefix ? <Kbd>{prefix}</Kbd> : <span className={styles.plain}>testo</span>}
+              {prefix ? <Kbd>{prefix}</Kbd> : <span className={styles.plain}>{m.search.text}</span>}
               <span>{meaning}</span>
             </li>
           ))}

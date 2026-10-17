@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { en } from "../../lib/i18n/en";
+import { it as itMessages } from "../../lib/i18n/it";
 import { describeFilter, inFilter, pruneFilter, sameRef, toggleRef } from "./refFilter";
 
 describe("sameRef", () => {
@@ -49,12 +51,12 @@ describe("describeFilter", () => {
         { kind: "Tag", name: "v1" },
       ]),
     ).toBe("main, v1");
-    expect(
-      describeFilter([
-        { kind: "Branch", name: "main" },
-        { kind: "Tag", name: "v1" },
-        { kind: "Tag", name: "v2" },
-      ]),
-    ).toBe("main e altri 2");
+    const three = [
+      { kind: "Branch", name: "main" },
+      { kind: "Tag", name: "v1" },
+      { kind: "Tag", name: "v2" },
+    ] as const;
+    expect(describeFilter(three, en)).toBe("main and 2 more");
+    expect(describeFilter(three, itMessages)).toBe("main e altri 2");
   });
 });

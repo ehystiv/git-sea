@@ -1,6 +1,7 @@
 import type { CiOverview, CiRun, CiRunStatus, CiWorkflow } from "../../lib/bindings";
+import { t, type Messages } from "../../lib/i18n";
 import type { GraphIndex } from "../graph/GraphIndex";
-import { STATUS_LABEL } from "./labels";
+import { statusLabel } from "./labels";
 
 /** What the graph shows for CI on one commit. */
 export interface CiMarker {
@@ -109,15 +110,15 @@ export function buildCiMarkers(index: GraphIndex, overview: CiOverview | null, r
 export type CiSlot = "push" | "merge";
 
 /** Text for the tooltip of a marker. */
-export function describeMarker(marker: CiMarker, slot: CiSlot, workflows: CiWorkflow[]): string {
+export function describeMarker(marker: CiMarker, slot: CiSlot, workflows: CiWorkflow[], m: Messages = t()): string {
   const name = (id: number) => workflows[id]?.name ?? "?";
   if (slot === "merge") {
-    return `Un merge in ${marker.target ?? "?"} avvierebbe: ${marker.merge.map(name).join(", ")}`;
+    return m.ci.mergeTooltip(marker.target ?? "?", marker.merge.map(name).join(", "));
   }
   const lines: string[] = [];
-  for (const run of marker.runs) lines.push(`${run.workflow}: ${STATUS_LABEL[run.status]}`);
+  for (const run of marker.runs) lines.push(`${run.workflow}: ${statusLabel(run.status, m)}`);
   if (marker.push.length > 0) {
-    lines.push(`Un push di ${marker.pushRefs.join(", ")} avvierebbe: ${marker.push.map(name).join(", ")}`);
+    lines.push(m.ci.pushTooltip(marker.pushRefs.join(", "), marker.push.map(name).join(", ")));
   }
   return lines.join("\n");
 }

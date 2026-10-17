@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Command } from "cmdk";
 import { Kbd } from "../../components/Kbd/Kbd";
+import { useT } from "../../lib/i18n";
 import { hasModKey } from "../../lib/platform";
 import { usePalette } from "./paletteStore";
 import { groupCommands, rankCommands, type PaletteCommand } from "./rank";
@@ -28,6 +29,7 @@ export function CommandPalette() {
 }
 
 function PaletteDialog({ onClose }: { onClose: () => void }) {
+  const m = useT();
   const sources = usePalette((s) => s.sources);
   const [query, setQuery] = useState("");
   const [value, setValue] = useState("");
@@ -59,9 +61,9 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className={styles.backdrop} onMouseDown={onClose}>
-      <div className={styles.dialog} role="dialog" aria-modal="true" aria-label="Comandi" onMouseDown={(e) => e.stopPropagation()}>
+      <div className={styles.dialog} role="dialog" aria-modal="true" aria-label={m.palette.dialog} onMouseDown={(e) => e.stopPropagation()}>
         <Command
-          label="Comandi"
+          label={m.palette.dialog}
           shouldFilter={false}
           loop
           value={value}
@@ -79,11 +81,11 @@ function PaletteDialog({ onClose }: { onClose: () => void }) {
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.3-4.3" />
             </svg>
-            <Command.Input autoFocus value={query} onValueChange={setQuery} placeholder="Cerca un comando, un branch o un commit…" className={styles.input} />
+            <Command.Input autoFocus value={query} onValueChange={setQuery} placeholder={m.palette.placeholder} className={styles.input} />
             <Kbd>esc</Kbd>
           </div>
           <Command.List className={styles.list}>
-            <Command.Empty className={styles.empty}>Nessun risultato.</Command.Empty>
+            <Command.Empty className={styles.empty}>{m.palette.empty}</Command.Empty>
             {groups.map(({ group, commands }) => (
               <Command.Group key={group} heading={group} className={styles.group}>
                 {commands.map((command) => (

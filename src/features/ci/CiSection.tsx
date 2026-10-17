@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import type { CiAccess, CiProvider, CiProviderState, CiWorkflow } from "../../lib/bindings";
 import { describeError } from "../../lib/errors";
-import { PROVIDER_LABEL, STATUS_LABEL, statusColor, TOKEN_HINT } from "./labels";
+import { useT, type Messages } from "../../lib/i18n";
+import { PROVIDER_LABEL, statusColor, statusLabel, tokenHint } from "./labels";
 import { latestRun } from "./markers";
 import { openUrl, type CiState } from "./useCi";
 import sidebar from "../sidebar/Sidebar.module.css";
@@ -25,6 +26,7 @@ const icon = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinec
 
 /** "Workflow" group of the sidebar: the CI workflows in HEAD, their last run, and the services' access. */
 export function CiSection({ ci, filter, open, onToggle, focus, onFocus, tokenFor, onTokenFor }: CiSectionProps) {
+  const m = useT();
   const overview = ci.overview;
   if (!overview || (overview.workflows.length === 0 && overview.problems.length === 0)) return null;
 
@@ -43,8 +45,8 @@ export function CiSection({ ci, filter, open, onToggle, focus, onFocus, tokenFor
           <svg viewBox="0 0 24 24" width="11" height="11" {...icon} className={open ? undefined : sidebar.closed}>
             <path d="m6 9 6 6 6-6" />
           </svg>
-          Workflow
-          {ci.runsLoading && <span className={styles.spinner} aria-label="Aggiorno le run" />}
+          {m.ci.workflows}
+          {ci.runsLoading && <span className={styles.spinner} aria-label={m.ci.loadingRuns} />}
           <span className={sidebar.count}>{overview.workflows.length}</span>
         </button>
       </h3>
@@ -59,7 +61,7 @@ export function CiSection({ ci, filter, open, onToggle, focus, onFocus, tokenFor
                   type="button"
                   className={`${sidebar.item} ${focused ? sidebar.active : ""}`}
                   aria-pressed={focused}
-                  title={workflowTitle(workflow, last ? STATUS_LABEL[last.status] : null)}
+                  title={workflowTitle(m, workflow, last ? statusLabel(last.status, m) : null)}
                   onClick={() => onFocus(focused ? null : workflow.id)}
                 >
                   <span
@@ -73,8 +75,8 @@ export function CiSection({ ci, filter, open, onToggle, focus, onFocus, tokenFor
                   <button
                     type="button"
                     className={sidebar.filter}
-                    aria-label={`Apri ${workflow.name} nel browser`}
-                    title="Apri nel browser"
+                    aria-label={m.ci.openInBrowserLabel(workflow.name)}
+                    title={m.ci.openInBrowser}
                     onClick={() => workflow.webUrl && openUrl(workflow.webUrl)}
                   >
                     <svg viewBox="0 0 24 24" width="11" height="11" {...icon}>
@@ -88,25 +90,25 @@ export function CiSection({ ci, filter, open, onToggle, focus, onFocus, tokenFor
           {needle === "" &&
             overview.problems.map((problem) => (
               <li key={problem.path} className={styles.note} title={problem.message}>
-                <span className={styles.warn}>!</span> {problem.path} non si legge
+                <span className={styles.warn}>!</span> {m.ci.unreadable(problem.path)}
               </li>
             ))}
           {needle === "" &&
             providers.map((state) => (
               <ProviderRow key={state.provider} state={state} ci={ci} editing={tokenFor === state.provider} onEdit={onTokenFor} />
             ))}
-          {needle === "" && ci.report === null && overview.workflows.length > 0 && <li className={styles.note}>Leggo le run…</li>}
+          {needle === "" && ci.report === null && overview.workflows.length > 0 && <li className={styles.note}>{m.ci.readingRuns}</li>}
         </ul>
       )}
     </section>
   );
 }
 
-function workflowTitle(workflow: CiWorkflow, last: string | null): string {
-  const lines = [`${workflow.path} · ${PROVIDER_LABEL[workflow.provider]}`, `Eventi: ${workflow.events.join(", ") || "nessuno"}`];
-  lines.push(last ? `Ultima run: ${last}` : "Nessuna run nota");
-  if (workflow.approximate) lines.push("Alcune condizioni (file cambiati, variabili) non sono valutate");
-  lines.push("Clic: mostra solo questo workflow sul grafo");
+function workflowTitle(m: Messages, workflow: CiWorkflow, last: string | null): string {
+  const lines = [`${workflow.path} · ${PROVIDER_LABEL[workflow.provider]}`, m.ci.events(workflow.events.join(", ") || m.ci.noEvents)];
+  lines.push(last ? m.ci.lastRun(last) : m.ci.noRunKnown);
+  if (workflow.approximate) lines.push(m.ci.approximate);
+  lines.push(m.ci.clickToFocus);
   return lines.join("\n");
 }
 
@@ -116,19 +118,20 @@ function shortProvider(provider: CiProvider): string {
 
 /** One line per CI service: how its runs are read, or why they are not. */
 function ProviderRow({ state, ci, editing, onEdit }: { state: CiProviderState; ci: CiState; editing: boolean; onEdit: (p: CiProvider | null) => void }) {
+  const m = useT();
   const label = PROVIDER_LABEL[state.provider];
   const access = state.access;
   const canSave = state.provider !== "Jenkins" && access.kind !== "unavailable";
   return (
     <li className={styles.providerRow}>
-      <div className={styles.note} title={accessTitle(access)}>
+      <div className={styles.note} title={accessTitle(m, access)}>
         <span className={styles.access} style={{ background: accessColor(access) }} />
         <span className={styles.text}>
-          {label}: {accessText(access)}
+          {label}: {accessText(m, access)}
         </span>
         {canSave && !editing && (access.kind !== "ok" || state.hasSavedToken) && (
           <button type="button" className={styles.link} onClick={() => onEdit(state.provider)}>
-            {state.hasSavedToken ? "Token" : "Imposta token"}
+            {state.hasSavedToken ? m.ci.token : m.ci.setToken}
           </button>
         )}
       </div>
@@ -137,23 +140,23 @@ function ProviderRow({ state, ci, editing, onEdit }: { state: CiProviderState; c
   );
 }
 
-function accessText(access: CiAccess): string {
+function accessText(m: Messages, access: CiAccess): string {
   switch (access.kind) {
     case "ok":
-      return access.via === "Cli" ? "via CLI" : access.via === "Keychain" ? "via Portachiavi" : "pubblico";
+      return access.via === "Cli" ? m.ci.viaCli : access.via === "Keychain" ? m.ci.viaKeychain : m.ci.public;
     case "needsToken":
-      return "serve un token";
+      return m.ci.needsToken;
     case "unavailable":
-      return "run non disponibili";
+      return m.ci.unavailable;
     case "failed":
-      return "errore";
+      return m.ci.failed;
   }
 }
 
-function accessTitle(access: CiAccess): string {
+function accessTitle(m: Messages, access: CiAccess): string {
   switch (access.kind) {
     case "ok":
-      return `${access.runs} run lette`;
+      return m.ci.runsRead(access.runs);
     case "needsToken":
     case "unavailable":
     case "failed":
@@ -176,6 +179,7 @@ function accessColor(access: CiAccess): string {
 
 /** A password field that saves the token in the Keychain (never shown again once saved). */
 function TokenForm({ provider, saved, ci, onDone }: { provider: CiProvider; saved: boolean; ci: CiState; onDone: () => void }) {
+  const m = useT();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -205,8 +209,8 @@ function TokenForm({ provider, saved, ci, onDone }: { provider: CiProvider; save
         autoFocus
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder={TOKEN_HINT[provider]}
-        aria-label={`Token di ${PROVIDER_LABEL[provider]}`}
+        placeholder={tokenHint(provider, m)}
+        aria-label={m.ci.tokenLabel(PROVIDER_LABEL[provider])}
         spellCheck={false}
         autoComplete="off"
         onKeyDown={(e) => {
@@ -218,15 +222,15 @@ function TokenForm({ provider, saved, ci, onDone }: { provider: CiProvider; save
       />
       <div className={styles.actions}>
         <button type="submit" className={styles.primary} disabled={busy || value.trim() === ""}>
-          Salva nel Portachiavi
+          {m.ci.saveToKeychain}
         </button>
         {saved && (
           <button type="button" className={styles.link} disabled={busy} onClick={() => void save(null)}>
-            Rimuovi
+            {m.ci.remove}
           </button>
         )}
         <button type="button" className={styles.link} onClick={onDone}>
-          Annulla
+          {m.ci.cancel}
         </button>
       </div>
       {error && <p className={styles.error}>{error}</p>}

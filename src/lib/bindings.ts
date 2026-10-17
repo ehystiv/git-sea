@@ -43,6 +43,10 @@ export const commands = {
 	ciSetToken: (provider: CiProvider, token: string | null) => typedError<null, AppError>(__TAURI_INVOKE("ci_set_token", { provider, token })),
 	/**  Opens a web page (a CI run) in the default browser. Only `https` links are opened. */
 	openUrl: (url: string) => typedError<null, AppError>(__TAURI_INVOKE("open_url", { url })),
+	/**  The user's system language (a BCP 47 tag such as "it-IT"), for the default UI language. */
+	systemLocale: () => __TAURI_INVOKE<string | null>("system_locale"),
+	/**  Sets the language of the native menu and of the messages the backend sends. */
+	setLanguage: (language: Language) => typedError<null, AppError>(__TAURI_INVOKE("set_language", { language })),
 };
 
 /* Types */
@@ -258,6 +262,8 @@ export type Hunk = {
 	newLines: number,
 	lines: DiffLine[],
 };
+
+export type Language = "en" | "it";
 
 export type LineKind = "Context" | "Add" | "Del";
 

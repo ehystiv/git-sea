@@ -391,3 +391,24 @@ pub fn open_url(url: String) -> Result<(), AppError> {
     }
     crate::process::open_url(&url).map_err(|err| AppError::Internal(err.to_string()))
 }
+
+/// The user's system language (a BCP 47 tag such as "it-IT"), for the default UI language.
+#[tauri::command]
+#[specta::specta]
+pub fn system_locale() -> Option<String> {
+    crate::i18n::system_locale()
+}
+
+/// Sets the language of the native menu and of the messages the backend sends.
+#[tauri::command]
+#[specta::specta]
+pub fn set_language(
+    app: tauri::AppHandle,
+    language: crate::i18n::Language,
+) -> Result<(), AppError> {
+    crate::i18n::set(language);
+    let menu = crate::build_menu(&app).map_err(|err| AppError::Internal(err.to_string()))?;
+    app.set_menu(menu)
+        .map(|_| ())
+        .map_err(|err| AppError::Internal(err.to_string()))
+}

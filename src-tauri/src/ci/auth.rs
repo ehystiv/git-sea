@@ -101,7 +101,12 @@ fn keyring_entry(provider: CiProvider) -> Result<keyring_core::Entry, String> {
             let store = windows_native_keyring_store::Store::new();
             store
                 .map(|store| keyring_core::set_default_store(store))
-                .map_err(|e| format!("portachiavi non disponibile: {e}"))
+                .map_err(|e| {
+                    format!(
+                        "{}: {e}",
+                        crate::i18n::tr("keychain not available", "portachiavi non disponibile")
+                    )
+                })
         })
         .clone()?;
     keyring_core::Entry::new(KEYCHAIN_SERVICE, provider.key()).map_err(|e| e.to_string())
@@ -136,7 +141,10 @@ pub fn keychain_get(_provider: CiProvider) -> Option<String> {
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
 pub fn keychain_set(_provider: CiProvider, _token: &str) -> Result<(), String> {
-    Err("il portachiavi è disponibile solo su macOS, Linux e Windows".to_owned())
+    Err(crate::i18n::tr(
+        "the keychain is only available on macOS, Linux and Windows",
+        "il portachiavi è disponibile solo su macOS, Linux e Windows",
+    ))
 }
 
 #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]

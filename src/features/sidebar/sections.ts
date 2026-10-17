@@ -1,4 +1,5 @@
 import type { RefKind, RefLabel, StashEntry } from "../../lib/bindings";
+import { t, type Messages } from "../../lib/i18n";
 
 export interface SidebarItem {
   key: string;
@@ -25,6 +26,7 @@ export function buildSections(
   refs: Iterable<RefLabel[]>,
   stashes: StashEntry[],
   filter: string,
+  m: Messages = t(),
 ): SidebarSection[] {
   const branches: SidebarItem[] = [];
   const remotes: SidebarItem[] = [];
@@ -48,7 +50,7 @@ export function buildSections(
     key: `stash:${s.index}`,
     label: s.message,
     commit: s.base,
-    title: `stash@{${s.index}}: salta al commit su cui è stato creato`,
+    title: m.sidebar.stashTitle(s.index),
   }));
 
   const needle = filter.trim().toLowerCase();
@@ -56,10 +58,10 @@ export function buildSections(
 
   return (
     [
-      { id: "branches", title: "Branch locali", items: branches },
-      { id: "remotes", title: "Remote", items: remotes },
-      { id: "tags", title: "Tag", items: tags },
-      { id: "stashes", title: "Stash", items: stashItems },
+      { id: "branches", title: m.sidebar.sections.branches, items: branches },
+      { id: "remotes", title: m.sidebar.sections.remotes, items: remotes },
+      { id: "tags", title: m.sidebar.sections.tags, items: tags },
+      { id: "stashes", title: m.sidebar.sections.stashes, items: stashItems },
     ] as SidebarSection[]
   )
     .map((section) => ({ ...section, items: section.items.filter(keep) }))

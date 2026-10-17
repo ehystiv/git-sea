@@ -1,5 +1,6 @@
 import type { CommitSummary, FetchState } from "../../lib/bindings";
-import { formatAgo, shortHash } from "../../lib/format";
+import { formatAgo, formatCount, shortHash } from "../../lib/format";
+import { useT } from "../../lib/i18n";
 import { useNow } from "../repo/useFetchStatus";
 import type { CommitStream } from "./useCommitStream";
 import styles from "./LoadStatus.module.css";
@@ -18,13 +19,14 @@ export function LoadStatus({
   onFetchNow: () => void;
 }) {
   const { index, status, maxLanes, refreshing, error } = stream;
+  const m = useT();
 
   return (
     <footer className={styles.status}>
-      <span className={styles.count}>{index.length.toLocaleString("it-IT")} commit</span>
-      {status === "loading" && <span>Caricamento…</span>}
-      {refreshing && <span>Aggiornamento…</span>}
-      {maxLanes !== null && <span>{maxLanes} corsie</span>}
+      <span className={styles.count}>{m.status.commits(formatCount(index.length))}</span>
+      {status === "loading" && <span>{m.status.loading}</span>}
+      {refreshing && <span>{m.status.refreshing}</span>}
+      {maxLanes !== null && <span>{m.status.lanes(maxLanes)}</span>}
       {fetch?.hasRemotes && <FetchInfo fetch={fetch} onFetchNow={onFetchNow} />}
       {selected && (
         <span className={styles.selected}>
@@ -39,19 +41,20 @@ export function LoadStatus({
 /** The last fetch of the remote branches; a click fetches again. */
 function FetchInfo({ fetch, onFetchNow }: { fetch: FetchState; onFetchNow: () => void }) {
   const now = useNow(30_000);
-  if (fetch.running) return <span>Aggiorno dal remoto…</span>;
+  const m = useT();
+  if (fetch.running) return <span>{m.status.fetching}</span>;
   const failed = fetch.lastError !== null;
   const label = failed
-    ? "Aggiornamento dal remoto non riuscito"
+    ? m.status.fetchFailed
     : fetch.lastSuccessMs === null
-      ? "Remoto non ancora aggiornato"
-      : `Remoto aggiornato ${formatAgo(fetch.lastSuccessMs / 1000, now)}`;
+      ? m.status.notFetched
+      : m.status.fetched(formatAgo(fetch.lastSuccessMs / 1000, now, m));
   return (
     <span>
       <button
         type="button"
         className={`${styles.fetch} ${failed ? styles.error : ""}`}
-        title={failed ? `${fetch.lastError ?? ""}\nClic per riprovare` : "Clic per aggiornare ora"}
+        title={failed ? m.status.retry(fetch.lastError ?? "") : m.status.fetchNow}
         onClick={onFetchNow}
       >
         {label}

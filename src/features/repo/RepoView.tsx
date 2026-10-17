@@ -25,7 +25,8 @@ import { describeFilter, pruneFilter, toggleRef } from "../sidebar/refFilter";
 import { Sidebar } from "../sidebar/Sidebar";
 import { useFlow } from "../../lib/flow";
 import { useSea } from "../../lib/sea";
-import { shortHash } from "../../lib/format";
+import { formatCount, shortHash } from "../../lib/format";
+import { useT, type Messages } from "../../lib/i18n";
 import { headCommitId } from "./head";
 import { useDrawer } from "./useDrawer";
 import { useFetchStatus } from "./useFetchStatus";
@@ -40,14 +41,14 @@ const PANEL_DEFAULT = 440;
 /** Space around the floating details panel, as `--space-3` in RepoView.module.css. */
 const PANEL_GAP = 12;
 
-function describeHead(head: HeadInfo): { label: string; detail?: string } {
+function describeHead(head: HeadInfo, m: Messages): { label: string; detail?: string } {
   switch (head.kind) {
     case "Branch":
       return { label: head.name, detail: shortHash(head.commit) };
     case "Detached":
-      return { label: "HEAD scollegato", detail: shortHash(head.commit) };
+      return { label: m.repo.detachedHead, detail: shortHash(head.commit) };
     case "Unborn":
-      return { label: head.name, detail: "nessun commit" };
+      return { label: head.name, detail: m.repo.noCommits };
   }
 }
 
@@ -75,6 +76,7 @@ function useStableActions<T extends object>(actions: T): T {
 }
 
 export function RepoView({ repo, active, onClose }: RepoViewProps) {
+  const m = useT();
   const [branchFilter, setBranchFilter] = useState<RefFilter[] | null>(null);
   const stream = useCommitStream(repo.sessionId, branchFilter);
   const [mode, setMode] = useState<ViewMode>("graph");
@@ -94,7 +96,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT);
   const graphRef = useRef<GraphCanvasHandle>(null);
-  const head = describeHead(repo.head);
+  const head = describeHead(repo.head, m);
   const { index, reload } = stream;
   const flow = useFlow((s) => s.enabled);
   const toggleFlow = useFlow((s) => s.toggle);
@@ -404,30 +406,30 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
       <div className={styles.toolbar}>
         <Badge color={0}>{head.label}</Badge>
         {head.detail && <code className={styles.detail}>{head.detail}</code>}
-        <span className={styles.meta}>{repo.refCount} riferimenti</span>
+        <span className={styles.meta}>{m.repo.refs(formatCount(repo.refCount))}</span>
         {repo.isBare && <span className={styles.meta}>bare</span>}
 
-        <div className={styles.seg} role="tablist" aria-label="Vista">
-          <button type="button" role="tab" aria-selected={mode === "graph"} className={mode === "graph" ? styles.active : undefined} title="Grafo (1)" onClick={() => setMode("graph")}>
-            Grafo
+        <div className={styles.seg} role="tablist" aria-label={m.repo.views}>
+          <button type="button" role="tab" aria-selected={mode === "graph"} className={mode === "graph" ? styles.active : undefined} title={`${m.repo.graph} (1)`} onClick={() => setMode("graph")}>
+            {m.repo.graph}
           </button>
-          <button type="button" role="tab" aria-selected={mode === "topology"} className={mode === "topology" ? styles.active : undefined} title="Topologia (2)" onClick={() => setMode("topology")}>
-            Topologia
+          <button type="button" role="tab" aria-selected={mode === "topology"} className={mode === "topology" ? styles.active : undefined} title={`${m.repo.topology} (2)`} onClick={() => setMode("topology")}>
+            {m.repo.topology}
           </button>
-          <button type="button" role="tab" aria-selected={mode === "timeline"} className={mode === "timeline" ? styles.active : undefined} title="Timeline (3)" onClick={() => setMode("timeline")}>
-            Timeline
+          <button type="button" role="tab" aria-selected={mode === "timeline"} className={mode === "timeline" ? styles.active : undefined} title={`${m.repo.timeline} (3)`} onClick={() => setMode("timeline")}>
+            {m.repo.timeline}
           </button>
           <button type="button" role="tab" aria-selected={mode === "list"} className={mode === "list" ? styles.active : undefined} onClick={() => setMode("list")}>
-            Elenco
+            {m.repo.list}
           </button>
         </div>
 
         {mode === "topology" && (
           <span className={styles.meta}>
-            {canvasIndex.length.toLocaleString("it-IT")} nodi
+            {m.repo.nodes(formatCount(canvasIndex.length))}
             {compressed.expandedCount > 0 && (
               <button type="button" className={styles.link} onClick={compressed.collapseAll}>
-                Comprimi tutto
+                {m.repo.collapseAll}
               </button>
             )}
           </span>
@@ -438,8 +440,8 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
             <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
               <path d="M22 3H2l8 9.46V19l4 2v-8.54z" />
             </svg>
-            Solo {describeFilter(branchFilter)}
-            <button type="button" aria-label="Mostra tutti i branch" title="Mostra tutti i branch" onClick={() => setBranchFilter(null)}>
+            {m.repo.only(describeFilter(branchFilter, m))}
+            <button type="button" aria-label={m.repo.showAllBranches} title={m.repo.showAllBranches} onClick={() => setBranchFilter(null)}>
               ×
             </button>
           </span>
@@ -449,9 +451,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         <button
           type="button"
           className={`${styles.iconButton} ${searchOpen ? styles.active : ""}`}
-          aria-label="Cerca nei commit"
+          aria-label={m.repo.search}
           aria-pressed={searchOpen}
-          title="Cerca nei commit (/)"
+          title={m.repo.searchTitle}
           onClick={() => (searchOpen ? closeSearch() : openSearch())}
         >
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -463,9 +465,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
           <button
             type="button"
             className={`${styles.iconButton} ${ancestors ? styles.active : ""}`}
-            aria-label="Evidenzia gli antenati"
+            aria-label={m.repo.ancestors}
             aria-pressed={ancestors}
-            title={ancestors ? "Smetti di evidenziare gli antenati (a)" : "Evidenzia gli antenati del commit selezionato (a)"}
+            title={ancestors ? m.repo.ancestorsOff : m.repo.ancestorsOn}
             onClick={() => setAncestors((on) => !on)}
           >
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -480,9 +482,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
           <button
             type="button"
             className={`${styles.iconButton} ${flow ? styles.active : ""}`}
-            aria-label="Flusso animato"
+            aria-label={m.repo.flow}
             aria-pressed={flow}
-            title={flow ? "Disattiva i pallini animati sui collegamenti" : "Attiva i pallini animati sui collegamenti"}
+            title={flow ? m.repo.flowOff : m.repo.flowOn}
             onClick={toggleFlow}
           >
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -495,9 +497,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
           <button
             type="button"
             className={`${styles.iconButton} ${sea ? styles.active : ""}`}
-            aria-label="Pesci sullo sfondo"
+            aria-label={m.repo.sea}
             aria-pressed={sea}
-            title={sea ? "Nascondi i pesci sullo sfondo" : "Mostra i pesci sullo sfondo"}
+            title={sea ? m.repo.seaHide : m.repo.seaShow}
             onClick={toggleSea}
           >
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -510,9 +512,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         <button
           type="button"
           className={`${styles.iconButton} ${panelOpen ? styles.active : ""}`}
-          aria-label="Pannello dettagli"
+          aria-label={m.repo.panel}
           aria-pressed={panelOpen}
-          title="Pannello dettagli (Invio)"
+          title={m.repo.panelTitle}
           onClick={() => setPanelOpen((open) => !open)}
         >
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -521,7 +523,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
           </svg>
         </button>
         <Button variant="ghost" onClick={onClose}>
-          Chiudi
+          {m.repo.close}
         </Button>
       </div>
 
@@ -588,7 +590,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
             onTransitionEnd={drawer.onTransitionEnd}
             inert={!drawer.shown}
           >
-            <div className={styles.resizer} onPointerDown={startResize} role="separator" aria-orientation="vertical" aria-label="Ridimensiona il pannello" />
+            <div className={styles.resizer} onPointerDown={startResize} role="separator" aria-orientation="vertical" aria-label={m.repo.resizePanel} />
             {showWorktree ? (
               <WorktreePanel
                 sessionId={repo.sessionId}

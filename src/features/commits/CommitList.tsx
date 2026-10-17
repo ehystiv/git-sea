@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type { CommitSummary } from "../../lib/bindings";
 import { formatRelative, shortHash } from "../../lib/format";
+import { useT } from "../../lib/i18n";
 import styles from "./CommitList.module.css";
 
 const ROW_HEIGHT = 32;
@@ -13,6 +14,7 @@ interface CommitListProps {
 }
 
 export function CommitList({ commits, selectedId, onSelect }: CommitListProps) {
+  const m = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [now] = useState(() => Date.now());
 
@@ -26,10 +28,10 @@ export function CommitList({ commits, selectedId, onSelect }: CommitListProps) {
   return (
     <div className={styles.list}>
       <div className={`${styles.columns} ${styles.header}`}>
-        <span>Messaggio</span>
-        <span>Autore</span>
-        <span>Data</span>
-        <span>Hash</span>
+        <span>{m.list.message}</span>
+        <span>{m.list.author}</span>
+        <span>{m.list.date}</span>
+        <span>{m.list.hash}</span>
       </div>
 
       <div ref={scrollRef} className={styles.scroller}>

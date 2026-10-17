@@ -1,3 +1,4 @@
+import { useT } from "../../lib/i18n";
 import { modShortcut } from "../../lib/platform";
 import styles from "./ZoomControls.module.css";
 
@@ -16,19 +17,20 @@ function formatZoom(zoom: number): string {
 }
 
 export function ZoomControls({ zoom, onFit, onZoomIn, onZoomOut }: ZoomControlsProps) {
+  const m = useT();
   return (
     <div className={styles.zoom} role="toolbar" aria-label="Zoom">
-      <button type="button" aria-label="Adatta" title={`Adatta (${modShortcut("0")})`} onClick={onFit}>
+      <button type="button" aria-label={m.zoom.fit} title={`${m.zoom.fit} (${modShortcut("0")})`} onClick={onFit}>
         <svg viewBox="0 0 24 24" width="14" height="14" {...stroke}>
           <path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3" />
         </svg>
       </button>
-      <button type="button" aria-label="Ingrandisci" title={`Ingrandisci (${modShortcut("+")})`} onClick={onZoomIn}>
+      <button type="button" aria-label={m.zoom.in} title={`${m.zoom.in} (${modShortcut("+")})`} onClick={onZoomIn}>
         <svg viewBox="0 0 24 24" width="14" height="14" {...stroke}>
           <path d="M5 12h14M12 5v14" />
         </svg>
       </button>
-      <button type="button" aria-label="Riduci" title={`Riduci (${modShortcut("−")})`} onClick={onZoomOut}>
+      <button type="button" aria-label={m.zoom.out} title={`${m.zoom.out} (${modShortcut("−")})`} onClick={onZoomOut}>
         <svg viewBox="0 0 24 24" width="14" height="14" {...stroke}>
           <path d="M5 12h14" />
         </svg>

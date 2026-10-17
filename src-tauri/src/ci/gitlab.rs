@@ -67,7 +67,10 @@ pub fn parse(text: &str) -> Result<Pipeline, String> {
     let mut doc: Value = serde_yaml_ng::from_str(text).map_err(|e| e.to_string())?;
     doc.apply_merge().map_err(|e| e.to_string())?;
     let Value::Mapping(map) = doc else {
-        return Err("il file non è una mappa YAML".to_owned());
+        return Err(crate::i18n::tr(
+            "the file is not a YAML map",
+            "il file non è una mappa YAML",
+        ));
     };
     let mut approximate = false;
 

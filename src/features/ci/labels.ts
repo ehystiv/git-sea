@@ -1,4 +1,5 @@
 import type { CiProvider, CiRunStatus } from "../../lib/bindings";
+import { t, type Messages } from "../../lib/i18n";
 
 export const PROVIDER_LABEL: Record<CiProvider, string> = {
   GitHub: "GitHub Actions",
@@ -10,15 +11,10 @@ export const PROVIDER_LABEL: Record<CiProvider, string> = {
   Jenkins: "Jenkins",
 };
 
-export const STATUS_LABEL: Record<CiRunStatus, string> = {
-  Queued: "in coda",
-  Running: "in corso",
-  Success: "riuscita",
-  Failure: "fallita",
-  Cancelled: "annullata",
-  Skipped: "saltata",
-  Neutral: "conclusa",
-};
+/** A run's outcome in words, in the UI language. */
+export function statusLabel(status: CiRunStatus, m: Messages = t()): string {
+  return m.ci.status[status];
+}
 
 /** CSS colour of a run's outcome. */
 export function statusColor(status: CiRunStatus | null): string {
@@ -36,12 +32,6 @@ export function statusColor(status: CiRunStatus | null): string {
 }
 
 /** What to paste into the token field, per service. */
-export const TOKEN_HINT: Record<CiProvider, string> = {
-  GitHub: "Token personale con lettura di Actions (o accedi con `gh auth login`)",
-  GitLab: "Token personale con scope read_api (o accedi con `glab auth login`)",
-  CircleCi: "Personal API token di CircleCI",
-  Azure: "Personal access token con Build (Read)",
-  Bitbucket: "Access token del repository, oppure utente:app-password",
-  Travis: "Token API di Travis CI",
-  Jenkins: "",
-};
+export function tokenHint(provider: CiProvider, m: Messages = t()): string {
+  return m.ci.tokenHint[provider];
+}

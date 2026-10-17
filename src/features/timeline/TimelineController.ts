@@ -1,3 +1,4 @@
+import { LANGUAGE_CHANGED } from "../../lib/i18n";
 import { hasModKey, IS_MAC } from "../../lib/platform";
 import { THEME_CHANGED } from "../../lib/theme";
 import type { Emphasis } from "../graph/emphasis";
@@ -369,6 +370,11 @@ export class TimelineController {
     };
     window.addEventListener(THEME_CHANGED, themeChanged);
     this.disposers.push(() => window.removeEventListener(THEME_CHANGED, themeChanged));
+
+    // The axis labels (month names) are in the UI language.
+    const languageChanged = () => this.requestDraw();
+    window.addEventListener(LANGUAGE_CHANGED, languageChanged);
+    this.disposers.push(() => window.removeEventListener(LANGUAGE_CHANGED, languageChanged));
   }
 
   private local(e: MouseEvent): { x: number; y: number } {

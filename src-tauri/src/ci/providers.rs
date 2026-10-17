@@ -14,7 +14,10 @@ fn load(text: &str) -> Result<Mapping, String> {
     match doc {
         Value::Mapping(map) => Ok(map),
         Value::Null => Ok(Mapping::new()),
-        _ => Err("il file non è una mappa YAML".to_owned()),
+        _ => Err(crate::i18n::tr(
+            "the file is not a YAML map",
+            "il file non è una mappa YAML",
+        )),
     }
 }
 

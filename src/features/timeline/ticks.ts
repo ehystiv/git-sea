@@ -1,3 +1,5 @@
+import { dateFormatter } from "../../lib/format";
+
 export interface Tick {
   /** Unix seconds. */
   time: number;
@@ -36,9 +38,10 @@ const STEPS: Step[] = [
 ];
 
 const MAX_TICKS = 400;
-const monthShort = new Intl.DateTimeFormat("it-IT", { month: "short" });
-const dayMonth = new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "short" });
-const monthYear = new Intl.DateTimeFormat("it-IT", { month: "short", year: "numeric" });
+// In the UI locale: "Oct 12" or "12 ott".
+const monthShort = dateFormatter({ month: "short" });
+const dayMonth = dateFormatter({ day: "numeric", month: "short" });
+const monthYear = dateFormatter({ month: "short", year: "numeric" });
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
@@ -103,15 +106,15 @@ function describe(d: Date, step: Step, time: number): Tick {
   switch (step.unit) {
     case "hour":
       return d.getHours() === 0
-        ? { time, label: dayMonth.format(d), major: true }
+        ? { time, label: dayMonth().format(d), major: true }
         : { time, label: `${pad(d.getHours())}:${pad(d.getMinutes())}`, major: false };
     case "day":
     case "week":
-      return { time, label: dayMonth.format(d), major: d.getDate() === 1 };
+      return { time, label: dayMonth().format(d), major: d.getDate() === 1 };
     case "month":
       return d.getMonth() === 0
         ? { time, label: String(d.getFullYear()), major: true }
-        : { time, label: step.n === 1 ? monthShort.format(d) : monthYear.format(d), major: false };
+        : { time, label: step.n === 1 ? monthShort().format(d) : monthYear().format(d), major: false };
     case "year":
       return { time, label: String(d.getFullYear()), major: true };
   }

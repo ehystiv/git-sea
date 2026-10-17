@@ -18,6 +18,7 @@ It takes inspiration from GitKraken, with a denser, modern UI (Linear / Raycast 
 - **On-disk layout cache**, invalidated by an exact fingerprint of the refs.
 - **Keyboard-first**: `j`/`k` next/previous commit, `h`/`l` parent/child, `Enter` toggles details, `g h` goes to HEAD, `⌘O` opens a repo, `⌘W` closes a tab, `⌘1`–`⌘9` switches tabs (Ctrl instead of ⌘ on Linux and Windows).
 - **Light and dark themes**, following the system setting, with sidebar vibrancy on macOS.
+- **English and Italian**: the app follows the system language (Italian if the system is in Italian, English otherwise), and both language and theme can be changed in Settings (`⌘,`).
 
 ## Stack
 

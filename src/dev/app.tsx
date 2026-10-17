@@ -10,6 +10,7 @@ import "../styles/tokens.css";
 import "../styles/global.css";
 import { App } from "../app/App";
 import { useTabs } from "../app/tabsStore";
+import { initLanguage } from "../lib/i18n";
 import { initTheme } from "../lib/theme";
 import type { CiOverview, CiRun, CiRunsReport, CommitSummary, GraphRow, LoadEvent, RefFilter, RefLabel } from "../lib/bindings";
 
@@ -147,6 +148,7 @@ const ci = fakeCi();
 (window as unknown as Record<string, unknown>).__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: () => undefined };
 
 initTheme();
+initLanguage();
 const head = dump.refs.find((r) => r.kind === "Head");
 useTabs.getState().addTab({
   sessionId: "s1",

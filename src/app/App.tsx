@@ -6,9 +6,12 @@ import { OpenRepoPanel } from "../features/repo/OpenRepoPanel";
 import { RepoView } from "../features/repo/RepoView";
 import { useOpenRepo } from "../features/repo/useOpenRepo";
 import { useRepoDrop } from "../features/repo/useRepoDrop";
+import { SettingsDialog } from "../features/settings/SettingsDialog";
+import { useSettings } from "../features/settings/settingsStore";
 import { commands } from "../lib/bindings";
 import { pickRepoFolder } from "../lib/dialog";
 import { describeError } from "../lib/errors";
+import { LANGUAGE_CHOICES, useLanguage, useSystemLanguage, useT } from "../lib/i18n";
 import { hasModKey, modShortcut } from "../lib/platform";
 import { useTheme } from "../lib/theme";
 import { findTabByPath, normalizePath } from "./tabsLogic";
@@ -20,6 +23,7 @@ export function App() {
   const { tabs, activeId, recents, addTab, closeTab, activate, activateAt, removeRecent } = useTabs();
   const open = useOpenRepo();
   const { mutate, reset, error, isPending } = open;
+  const m = useT();
 
   // Opening a repository that already has a tab just switches to it.
   const openPath = useCallback(
@@ -57,6 +61,7 @@ export function App() {
 
   // The native menu (⌘O, ⌘W) tells us what was chosen; the handlers are read through a ref so
   // the listener is set up once.
+  const openSettings = useSettings((s) => s.setOpen);
   const menuHandlers = useRef({ browse, closeActive });
   useEffect(() => {
     menuHandlers.current = { browse, closeActive };
@@ -67,6 +72,7 @@ export function App() {
     listen<string>("menu", (event) => {
       if (event.payload === "open_repo") void menuHandlers.current.browse();
       else if (event.payload === "close_tab") menuHandlers.current.closeActive();
+      else if (event.payload === "settings") useSettings.getState().setOpen(true);
     })
       .then((stop) => {
         if (cancelled) stop();
@@ -95,18 +101,21 @@ export function App() {
   // What the window offers to the command palette (the active repository adds its own).
   const setTheme = useTheme((s) => s.setMode);
   const themeMode = useTheme((s) => s.mode);
+  const languageChoice = useLanguage((s) => s.choice);
+  const setLanguage = useLanguage((s) => s.setChoice);
+  const systemLanguage = useSystemLanguage();
   const paletteSource = useMemo((): PaletteSource => {
     const openPaths = new Set(tabs.map((t) => t.repo.path));
     return {
       commands: [
-        { id: "app:open", group: "Repository", title: "Apri repository…", shortcut: modShortcut("O"), keywords: "open cartella folder", run: () => void browse() },
-        ...(activeId ? [{ id: "app:close", group: "Repository", title: "Chiudi la tab", shortcut: modShortcut("W"), keywords: "close", run: closeActive }] : []),
+        { id: "app:open", group: m.palette.groups.repository, title: m.app.openRepo, shortcut: modShortcut("O"), keywords: "open cartella folder", run: () => void browse() },
+        ...(activeId ? [{ id: "app:close", group: m.palette.groups.repository, title: m.app.closeTab, shortcut: modShortcut("W"), keywords: "close", run: closeActive }] : []),
         ...tabs
           .filter((t) => t.id !== activeId)
           .map((t, i) => ({
             id: `app:tab:${t.id}`,
-            group: "Repository",
-            title: `Passa a ${t.repo.name}`,
+            group: m.palette.groups.repository,
+            title: m.app.switchTo(t.repo.name),
             detail: t.repo.path,
             shortcut: i < 8 ? modShortcut(String(tabs.indexOf(t) + 1)) : undefined,
             keywords: "tab switch",
@@ -114,19 +123,27 @@ export function App() {
           })),
         ...recents
           .filter((r) => !openPaths.has(r.path))
-          .map((r) => ({ id: `app:recent:${r.path}`, group: "Recenti", title: `Apri ${r.name}`, detail: r.path, keywords: "recent", run: () => openPath(r.path) })),
+          .map((r) => ({ id: `app:recent:${r.path}`, group: m.palette.groups.recent, title: m.app.openRecent(r.name), detail: r.path, keywords: "recent", run: () => openPath(r.path) })),
         ...(["system", "light", "dark"] as const)
           .filter((mode) => mode !== themeMode)
           .map((mode) => ({
             id: `app:theme:${mode}`,
-            group: "Aspetto",
-            title: mode === "system" ? "Tema: segui il sistema" : mode === "light" ? "Tema chiaro" : "Tema scuro",
+            group: m.palette.groups.appearance,
+            title: mode === "system" ? m.app.themeSystem : mode === "light" ? m.app.themeLight : m.app.themeDark,
             keywords: "theme dark light aspetto",
             run: () => setTheme(mode),
           })),
+        ...LANGUAGE_CHOICES.filter((choice) => choice !== languageChoice).map((choice) => ({
+          id: `app:language:${choice}`,
+          group: m.palette.groups.settings,
+          title: m.app.languageTo(choice === "system" ? m.language.system(m.language[systemLanguage]) : m.language[choice]),
+          keywords: "language lingua english italiano inglese",
+          run: () => setLanguage(choice),
+        })),
+        { id: "app:settings", group: m.palette.groups.settings, title: m.app.settings, shortcut: modShortcut(","), keywords: "settings impostazioni preferenze preferences", run: () => openSettings(true) },
       ],
     };
-  }, [tabs, activeId, recents, themeMode, browse, closeActive, activate, openPath, setTheme]);
+  }, [m, tabs, activeId, recents, themeMode, languageChoice, systemLanguage, browse, closeActive, activate, openPath, setTheme, setLanguage, openSettings]);
   usePaletteSource("app", paletteSource);
   const openPalette = usePalette((s) => s.setOpen);
 
@@ -135,13 +152,14 @@ export function App() {
 
   return (
     <div className={styles.window}>
-      <TitleBar tabs={tabs} activeId={activeId} onActivate={activate} onClose={closeById} onNew={() => void browse()} onPalette={() => openPalette(true)} />
+      <TitleBar tabs={tabs} activeId={activeId} onActivate={activate} onClose={closeById} onNew={() => void browse()} onPalette={() => openPalette(true)} onSettings={() => openSettings(true)} />
       <CommandPalette />
+      <SettingsDialog />
 
       {hasTabs && errorText && (
         <div className={styles.banner} role="alert">
           <span>{errorText}</span>
-          <button type="button" onClick={reset} aria-label="Chiudi l'avviso">
+          <button type="button" onClick={reset} aria-label={m.app.dismissAlert}>
             ×
           </button>
         </div>

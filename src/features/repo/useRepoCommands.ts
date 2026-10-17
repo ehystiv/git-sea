@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { CiProvider, CiWorkflow, RefFilter, RefLabel } from "../../lib/bindings";
 import { PROVIDER_LABEL } from "../ci/labels";
 import { shortHash } from "../../lib/format";
+import { useT, type Messages } from "../../lib/i18n";
 import { modShortcut } from "../../lib/platform";
 import type { GraphIndex } from "../graph/GraphIndex";
 import type { PaletteSource } from "../palette/paletteStore";
@@ -11,14 +12,14 @@ import { inFilter } from "../sidebar/refFilter";
 
 export type ViewMode = "graph" | "topology" | "timeline" | "list";
 
-const VIEWS: Array<{ mode: ViewMode; title: string; shortcut?: string; keywords: string }> = [
-  { mode: "graph", title: "Vista grafo", shortcut: "1", keywords: "graph nodi canvas" },
-  { mode: "topology", title: "Vista topologia compressa", shortcut: "2", keywords: "topology compressa catene" },
-  { mode: "timeline", title: "Vista timeline", shortcut: "3", keywords: "timeline tempo date" },
-  { mode: "list", title: "Vista elenco", keywords: "list lista tabella" },
+const views = (m: Messages): Array<{ mode: ViewMode; title: string; shortcut?: string; keywords: string }> => [
+  { mode: "graph", title: m.commands.viewGraph, shortcut: "1", keywords: "graph grafo nodi canvas" },
+  { mode: "topology", title: m.commands.viewTopology, shortcut: "2", keywords: "topology topologia compressa catene" },
+  { mode: "timeline", title: m.commands.viewTimeline, shortcut: "3", keywords: "timeline tempo date" },
+  { mode: "list", title: m.commands.viewList, keywords: "list lista elenco tabella" },
 ];
 
-const KIND_LABEL: Record<RefLabel["kind"], string> = { Head: "branch (HEAD)", Branch: "branch", Remote: "remote", Tag: "tag" };
+const kindLabel = (m: Messages, kind: RefLabel["kind"]): string => m.commands.kind[kind];
 const MAX_REFS = 10;
 const MAX_FILTER_REFS = 5;
 const MAX_COMMITS = 8;
@@ -70,58 +71,60 @@ export interface RepoCommandActions {
 /** What the active repository offers to the command palette. Null for a tab in the background. */
 export function useRepoCommands(active: boolean, state: RepoCommandState, actions: RepoCommandActions): PaletteSource | null {
   const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter, ci } = state;
+  const m = useT();
 
   return useMemo(() => {
     if (!active) return null;
     const commands: PaletteCommand[] = [];
     const add = (command: Omit<PaletteCommand, "group">, group: string) => commands.push({ ...command, group });
+    const g = m.palette.groups;
 
-    for (const view of VIEWS) {
+    for (const view of views(m)) {
       if (view.mode === mode) continue;
-      add({ id: `view:${view.mode}`, title: view.title, shortcut: view.shortcut, keywords: view.keywords, run: () => actions.setMode(view.mode) }, "Vista");
+      add({ id: `view:${view.mode}`, title: view.title, shortcut: view.shortcut, keywords: view.keywords, run: () => actions.setMode(view.mode) }, g.view);
     }
-    add({ id: "panel", title: panelOpen ? "Nascondi il pannello dettagli" : "Mostra il pannello dettagli", shortcut: "↩", keywords: "details dettagli diff", run: actions.togglePanel }, "Vista");
+    add({ id: "panel", title: panelOpen ? m.commands.hidePanel : m.commands.showPanel, shortcut: "↩", keywords: "details dettagli diff", run: actions.togglePanel }, g.view);
     if (mode !== "list") {
-      add({ id: "flow", title: flow ? "Ferma il flusso animato" : "Attiva il flusso animato", keywords: "pallini animazione flow", run: actions.toggleFlow }, "Vista");
+      add({ id: "flow", title: flow ? m.commands.stopFlow : m.commands.startFlow, keywords: "pallini animazione flow dots", run: actions.toggleFlow }, g.view);
       if (mode !== "timeline") {
-        add({ id: "sea", title: sea ? "Nascondi i pesci sullo sfondo" : "Mostra i pesci sullo sfondo", keywords: "pesci mare sfondo fish acquario", run: actions.toggleSea }, "Vista");
+        add({ id: "sea", title: sea ? m.commands.hideSea : m.commands.showSea, keywords: "pesci mare sfondo fish sea acquario", run: actions.toggleSea }, g.view);
       }
-      add({ id: "fit", title: "Mostra tutta la storia", shortcut: modShortcut("0"), keywords: "zoom adatta fit", run: actions.fit }, "Vista");
-      add({ id: "zoom-in", title: "Ingrandisci", shortcut: modShortcut("+"), keywords: "zoom in", run: actions.zoomIn }, "Vista");
-      add({ id: "zoom-out", title: "Riduci", shortcut: modShortcut("−"), keywords: "zoom out", run: actions.zoomOut }, "Vista");
+      add({ id: "fit", title: m.commands.fit, shortcut: modShortcut("0"), keywords: "zoom adatta fit", run: actions.fit }, g.view);
+      add({ id: "zoom-in", title: m.commands.zoomIn, shortcut: modShortcut("+"), keywords: "zoom in ingrandisci", run: actions.zoomIn }, g.view);
+      add({ id: "zoom-out", title: m.commands.zoomOut, shortcut: modShortcut("−"), keywords: "zoom out riduci", run: actions.zoomOut }, g.view);
     }
-    if (canCollapse) add({ id: "collapse", title: "Richiudi tutte le catene", keywords: "comprimi topologia", run: actions.collapseAll }, "Vista");
+    if (canCollapse) add({ id: "collapse", title: m.commands.collapseChains, keywords: "comprimi topologia collapse topology", run: actions.collapseAll }, g.view);
 
-    add({ id: "search", title: "Cerca nei commit", shortcut: "/", keywords: "trova find messaggio autore hash percorso file", run: actions.openSearch }, "Navigazione");
-    add({ id: "head", title: "Vai a HEAD", shortcut: "g h", keywords: "head corrente", run: actions.goHead }, "Navigazione");
+    add({ id: "search", title: m.commands.search, shortcut: "/", keywords: "trova find search messaggio message autore author hash percorso path file", run: actions.openSearch }, g.navigation);
+    add({ id: "head", title: m.commands.goHead, shortcut: "g h", keywords: "head corrente current", run: actions.goHead }, g.navigation);
     if (hasSelection || ancestors) {
       add(
         {
           id: "ancestors",
-          title: ancestors ? "Smetti di evidenziare gli antenati" : "Evidenzia gli antenati del commit selezionato",
+          title: ancestors ? m.commands.stopAncestors : m.commands.highlightAncestors,
           shortcut: "a",
           keywords: "storia parent ancestors highlight",
           run: actions.toggleAncestors,
         },
-        "Navigazione",
+        g.navigation,
       );
     }
-    if (ci.focus !== null) add({ id: "ci:all", title: "Mostra tutti i workflow", keywords: "ci workflow azioni pipeline", run: () => actions.focusWorkflow(null) }, "CI");
+    if (ci.focus !== null) add({ id: "ci:all", title: m.commands.showAllWorkflows, keywords: "ci workflow azioni actions pipeline", run: () => actions.focusWorkflow(null) }, g.ci);
     for (const workflow of ci.workflows) {
       const keywords = `ci workflow pipeline ${workflow.path} ${PROVIDER_LABEL[workflow.provider]}`;
       if (ci.focus !== workflow.id) {
-        add({ id: `ci:focus:${workflow.id}`, title: `Mostra solo il workflow ${workflow.name}`, detail: PROVIDER_LABEL[workflow.provider], keywords, run: () => actions.focusWorkflow(workflow.id) }, "CI");
+        add({ id: `ci:focus:${workflow.id}`, title: m.commands.onlyWorkflow(workflow.name), detail: PROVIDER_LABEL[workflow.provider], keywords, run: () => actions.focusWorkflow(workflow.id) }, g.ci);
       }
       const latest = ci.latest.get(workflow.id);
-      if (latest) add({ id: `ci:latest:${workflow.id}`, title: `Vai all'ultima run di ${workflow.name}`, keywords, run: () => actions.selectCommit(latest) }, "CI");
+      if (latest) add({ id: `ci:latest:${workflow.id}`, title: m.commands.latestRun(workflow.name), keywords, run: () => actions.selectCommit(latest) }, g.ci);
       const url = workflow.webUrl;
-      if (url) add({ id: `ci:web:${workflow.id}`, title: `Apri ${workflow.name} nel browser`, detail: PROVIDER_LABEL[workflow.provider], keywords, run: () => actions.openUrl(url) }, "CI");
+      if (url) add({ id: `ci:web:${workflow.id}`, title: m.commands.openInBrowser(workflow.name), detail: PROVIDER_LABEL[workflow.provider], keywords, run: () => actions.openUrl(url) }, g.ci);
     }
-    if (ci.workflows.length > 0) add({ id: "ci:refresh", title: "Aggiorna lo stato della CI", keywords: "ci run workflow ricarica", run: actions.refreshCi }, "CI");
+    if (ci.workflows.length > 0) add({ id: "ci:refresh", title: m.commands.refreshCi, keywords: "ci run workflow ricarica refresh", run: actions.refreshCi }, g.ci);
     for (const provider of ci.providers) {
-      add({ id: `ci:token:${provider}`, title: `Imposta il token di ${PROVIDER_LABEL[provider]}`, keywords: "ci token portachiavi accesso api", run: () => actions.askToken(provider) }, "CI");
+      add({ id: `ci:token:${provider}`, title: m.commands.setToken(PROVIDER_LABEL[provider]), keywords: "ci token portachiavi keychain accesso access api", run: () => actions.askToken(provider) }, g.ci);
     }
-    if (branchFilter) add({ id: "filter:clear", title: "Mostra tutti i branch", keywords: "filtro togli rimuovi", run: actions.clearFilter }, "Filtro");
+    if (branchFilter) add({ id: "filter:clear", title: m.commands.showAllBranches, keywords: "filtro filter togli rimuovi clear", run: actions.clearFilter }, g.filter);
 
     const labels = [...index.refs.values()].flat();
     const search = (query: string): PaletteCommand[] => {
@@ -134,20 +137,20 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
       for (const ref of refs.slice(0, MAX_REFS)) {
         const loaded = index.indexOf(ref.commit) !== null;
         if (!loaded) continue;
-        out.push({ id: `ref:${ref.kind}:${ref.name}`, group: "Riferimenti", title: `Vai a ${ref.name}`, detail: KIND_LABEL[ref.kind], run: () => actions.selectCommit(ref.commit) });
+        out.push({ id: `ref:${ref.kind}:${ref.name}`, group: g.refs, title: m.commands.goTo(ref.name), detail: kindLabel(m, ref.kind), run: () => actions.selectCommit(ref.commit) });
       }
       for (const ref of refs.filter((r) => r.name !== "HEAD").slice(0, MAX_FILTER_REFS)) {
         const filtered = inFilter(branchFilter, ref);
         const filter = { kind: ref.kind, name: ref.name };
-        out.push({ id: `only:${ref.kind}:${ref.name}`, group: "Filtro", title: `Mostra solo ${ref.name}`, detail: KIND_LABEL[ref.kind], run: () => actions.showOnly(filter) });
-        if (branchFilter && !filtered) out.push({ id: `add:${ref.kind}:${ref.name}`, group: "Filtro", title: `Aggiungi ${ref.name} al filtro`, run: () => actions.toggleFilter(filter) });
-        if (filtered) out.push({ id: `drop:${ref.kind}:${ref.name}`, group: "Filtro", title: `Togli ${ref.name} dal filtro`, run: () => actions.toggleFilter(filter) });
+        out.push({ id: `only:${ref.kind}:${ref.name}`, group: g.filter, title: m.commands.showOnly(ref.name), detail: kindLabel(m, ref.kind), run: () => actions.showOnly(filter) });
+        if (branchFilter && !filtered) out.push({ id: `add:${ref.kind}:${ref.name}`, group: g.filter, title: m.commands.addToFilter(ref.name), run: () => actions.toggleFilter(filter) });
+        if (filtered) out.push({ id: `drop:${ref.kind}:${ref.name}`, group: g.filter, title: m.commands.removeFromFilter(ref.name), run: () => actions.toggleFilter(filter) });
       }
       if (needle.length >= 2) {
         for (const id of matchCommits(index.commits, { mode: "text", text: needle }, MAX_COMMITS)) {
           const commit = index.commits[index.indexOf(id) ?? -1];
           if (!commit) continue;
-          out.push({ id: `commit:${id}`, group: "Commit", title: commit.summary || "(senza messaggio)", detail: `${shortHash(id)} · ${commit.author}`, run: () => actions.selectCommit(id) });
+          out.push({ id: `commit:${id}`, group: g.commit, title: commit.summary || m.commands.noMessage, detail: `${shortHash(id)} · ${commit.author}`, run: () => actions.selectCommit(id) });
         }
       }
       return out;
@@ -155,5 +158,5 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
 
     return { commands, search };
     // `version` is what tells us the (mutable) index changed.
-  }, [active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter, ci, actions]);
+  }, [m, active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, canCollapse, branchFilter, ci, actions]);
 }

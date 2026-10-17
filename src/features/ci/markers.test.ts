@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { CiOverview, CiRun, CiWorkflow } from "../../lib/bindings";
 import { fakeIndex } from "../graph/testData";
+import { en } from "../../lib/i18n/en";
+import { it as itMessages } from "../../lib/i18n/it";
 import { buildCiMarkers, describeMarker, summaryStatus, workflowOfRun } from "./markers";
 
 function workflow(id: number, name: string, path: string, provider: CiWorkflow["provider"] = "GitHub"): CiWorkflow {
@@ -69,8 +71,10 @@ describe("buildCiMarkers", () => {
   it("describes a marker for its tooltip", () => {
     const marker = buildCiMarkers(index, overview, [run("m3", "Failure")], null).get("m3");
     if (!marker) throw new Error("no marker");
-    expect(describeMarker(marker, "push", workflows)).toBe("CI: fallita\nUn push di main, origin/main avvierebbe: CI, Release");
-    expect(describeMarker(marker, "merge", workflows)).toBe("Un merge in main avvierebbe: CI");
+    expect(describeMarker(marker, "push", workflows, en)).toBe("CI: failed\nA push of main, origin/main would start: CI, Release");
+    expect(describeMarker(marker, "merge", workflows, en)).toBe("A merge into main would start: CI");
+    expect(describeMarker(marker, "push", workflows, itMessages)).toBe("CI: fallita\nUn push di main, origin/main avvierebbe: CI, Release");
+    expect(describeMarker(marker, "merge", workflows, itMessages)).toBe("Un merge in main avvierebbe: CI");
   });
 });
 
