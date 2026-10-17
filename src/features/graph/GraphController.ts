@@ -1,5 +1,6 @@
 import { hasModKey, IS_MAC } from "../../lib/platform";
 import { snapshotCanvas, toPng } from "./snapshot";
+import { BOB_MS } from "./bob";
 import { THEME_CHANGED } from "../../lib/theme";
 import { COLUMN_W, LANE_H } from "./constants";
 import { describeMarker } from "../ci/markers";
@@ -103,6 +104,8 @@ export class GraphController {
   private emphasis: Emphasis | null = null;
   private worktree: WorktreeMarker | null = null;
   private bookmarks: ReadonlySet<string> = new Set();
+  /** The node clicked last, bobbing like a float, and when it was clicked. */
+  private bobbing: { id: string; start: number } | null = null;
   private ci: CiScene | null = null;
   private overBadge = false;
   private anchor: ViewAnchor | null = null;
@@ -391,6 +394,11 @@ export class GraphController {
     }
     // The graph is drawn only when something in it changed; the dots move on their own canvas.
     const moving = redraw ? this.render(now) : false;
+    if (this.bobbing) {
+      // One more frame after the end, to draw the node back in its place.
+      if (now - this.bobbing.start >= BOB_MS) this.bobbing = null;
+      this.requestDraw();
+    }
     if (this.morph) {
       if (now - this.morph.start >= this.morph.duration) {
         this.morph = null;
@@ -448,6 +456,7 @@ export class GraphController {
       worktree: this.worktree,
       ci: this.ci,
       bookmarks: this.bookmarks,
+      bob: this.bobScene(time),
     });
     this.flowFrame = flow;
     const moving = flow !== null && (this.flowOverlay !== null || drawFlow(this.ctx, flow.links, { ...flow.style, time }) > 0);
@@ -488,6 +497,7 @@ export class GraphController {
       worktree: this.worktree,
       ci: this.ci,
       bookmarks: this.bookmarks,
+      bob: null,
     });
     // On screen the background is another layer, under the transparent graph.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -495,6 +505,14 @@ export class GraphController {
     ctx.fillStyle = this.palette.canvas;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     return toPng(canvas);
+  }
+
+  /** Where the bobbing node is in the frame drawn at `time`; none during a morph, whose columns move. */
+  private bobScene(time: number): { column: number; ms: number } | null {
+    const bobbing = this.bobbing;
+    if (!bobbing || this.morph) return null;
+    const column = this.index.indexOf(bobbing.id);
+    return column === null ? null : { column, ms: time - bobbing.start };
   }
 
   /** Keeps these commits bright and fades the rest; null shows everything normally. */
@@ -684,6 +702,10 @@ export class GraphController {
       return;
     }
     const hit = hitTest(this.index, this.view, x, y);
+    if (hit !== null && !e.shiftKey && !this.index.groups.has(hit) && !prefersReducedMotion()) {
+      const id = this.index.commits[hit]?.id;
+      if (id !== undefined) this.bobbing = { id, start: performance.now() };
+    }
     if (e.shiftKey && hit !== null && this.selected !== null && hit !== this.selected && this.callbacks.onCompare) {
       this.callbacks.onCompare(hit);
       return;

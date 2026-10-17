@@ -1,4 +1,5 @@
 import type { RefLabel } from "../../lib/bindings";
+import { bob } from "./bob";
 import { shortHash } from "../../lib/format";
 import {
   BRANCH_COLORS,
@@ -67,6 +68,8 @@ export interface Scene {
   ci: CiScene | null;
   /** Ids of the bookmarked commits, marked with a ribbon on their node. */
   bookmarks: ReadonlySet<string>;
+  /** A clicked node bobbing like a float (column, milliseconds since the click); null for none. */
+  bob: { column: number; ms: number } | null;
 }
 
 /** How many files have local changes, and the commit they sit on. */
@@ -451,16 +454,21 @@ function drawNodes(ctx: Ctx, scene: Scene, first: number, last: number): void {
       lastX[row.lane] = cx;
     }
 
-    const scale = arrivalScale(scene, r);
-    if (scale <= 0) continue;
-    if (scale !== 1) {
+    const arrival = arrivalScale(scene, r);
+    if (arrival <= 0) continue;
+    // The node, its label and badges move together; the links stay where they are.
+    const floating = scene.bob?.column === r ? bob(scene.bob.ms) : null;
+    const scale = arrival * (floating?.scale ?? 1);
+    const dy = (floating?.dy ?? 0) * z;
+    const moved = scale !== 1 || dy !== 0;
+    if (moved) {
       ctx.save();
-      ctx.translate(cx, cy);
+      ctx.translate(cx, cy + dy);
       ctx.scale(scale, scale);
       ctx.translate(-cx, -cy);
     }
     drawNode(ctx, scene, r, cx, cy);
-    if (scale !== 1) ctx.restore();
+    if (moved) ctx.restore();
     const color = palette.branch[row.color % BRANCH_COLORS] ?? palette.text3;
     drawPing(ctx, scene, r, cx, cy, color, !row.edges.some((e) => e.kind === "In" || e.kind === "MergeIn"));
   }
