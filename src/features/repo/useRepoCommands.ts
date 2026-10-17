@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { CiProvider, CiWorkflow, RefFilter, RefLabel } from "../../lib/bindings";
 import { PROVIDER_LABEL } from "../ci/labels";
 import { shortHash } from "../../lib/format";
+import { modShortcut } from "../../lib/platform";
 import type { GraphIndex } from "../graph/GraphIndex";
 import type { PaletteSource } from "../palette/paletteStore";
 import type { PaletteCommand } from "../palette/rank";
@@ -85,9 +86,9 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
       if (mode !== "timeline") {
         add({ id: "sea", title: sea ? "Nascondi i pesci sullo sfondo" : "Mostra i pesci sullo sfondo", keywords: "pesci mare sfondo fish acquario", run: actions.toggleSea }, "Vista");
       }
-      add({ id: "fit", title: "Mostra tutta la storia", shortcut: "⌘0", keywords: "zoom adatta fit", run: actions.fit }, "Vista");
-      add({ id: "zoom-in", title: "Ingrandisci", shortcut: "⌘+", keywords: "zoom in", run: actions.zoomIn }, "Vista");
-      add({ id: "zoom-out", title: "Riduci", shortcut: "⌘−", keywords: "zoom out", run: actions.zoomOut }, "Vista");
+      add({ id: "fit", title: "Mostra tutta la storia", shortcut: modShortcut("0"), keywords: "zoom adatta fit", run: actions.fit }, "Vista");
+      add({ id: "zoom-in", title: "Ingrandisci", shortcut: modShortcut("+"), keywords: "zoom in", run: actions.zoomIn }, "Vista");
+      add({ id: "zoom-out", title: "Riduci", shortcut: modShortcut("−"), keywords: "zoom out", run: actions.zoomOut }, "Vista");
     }
     if (canCollapse) add({ id: "collapse", title: "Richiudi tutte le catene", keywords: "comprimi topologia", run: actions.collapseAll }, "Vista");
 

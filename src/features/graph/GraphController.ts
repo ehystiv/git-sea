@@ -1,3 +1,4 @@
+import { hasModKey, IS_MAC } from "../../lib/platform";
 import { THEME_CHANGED } from "../../lib/theme";
 import { COLUMN_W, LANE_H } from "./constants";
 import { describeMarker } from "../ci/markers";
@@ -646,8 +647,10 @@ export class GraphController {
     e.preventDefault();
     const { x, y } = this.local(e);
     if (e.ctrlKey || e.metaKey) {
-      // Pinch on Chromium reports ctrlKey with small deltas; ⌘+scroll needs a gentler curve.
-      const factor = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.002));
+      // A trackpad pinch on macOS reports ctrlKey with small deltas; ⌘+scroll, and Ctrl+wheel on
+      // Linux (whole notches), need a gentler curve.
+      const pinch = e.ctrlKey && IS_MAC;
+      const factor = Math.exp(-e.deltaY * (pinch ? 0.01 : 0.002));
       this.setViewNow(zoomAt(this.view, factor, x, y));
     } else {
       const dx = e.shiftKey && e.deltaX === 0 ? e.deltaY : e.deltaX;
@@ -663,7 +666,7 @@ export class GraphController {
       return;
     }
 
-    if (e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (hasModKey(e) && !e.altKey) {
       if (e.key === "=" || e.key === "+") this.zoomBy(ZOOM_STEP);
       else if (e.key === "-") this.zoomBy(1 / ZOOM_STEP);
       else if (e.key === "0") this.fit();

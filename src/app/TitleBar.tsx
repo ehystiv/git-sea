@@ -1,3 +1,4 @@
+import { modShortcut } from "../lib/platform";
 import { useTheme } from "../lib/theme";
 import type { ThemeMode } from "../lib/themeLogic";
 import type { Tab } from "./tabsLogic";
@@ -52,30 +53,30 @@ export function TitleBar({ tabs, activeId, onActivate, onClose, onNew, onPalette
               role="tab"
               aria-selected={tab.id === activeId}
               className={styles.select}
-              title={`${tab.repo.path}  (⌘${i + 1})`}
+              title={`${tab.repo.path}  (${modShortcut(String(i + 1))})`}
               onClick={() => onActivate(tab.id)}
             >
               <span className={styles.dot} style={{ background: `var(--b${tab.color})` }} />
               <span className={styles.name}>{tab.repo.name}</span>
             </button>
-            <button type="button" className={styles.close} aria-label={`Chiudi ${tab.repo.name}`} title="Chiudi (⌘W)" onClick={() => onClose(tab.id)}>
+            <button type="button" className={styles.close} aria-label={`Chiudi ${tab.repo.name}`} title={`Chiudi (${modShortcut("W")})`} onClick={() => onClose(tab.id)}>
               ×
             </button>
           </div>
         ))}
-        <button type="button" className={styles.add} aria-label="Apri repository" title="Apri repository (⌘O)" onClick={onNew}>
+        <button type="button" className={styles.add} aria-label="Apri repository" title={`Apri repository (${modShortcut("O")})`} onClick={onNew}>
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M5 12h14M12 5v14" />
           </svg>
         </button>
       </div>
-      <button type="button" className={styles.palette} title="Comandi (⌘K)" onClick={onPalette}>
+      <button type="button" className={styles.palette} title={`Comandi (${modShortcut("K")})`} onClick={onPalette}>
         <svg viewBox="0 0 24 24" width="13" height="13" {...stroke}>
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-3.5-3.5" />
         </svg>
         <span>Comandi</span>
-        <kbd>⌘K</kbd>
+        <kbd>{modShortcut("K")}</kbd>
       </button>
       <button type="button" className={styles.theme} aria-label={THEME_LABEL[mode]} title={`${THEME_LABEL[mode]} (clic per cambiare)`} onClick={cycleTheme}>
         <ThemeIcon mode={mode} />

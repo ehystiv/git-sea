@@ -9,6 +9,7 @@ import { useRepoDrop } from "../features/repo/useRepoDrop";
 import { commands } from "../lib/bindings";
 import { pickRepoFolder } from "../lib/dialog";
 import { describeError } from "../lib/errors";
+import { hasModKey, modShortcut } from "../lib/platform";
 import { useTheme } from "../lib/theme";
 import { findTabByPath, normalizePath } from "./tabsLogic";
 import { useTabs } from "./tabsStore";
@@ -79,10 +80,10 @@ export function App() {
     };
   }, []);
 
-  // ⌘1…⌘9 switch tabs; ⌘9 goes to the last one.
+  // ⌘1…⌘9 (Ctrl on Linux) switch tabs; ⌘9 goes to the last one.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (!event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      if (!hasModKey(event) || event.altKey || event.shiftKey) return;
       if (event.key < "1" || event.key > "9") return;
       event.preventDefault();
       activateAt(Number(event.key) - 1, event.key === "9");
@@ -98,8 +99,8 @@ export function App() {
     const openPaths = new Set(tabs.map((t) => t.repo.path));
     return {
       commands: [
-        { id: "app:open", group: "Repository", title: "Apri repository…", shortcut: "⌘O", keywords: "open cartella folder", run: () => void browse() },
-        ...(activeId ? [{ id: "app:close", group: "Repository", title: "Chiudi la tab", shortcut: "⌘W", keywords: "close", run: closeActive }] : []),
+        { id: "app:open", group: "Repository", title: "Apri repository…", shortcut: modShortcut("O"), keywords: "open cartella folder", run: () => void browse() },
+        ...(activeId ? [{ id: "app:close", group: "Repository", title: "Chiudi la tab", shortcut: modShortcut("W"), keywords: "close", run: closeActive }] : []),
         ...tabs
           .filter((t) => t.id !== activeId)
           .map((t, i) => ({
@@ -107,7 +108,7 @@ export function App() {
             group: "Repository",
             title: `Passa a ${t.repo.name}`,
             detail: t.repo.path,
-            shortcut: i < 8 ? `⌘${tabs.indexOf(t) + 1}` : undefined,
+            shortcut: i < 8 ? modShortcut(String(tabs.indexOf(t) + 1)) : undefined,
             keywords: "tab switch",
             run: () => activate(t.id),
           })),

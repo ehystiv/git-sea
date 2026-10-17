@@ -34,7 +34,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
 /// Event the native menu sends to the frontend; the payload is the id of the menu item.
 const MENU_EVENT: &str = "menu";
 
-/// The standard macOS menus, with "Open" and "Close Tab" in the File menu. The default menu binds
+/// The native menus, with "Open" and "Close Tab" in the File menu. The default menu binds
 /// ⌘W to "Close Window", which would close the app instead of the current tab.
 fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let open = MenuItemBuilder::with_id("open_repo", "Apri repository…")
@@ -44,43 +44,61 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         .accelerator("CmdOrCtrl+W")
         .build(app)?;
 
-    let app_menu = SubmenuBuilder::new(app, "git-sea")
-        .about(None)
-        .separator()
-        .services()
-        .separator()
-        .hide()
-        .hide_others()
-        .show_all()
-        .separator()
-        .quit()
-        .build()?;
-    let file_menu = SubmenuBuilder::new(app, "File")
-        .item(&open)
-        .item(&close)
-        .build()?;
-    // Without an Edit menu, ⌘C / ⌘V / ⌘A do not work in text fields on macOS.
-    let edit_menu = SubmenuBuilder::new(app, "Modifica")
-        .undo()
-        .redo()
-        .separator()
-        .cut()
-        .copy()
-        .paste()
-        .select_all()
-        .build()?;
-    let window_menu = SubmenuBuilder::new(app, "Finestra")
-        .minimize()
-        .maximize()
-        .fullscreen()
-        .build()?;
+    #[cfg(target_os = "macos")]
+    {
+        let app_menu = SubmenuBuilder::new(app, "git-sea")
+            .about(None)
+            .separator()
+            .services()
+            .separator()
+            .hide()
+            .hide_others()
+            .show_all()
+            .separator()
+            .quit()
+            .build()?;
+        let file_menu = SubmenuBuilder::new(app, "File")
+            .item(&open)
+            .item(&close)
+            .build()?;
+        // Without an Edit menu, ⌘C / ⌘V / ⌘A do not work in text fields on macOS.
+        let edit_menu = SubmenuBuilder::new(app, "Modifica")
+            .undo()
+            .redo()
+            .separator()
+            .cut()
+            .copy()
+            .paste()
+            .select_all()
+            .build()?;
+        let window_menu = SubmenuBuilder::new(app, "Finestra")
+            .minimize()
+            .maximize()
+            .fullscreen()
+            .build()?;
 
-    Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu, &window_menu])
+        Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu, &window_menu])
+    }
+
+    // Elsewhere the menu bar sits inside the window: only File, with Quit. Text fields handle
+    // Ctrl+C / Ctrl+V on their own, and the window manager has its own window controls.
+    #[cfg(not(target_os = "macos"))]
+    {
+        let file_menu = SubmenuBuilder::new(app, "File")
+            .item(&open)
+            .item(&close)
+            .separator()
+            .quit()
+            .build()?;
+
+        Menu::with_items(app, &[&file_menu])
+    }
 }
 
-/// The window is transparent (see `tauri.conf.json`); this gives it the macOS "sidebar" material,
+/// On macOS the window is transparent (see `tauri.conf.json`); this gives it the "sidebar" material,
 /// which shows through wherever the page is transparent. The same effect is in the config, but
 /// applying it here too makes a refusal visible in the log instead of silent.
+#[cfg(target_os = "macos")]
 fn apply_sidebar_vibrancy(app: &tauri::AppHandle) {
     use tauri::window::{Effect, EffectState, EffectsBuilder};
 
@@ -138,6 +156,7 @@ pub fn run() {
                 .app_cache_dir()
                 .unwrap_or_else(|_| std::env::temp_dir().join("git-sea"));
             app.manage(session::AppState::new(cache_dir));
+            #[cfg(target_os = "macos")]
             apply_sidebar_vibrancy(app.handle());
             Ok(())
         })

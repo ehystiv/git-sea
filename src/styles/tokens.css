@@ -105,4 +105,14 @@
     --b0: #9b83ff; --b1: #3ed0b8; --b2: #f0b040; --b3: #ff6fa3;
     --b4: #5aa2ff; --b5: #6fd07a; --b6: #ff8a54; --b7: #bb92ff;
   }
+
+  /* Off macOS (`data-platform`, set by lib/platform.ts) the window is opaque, with the system's
+     title bar: no vibrancy to show through the sidebar and no traffic lights to make room for. */
+  :root[data-platform="other"] {
+    --sidebar: #f4f4f8;
+    --traffic-lights-width: var(--space-3);
+  }
+  :root[data-platform="other"][data-theme="dark"] {
+    --sidebar: #121218;
+  }
 }

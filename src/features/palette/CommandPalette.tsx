@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Command } from "cmdk";
 import { Kbd } from "../../components/Kbd/Kbd";
+import { hasModKey } from "../../lib/platform";
 import { usePalette } from "./paletteStore";
 import { groupCommands, rankCommands, type PaletteCommand } from "./rank";
 import styles from "./CommandPalette.module.css";
@@ -10,10 +11,10 @@ export function CommandPalette() {
   const open = usePalette((s) => s.open);
   const setOpen = usePalette((s) => s.setOpen);
 
-  // ⌘K opens and closes it from anywhere, text fields included.
+  // ⌘K (Ctrl+K on Linux) opens and closes it from anywhere, text fields included.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k") {
+      if (hasModKey(event) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setOpen(!usePalette.getState().open);
       }

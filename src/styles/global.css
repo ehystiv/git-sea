@@ -5,7 +5,7 @@
 
   body {
     margin: 0;
-    /* transparent: the window has vibrancy; every region paints its own background */
+    /* transparent: on macOS the window has vibrancy; every region paints its own background */
     background: transparent;
     color: var(--text);
     font: 13px/1.4 var(--font-ui);
@@ -15,6 +15,9 @@
     user-select: none;
     -webkit-user-select: none;
   }
+
+  /* the window is opaque off macOS: paint the page so nothing white shows through */
+  :root[data-platform="other"] body { background: var(--bg); }
 
   button, input { font: inherit; color: inherit; }
   button { background: none; border: 0; padding: 0; cursor: default; }

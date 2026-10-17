@@ -1,6 +1,7 @@
 //! Tokens for the CI services' APIs: the ones the GitHub and GitLab CLIs (`gh`, `glab`) are
-//! logged in with, or one saved in the macOS Keychain from the app. Tokens never leave this
-//! module except as an HTTP header to the service they belong to.
+//! logged in with, or one saved from the app in the system keychain (the macOS Keychain, or the
+//! Secret Service on Linux). Tokens never leave this module except as an HTTP header to the
+//! service they belong to.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -97,17 +98,53 @@ pub fn keychain_delete(provider: CiProvider) -> Result<(), String> {
     }
 }
 
-#[cfg(not(target_os = "macos"))]
+/// The Secret Service store (GNOME Keyring, KWallet) as keyring-core's default, set up once.
+#[cfg(target_os = "linux")]
+fn secret_service_entry(provider: CiProvider) -> Result<keyring_core::Entry, String> {
+    static STORE: std::sync::OnceLock<Result<(), String>> = std::sync::OnceLock::new();
+    STORE
+        .get_or_init(|| {
+            zbus_secret_service_keyring_store::Store::new()
+                .map(|store| keyring_core::set_default_store(store))
+                .map_err(|e| format!("portachiavi non disponibile: {e}"))
+        })
+        .clone()?;
+    keyring_core::Entry::new(KEYCHAIN_SERVICE, provider.key()).map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "linux")]
+pub fn keychain_get(provider: CiProvider) -> Option<String> {
+    let token = secret_service_entry(provider).ok()?.get_password().ok()?;
+    (!token.is_empty()).then_some(token)
+}
+
+#[cfg(target_os = "linux")]
+pub fn keychain_set(provider: CiProvider, token: &str) -> Result<(), String> {
+    secret_service_entry(provider)?
+        .set_password(token)
+        .map_err(|e| e.to_string())
+}
+
+#[cfg(target_os = "linux")]
+pub fn keychain_delete(provider: CiProvider) -> Result<(), String> {
+    match secret_service_entry(provider)?.delete_credential() {
+        // Nothing saved: nothing to delete.
+        Ok(()) | Err(keyring_core::Error::NoEntry) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 pub fn keychain_get(_provider: CiProvider) -> Option<String> {
     None
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 pub fn keychain_set(_provider: CiProvider, _token: &str) -> Result<(), String> {
-    Err("il portachiavi è disponibile solo su macOS".to_owned())
+    Err("il portachiavi è disponibile solo su macOS e Linux".to_owned())
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 pub fn keychain_delete(_provider: CiProvider) -> Result<(), String> {
     Ok(())
 }

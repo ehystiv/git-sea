@@ -6,8 +6,10 @@ import "@fontsource-variable/jetbrains-mono";
 import "./styles/tokens.css";
 import "./styles/global.css";
 import { App } from "./app/App";
+import { applyPlatform } from "./lib/platform";
 import { initTheme } from "./lib/theme";
 
+applyPlatform();
 initTheme();
 
 const queryClient = new QueryClient();

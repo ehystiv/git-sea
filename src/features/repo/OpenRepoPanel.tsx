@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Button } from "../../components/Button/Button";
 import { Kbd } from "../../components/Kbd/Kbd";
 import type { RecentRepo } from "../../app/tabsLogic";
+import { modShortcut } from "../../lib/platform";
 import styles from "./OpenRepoPanel.module.css";
 
 interface OpenRepoPanelProps {
@@ -32,7 +33,7 @@ export function OpenRepoPanel({ isPending, isDragging, error, onOpen, onBrowse, 
         <Button variant="ghost" onClick={onBrowse} disabled={isPending}>
           Sfoglia…
         </Button>
-        <Kbd>⌘O</Kbd>
+        <Kbd>{modShortcut("O")}</Kbd>
       </div>
 
       <form className={styles.form} onSubmit={handleSubmit}>

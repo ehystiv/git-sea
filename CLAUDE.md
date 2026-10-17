@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-git-sea is a macOS Git history viewer built with Tauri 2: a Rust backend (`src-tauri/`, using `gix`) and a React 19 + TypeScript + Vite frontend (`src/`). It never writes to repositories, with one exception: a background `git fetch --all` (`src-tauri/src/git/fetch.rs`) that updates remote refs.
+git-sea is a Git history viewer for macOS and Linux built with Tauri 2: a Rust backend (`src-tauri/`, using `gix`) and a React 19 + TypeScript + Vite frontend (`src/`). It never writes to repositories, with one exception: a background `git fetch --all` (`src-tauri/src/git/fetch.rs`) that updates remote refs.
 
 `PLAN.md` (in Italian) is the full project plan: requirements, phases, conventions and technical notes. Read its sections 6 and 7 before you make non-trivial changes.
 
@@ -55,6 +55,10 @@ These pages are not part of the app build. Their data goes in `public/dev-data/`
 - `shell.html`: the tabs and sidebar with real data.
 
 Outside Tauri, `getCurrentWebview()` throws synchronously, so calls to it are wrapped in try/catch.
+
+## Platforms
+
+macOS is the main target; Linux is built and released too. Platform differences live in a few places: `src-tauri/tauri.linux.conf.json` (opaque window with system decorations instead of the transparent overlay title bar), `#[cfg(target_os = ...)]` in `lib.rs` (vibrancy, native menu) and `ci/auth.rs` (Keychain on macOS, Secret Service on Linux), and `src/lib/platform.ts` on the frontend (`hasModKey`/`modShortcut` for ⌘ vs Ctrl, `data-platform` on `<html>` for the CSS). Use those helpers for new shortcuts instead of checking `metaKey`. `.github/workflows/ci.yml` runs lint and tests on both platforms.
 
 ## Conventions (from PLAN.md)
 
