@@ -159,6 +159,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       onOpenCi: (id) => onOpenCiRef.current?.(id),
       onUnseen: setUnseen,
       onNewCommits: (points) => seaLayer.scare(points),
+      // The fish near a clicked node dart away from the ripples.
+      onPoke: (point) => seaLayer.scare([point]),
     });
     controllerRef.current = controller;
     controller.attachFlowCanvas(flowCanvas);

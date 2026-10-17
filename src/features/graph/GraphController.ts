@@ -1,6 +1,6 @@
 import { hasModKey, IS_MAC } from "../../lib/platform";
 import { snapshotCanvas, toPng } from "./snapshot";
-import { BOB_MS } from "./bob";
+import { BOB_MS, RIPPLE_MS } from "./bob";
 import { THEME_CHANGED } from "../../lib/theme";
 import { COLUMN_W, LANE_H } from "./constants";
 import { describeMarker } from "../ci/markers";
@@ -30,6 +30,8 @@ export interface GraphCallbacks {
   onOpenWorktree?: () => void;
   /** A CI marker was clicked; the argument is its commit's id. */
   onOpenCi?: (id: string) => void;
+  /** A node was clicked and pushed into the water; where it is on screen (for the sea). */
+  onPoke?: (point: { x: number; y: number }) => void;
   /** New commits arrived; where they are on screen (for the sea). */
   onNewCommits?: (points: Array<{ x: number; y: number }>) => void;
   /** New commits arrived off screen (how many, and which way); null once they were seen. */
@@ -396,7 +398,7 @@ export class GraphController {
     const moving = redraw ? this.render(now) : false;
     if (this.bobbing) {
       // One more frame after the end, to draw the node back in its place.
-      if (now - this.bobbing.start >= BOB_MS) this.bobbing = null;
+      if (now - this.bobbing.start >= Math.max(BOB_MS, RIPPLE_MS)) this.bobbing = null;
       this.requestDraw();
     }
     if (this.morph) {
@@ -704,7 +706,11 @@ export class GraphController {
     const hit = hitTest(this.index, this.view, x, y);
     if (hit !== null && !e.shiftKey && !this.index.groups.has(hit) && !prefersReducedMotion()) {
       const id = this.index.commits[hit]?.id;
-      if (id !== undefined) this.bobbing = { id, start: performance.now() };
+      if (id !== undefined) {
+        this.bobbing = { id, start: performance.now() };
+        const lane = this.index.rows[hit]?.lane ?? 0;
+        this.callbacks.onPoke?.(this.worldToScreen(hit, lane));
+      }
     }
     if (e.shiftKey && hit !== null && this.selected !== null && hit !== this.selected && this.callbacks.onCompare) {
       this.callbacks.onCompare(hit);

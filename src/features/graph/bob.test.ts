@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BOB_MS, bob } from "./bob";
+import { BOB_MS, RIPPLE_MS, bob, ripples } from "./bob";
 
 const curve = Array.from({ length: BOB_MS + 1 }, (_, ms) => bob(ms));
 
@@ -30,5 +30,22 @@ describe("bob", () => {
     }
     expect(peaks.length).toBeGreaterThanOrEqual(3);
     peaks.slice(1).forEach((peak, i) => expect(peak).toBeLessThan(peaks[i] ?? Infinity));
+  });
+});
+
+describe("ripples", () => {
+  it("sends out rings one after the other, growing and fading", () => {
+    expect(ripples(0)).toEqual([]);
+    expect(ripples(60)).toHaveLength(1);
+    expect(ripples(400).length).toBeGreaterThanOrEqual(2);
+    const early = ripples(100)[0];
+    const late = ripples(500)[0];
+    expect(late?.radius).toBeGreaterThan(early?.radius ?? 0);
+    expect(late?.alpha).toBeLessThan(early?.alpha ?? 0);
+  });
+
+  it("starts just outside the node and is gone at the end", () => {
+    expect(ripples(1)[0]?.radius).toBeGreaterThanOrEqual(0.6);
+    expect(ripples(RIPPLE_MS)).toEqual([]);
   });
 });

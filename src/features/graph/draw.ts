@@ -1,5 +1,5 @@
 import type { RefLabel } from "../../lib/bindings";
-import { bob } from "./bob";
+import { bob, ripples } from "./bob";
 import { shortHash } from "../../lib/format";
 import {
   BRANCH_COLORS,
@@ -169,7 +169,11 @@ export function draw(ctx: Ctx, input: Scene): FlowFrame | null {
         }
       : null;
   if (z < LOD_TILE) drawDots2(ctx, scene, first, last, stride);
-  else drawNodes(ctx, scene, first, last);
+  else {
+    // On the water, under the node floating on it.
+    drawRipples(ctx, scene);
+    drawNodes(ctx, scene, first, last);
+  }
   // Markers would lag behind columns that move.
   if (!scene.morph) drawCi(ctx, scene, first, last);
   drawWorktree(ctx, scene);
@@ -531,6 +535,27 @@ function drawNode(ctx: Ctx, scene: Scene, r: number, cx: number, cy: number): vo
   else drawIcon(ctx, palette, described.kind, row.color, cx, cy, z);
   drawLabel(ctx, scene, r, described, cx, cy + size / 2 + 8 * z);
   drawBadges(ctx, scene, index.refs.get(commit.id), row.color, cx, top - 8 * z);
+}
+
+/** Rings spreading on the water from the node that was just clicked, in its branch's colour. */
+function drawRipples(ctx: Ctx, scene: Scene): void {
+  const poke = scene.bob;
+  const row = poke ? scene.index.rows[poke.column] : undefined;
+  if (!poke || !row) return;
+  const rings = ripples(poke.ms);
+  if (rings.length === 0) return;
+  const z = scene.view.z;
+  const cx = columnX(scene, poke.column);
+  const cy = row.lane * LANE_H * z + scene.view.ty;
+  const size = NODE * z;
+  const color = scene.palette.branch[row.color % BRANCH_COLORS] ?? scene.palette.text3;
+  for (const ring of rings) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, ring.radius * size, 0, Math.PI * 2);
+    ctx.strokeStyle = withAlpha(color, ring.alpha);
+    ctx.lineWidth = Math.max(0.75, ring.width * z);
+    ctx.stroke();
+  }
 }
 
 /** A bookmark ribbon hanging from the top edge of a node, near its right corner. */
