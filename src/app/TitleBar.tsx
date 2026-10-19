@@ -187,6 +187,15 @@ export function TitleBar({ tabs, activeId, split, onTabMenu, onActivate, onMove,
             data-tab-id={tab.id}
             className={`${styles.tab} ${tab.id === activeId ? styles.active : split?.includes(tab.id) ? styles.alongside : ""}`}
             onPointerDown={(event) => drag.onPointerDown(event, tab.id)}
+            // A middle click closes the tab, as in a browser; pressing it must not start autoscroll.
+            onMouseDown={(event) => {
+              if (event.button === 1) event.preventDefault();
+            }}
+            onAuxClick={(event) => {
+              if (event.button !== 1) return;
+              event.preventDefault();
+              onClose(tab.id);
+            }}
             onContextMenu={(event) => {
               event.preventDefault();
               onTabMenu(tab.id, event.clientX, event.clientY);
