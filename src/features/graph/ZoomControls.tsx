@@ -9,6 +9,9 @@ interface ZoomControlsProps {
   onFit: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
+  /** Whether the view moves to HEAD or to new commits after a reload; no button without `onToggleFollow`. */
+  follow?: boolean;
+  onToggleFollow?: () => void;
   /** Opens the export choices; the point is where to show them (window coordinates). */
   onExport?: (x: number, y: number) => void;
 }
@@ -21,7 +24,7 @@ function formatZoom(zoom: number): string {
 }
 
 /** Fit, zoom in and out, the zoom level and the export button; dragged by the dots on the left. */
-export const ZoomControls = forwardRef<HTMLDivElement, ZoomControlsProps>(function ZoomControls({ zoom, onFit, onZoomIn, onZoomOut, onExport }, ref) {
+export const ZoomControls = forwardRef<HTMLDivElement, ZoomControlsProps>(function ZoomControls({ zoom, onFit, onZoomIn, onZoomOut, follow = false, onToggleFollow, onExport }, ref) {
   const m = useT();
   return (
     <div ref={ref} className={styles.zoom} role="toolbar" aria-label="Zoom">
@@ -50,6 +53,22 @@ export const ZoomControls = forwardRef<HTMLDivElement, ZoomControlsProps>(functi
           <path d="M5 12h14" />
         </svg>
       </button>
+      {onToggleFollow && (
+        <button
+          type="button"
+          className={styles.follow}
+          aria-pressed={follow}
+          aria-label={m.zoom.follow}
+          title={`${m.zoom.follow}: ${follow ? m.zoom.on : m.zoom.off}`}
+          onClick={onToggleFollow}
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" {...stroke}>
+            <circle cx="12" cy="12" r="7" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          </svg>
+        </button>
+      )}
       <span className={styles.pct}>{formatZoom(zoom)}</span>
       {onExport && (
         <button

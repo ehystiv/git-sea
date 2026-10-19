@@ -35,3 +35,24 @@ export function sideOf(index: GraphIndex, view: View, width: number, height: num
   if (y > height) return "down";
   return null;
 }
+
+/** The commit HEAD points to, or null when there is none (unborn branch, filtered out). */
+export function headId(index: GraphIndex): string | null {
+  for (const labels of index.refs.values()) {
+    for (const label of labels) if (label.kind === "Head") return label.commit;
+  }
+  return null;
+}
+
+/**
+ * Column the view should move to after a reload: HEAD's when HEAD changed, otherwise the newest of
+ * the `added` commits; null when neither is in `after`.
+ */
+export function followColumn(before: GraphIndex, after: GraphIndex, added: readonly string[]): number | null {
+  const head = headId(after);
+  if (head !== null && head !== headId(before)) {
+    const at = after.indexOf(head);
+    if (at !== null) return at;
+  }
+  return newestColumn(after, added);
+}

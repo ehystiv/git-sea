@@ -417,7 +417,7 @@ export const en = {
     },
   },
 
-  zoom: { fit: "Fit", in: "Zoom in", out: "Zoom out", export: "Export the view as an image" },
+  zoom: { fit: "Fit", in: "Zoom in", out: "Zoom out", follow: "Follow HEAD and new commits", on: "on", off: "off", export: "Export the view as an image" },
 
   dock: { move: "Drag to move it to another corner" },
 

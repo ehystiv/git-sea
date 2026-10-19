@@ -12,7 +12,7 @@ import type { GraphIndex, ReplaceMotion } from "./GraphIndex";
 import { ARRIVAL, arrivalDuration, buildArrival, buildMorph, morphPositions, type Morph } from "./morph";
 import type { MinimapFrame } from "./MinimapOverlay";
 import { readPalette, type Palette } from "./palette";
-import { newCommitIds, newestColumn, sideOf, type Side } from "./unseen";
+import { followColumn, newCommitIds, newestColumn, sideOf, type Side } from "./unseen";
 import { anchorAtCentre, centeredOn, clampView, clampZoom, fitView, homeView, viewAfterReplace, zoomAt, type ViewAnchor } from "./view";
 
 export interface GraphCallbacks {
@@ -118,6 +118,8 @@ export class GraphController {
   private arrivalFrom: GraphIndex | null = null;
   /** Ids of new commits not seen yet (they arrived off screen), and what was last reported. */
   private unseen: string[] = [];
+  /** After a reload, move to HEAD when it changed or else to the newest new commit. */
+  private follow = true;
   private unseenReported: Unseen | null = null;
   private frameListeners: Array<(frame: MinimapFrame<View>) => void> = [];
   private readonly disposers: Array<() => void> = [];
@@ -256,8 +258,10 @@ export class GraphController {
       // Earlier unseen commits stay unseen; a commit can come back after being amended away.
       const added = newCommitIds(this.arrivalFrom, this.index);
       this.unseen = [...new Set([...added, ...this.unseen])];
-      this.arrivalFrom = null;
       if (added.length > 0) this.callbacks.onNewCommits?.(this.screenPoints(added.slice(0, 20)));
+      const target = this.follow ? followColumn(this.arrivalFrom, this.index, added) : null;
+      this.arrivalFrom = null;
+      if (target !== null) this.centerOn(target);
     }
     this.updateUnseen();
     this.requestDraw();
@@ -542,6 +546,10 @@ export class GraphController {
   }
 
   /** Switches the dots travelling along the links on or off. */
+  setFollow(enabled: boolean): void {
+    this.follow = enabled;
+  }
+
   setFlow(enabled: boolean): void {
     this.flow = enabled;
     this.requestDraw();

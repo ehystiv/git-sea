@@ -414,7 +414,7 @@ export const it: Messages = {
     },
   },
 
-  zoom: { fit: "Adatta", in: "Ingrandisci", out: "Riduci", export: "Esporta la vista come immagine" },
+  zoom: { fit: "Adatta", in: "Ingrandisci", out: "Riduci", follow: "Segui HEAD e i nuovi commit", on: "attivo", off: "disattivo", export: "Esporta la vista come immagine" },
 
   dock: { move: "Trascina per spostarlo in un altro angolo" },
 

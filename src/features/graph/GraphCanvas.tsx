@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { CommitSummary } from "../../lib/bindings";
 import { useT } from "../../lib/i18n";
+import { useFollow } from "../../lib/follow";
 import { useWindowFocused } from "../../lib/windowFocus";
 import { GraphController, type Unseen } from "./GraphController";
 import type { CiScene } from "./ciDraw";
@@ -78,6 +79,9 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const seaCanvasRef = useRef<HTMLCanvasElement>(null);
   const flowCanvasRef = useRef<HTMLCanvasElement>(null);
   const focused = useWindowFocused();
+  const follow = useFollow((s) => s.enabled);
+  const toggleFollow = useFollow((s) => s.toggle);
+  const followRef = useRef(follow);
   const seaRef = useRef<SeaLayer | null>(null);
   const seaEnabledRef = useRef(sea);
   const activeRef = useRef(active);
@@ -165,6 +169,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     controllerRef.current = controller;
     controller.attachFlowCanvas(flowCanvas);
     controller.setFlow(flowRef.current);
+    controller.setFollow(followRef.current);
     controller.setEmphasis(emphasisRef.current);
     controller.setWorktree(worktreeRef.current);
     controller.setBookmarks(bookmarksRef.current);
@@ -239,6 +244,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   }, [flow]);
 
   useEffect(() => {
+    followRef.current = follow;
+    controllerRef.current?.setFollow(follow);
+  }, [follow]);
+
+  useEffect(() => {
     emphasisRef.current = emphasis;
     controllerRef.current?.setEmphasis(emphasis);
   }, [emphasis]);
@@ -292,6 +302,8 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
         onFit={() => controllerRef.current?.fit()}
         onZoomIn={() => controllerRef.current?.zoomBy(1.25)}
         onZoomOut={() => controllerRef.current?.zoomBy(1 / 1.25)}
+        follow={follow}
+        onToggleFollow={toggleFollow}
         onExport={onExport}
       />
     </div>
