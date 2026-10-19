@@ -191,6 +191,11 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   useEffect(() => {
     if (ciFocus !== null && !ci.overview?.workflows.some((w) => w.id === ciFocus)) setCiFocus(null);
   }, [ci.overview, ciFocus]);
+  // Clicking a commit, even the selected one, brings its details back over the CI or local changes.
+  const showCommitDetails = useCallback(() => {
+    setShowWorktree(false);
+    setCiCommit(null);
+  }, []);
   const openCi = useCallback((id: string) => {
     setShowWorktree(false);
     setCiCommit(id);
@@ -896,6 +901,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               flow={flow}
               emphasis={emphasis}
               onSelect={selectCommit}
+              onClickCommit={showCommitDetails}
               onCompare={compareWithCommit}
               onContextMenu={openMenu}
               onExpandGroup={mode === "topology" ? compressed.expand : undefined}

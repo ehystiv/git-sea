@@ -18,6 +18,11 @@ import { anchorAtCentre, centeredOn, clampView, clampZoom, fitView, homeView, vi
 export interface GraphCallbacks {
   onSelect: (index: number | null) => void;
   onZoom: (zoom: number) => void;
+  /**
+   * A commit was clicked (not a CI marker or a badge on it), even the one already selected: its
+   * details should be shown instead of whatever the panel shows.
+   */
+  onClickCommit?: (index: number) => void;
   /** ⇧-click on a commit other than the selected one: compare the two. */
   onCompare?: (index: number) => void;
   /** Right-click on a commit; `x` and `y` are in the window (client coordinates). */
@@ -730,7 +735,10 @@ export class GraphController {
     if (!commit) return;
     if (this.index.groups.has(hit ?? -1)) {
       this.callbacks.onExpandGroup?.(commit.id);
-    } else if (wasSelected) {
+      return;
+    }
+    if (hit !== null) this.callbacks.onClickCommit?.(hit);
+    if (wasSelected) {
       // A second click on a commit of an opened run closes the run again.
       const run = this.index.openRuns.get(commit.id);
       if (run !== undefined) this.callbacks.onCollapseGroup?.(run);
