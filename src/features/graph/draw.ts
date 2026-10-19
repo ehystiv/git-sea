@@ -1,3 +1,4 @@
+import type { PullBadge } from "../pulls/pulls";
 import type { RefLabel } from "../../lib/bindings";
 import { bob, ripples } from "./bob";
 import { shortHash } from "../../lib/format";
@@ -68,6 +69,8 @@ export interface Scene {
   ci: CiScene | null;
   /** Ids of the bookmarked commits, marked with a ribbon on their node. */
   bookmarks: ReadonlySet<string>;
+  /** Pull or merge requests drawn above the refs of their commit, by commit id. */
+  pulls: ReadonlyMap<string, readonly PullBadge[]>;
   /** A clicked node bobbing like a float (column, milliseconds since the click); null for none. */
   bob: { column: number; ms: number } | null;
 }
@@ -534,7 +537,7 @@ function drawNode(ctx: Ctx, scene: Scene, r: number, cx: number, cy: number): vo
   if (described.emoji) drawEmoji(ctx, described.emoji, cx, cy, z);
   else drawIcon(ctx, palette, described.kind, row.color, cx, cy, z);
   drawLabel(ctx, scene, r, described, cx, cy + size / 2 + 8 * z);
-  drawBadges(ctx, scene, index.refs.get(commit.id), row.color, cx, top - 8 * z);
+  drawBadges(ctx, scene, index.refs.get(commit.id), scene.pulls.get(commit.id), row.color, cx, top - 8 * z);
 }
 
 /** Rings spreading on the water from the node that was just clicked, in its branch's colour. */
@@ -797,11 +800,13 @@ function drawBadges(
   ctx: Ctx,
   scene: Scene,
   labels: RefLabel[] | undefined,
+  pulls: readonly PullBadge[] | undefined,
   laneColor: number,
   cx: number,
   bottom: number,
 ): void {
-  if (!labels || labels.length === 0) return;
+  if ((!labels || labels.length === 0) && (!pulls || pulls.length === 0)) return;
+  labels ??= [];
   const { palette, view } = scene;
   const z = view.z;
   const color = palette.branch[laneColor % BRANCH_COLORS] ?? palette.accent;
@@ -851,6 +856,56 @@ function drawBadges(
     ctx.fillText(text, textX, y + height / 2 + 0.5 * z);
     y -= height + gap;
   }
+
+  // Requests go above the refs, coloured by their state, with the pull request glyph.
+  for (const pull of pulls ?? []) {
+    const stateColor = pull.state === "Merged" ? palette.accent : pull.state === "Open" ? palette.success : palette.text3;
+    const icon = 12 * z;
+    const width = ctx.measureText(pull.label).width + 14 * z + icon;
+    const x = cx - width / 2;
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, height / 2);
+    ctx.fillStyle = withAlpha(stateColor, pull.state === "Draft" ? 0 : 0.16);
+    ctx.fill();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = withAlpha(stateColor, 0.55);
+    if (pull.state === "Draft") ctx.setLineDash([3 * z, 2 * z]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    drawPullGlyph(ctx, stateColor, x + 6 * z, y + height / 2, z);
+    ctx.fillStyle = stateColor;
+    ctx.fillText(pull.label, x + 7 * z + icon, y + height / 2 + 0.5 * z);
+    y -= height + gap;
+  }
+}
+
+/** The pull request symbol (two dots joined by a line and an arrow), 10 units wide, from `x`. */
+function drawPullGlyph(ctx: Ctx, color: string, x: number, cy: number, z: number): void {
+  const r = 1.6 * z;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(1, 1.2 * z);
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(x + 2 * z, cy - 3 * z, r, 0, Math.PI * 2);
+  ctx.moveTo(x + 2 * z + r, cy + 3 * z);
+  ctx.arc(x + 2 * z, cy + 3 * z, r, 0, Math.PI * 2);
+  ctx.moveTo(x + 8 * z + r, cy + 3 * z);
+  ctx.arc(x + 8 * z, cy + 3 * z, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 2 * z, cy - 3 * z + r);
+  ctx.lineTo(x + 2 * z, cy + 3 * z - r);
+  ctx.moveTo(x + 8 * z, cy + 3 * z - r);
+  ctx.lineTo(x + 8 * z, cy - 2 * z);
+  ctx.quadraticCurveTo(x + 8 * z, cy - 4 * z, x + 6 * z, cy - 4 * z);
+  ctx.lineTo(x + 4.5 * z, cy - 4 * z);
+  ctx.moveTo(x + 5.8 * z, cy - 5.3 * z);
+  ctx.lineTo(x + 4.5 * z, cy - 4 * z);
+  ctx.lineTo(x + 5.8 * z, cy - 2.7 * z);
+  ctx.stroke();
+  ctx.restore();
 }
 
 /** `text` cut with an ellipsis so it is at most `maxWidth` wide in the current font (never squeezed). */

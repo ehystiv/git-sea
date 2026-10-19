@@ -22,6 +22,8 @@ import { GraphCanvas, type GraphCanvasHandle } from "../graph/GraphCanvas";
 import { divergence, divergenceEmphasis } from "../graph/range";
 import { useCompressedIndex } from "../graph/useCompressedIndex";
 import { usePalette, usePaletteSource } from "../palette/paletteStore";
+import { pullBadges } from "../pulls/pulls";
+import { usePullRequests } from "../pulls/usePullRequests";
 import { stepMatch } from "../search/query";
 import { SearchBar } from "../search/SearchBar";
 import { useSearch } from "../search/useSearch";
@@ -207,6 +209,10 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
     setCiCommit(id);
     setPanelOpen(true);
   }, []);
+
+  // Pull or merge requests of the remote's project, drawn on their commits.
+  const pulls = usePullRequests(repo.sessionId, visible);
+  const pullMarks = useMemo(() => pullBadges(pulls.data), [pulls.data]);
 
   // ⇧-click: compare the clicked commit with the selected one, the older one being the base.
   const startCompare = useCallback(
@@ -723,6 +729,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
         onDivergence={showDivergence}
         bookmarks={bookmarks}
         onRemoveBookmark={toggleBookmarkOf}
+        pulls={pulls.data ?? null}
         hidden={sidebarCollapsed}
       />
 
@@ -935,6 +942,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
               onCollapseGroup={mode === "topology" ? compressed.collapse : undefined}
               worktree={worktreeMarker}
               bookmarks={bookmarkSet}
+              pulls={pullMarks}
               onOpenWorktree={openWorktree}
               ci={ciScene}
               onOpenCi={openCi}
@@ -1002,7 +1010,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
                 onFileHistory={showFileHistory}
               />
             ) : (
-              <DetailsPanel sessionId={repo.sessionId} commit={selected} index={index} version={stream.version} onSelectCommit={selectById} onFileHistory={showFileHistory} />
+              <DetailsPanel sessionId={repo.sessionId} commit={selected} index={index} version={stream.version} pulls={pulls.data ?? null} onSelectCommit={selectById} onFileHistory={showFileHistory} />
             )}
           </div>
         )}

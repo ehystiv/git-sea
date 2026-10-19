@@ -16,7 +16,7 @@ export interface SidebarItem {
 }
 
 export interface SidebarSection {
-  id: "bookmarks" | "branches" | "remotes" | "tags" | "stashes";
+  id: "bookmarks" | "pulls" | "branches" | "remotes" | "tags" | "stashes";
   title: string;
   items: SidebarItem[];
 }

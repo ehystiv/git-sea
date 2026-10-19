@@ -5,6 +5,7 @@ pub mod auth;
 pub mod gitlab;
 pub mod pattern;
 pub mod providers;
+pub mod pulls;
 pub mod remote;
 pub mod runs;
 

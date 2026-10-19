@@ -27,6 +27,9 @@
   .refButton:hover { filter: brightness(1.08); box-shadow: 0 0 0 1px var(--border-strong); }
   .refButton:active { opacity: 0.7; }
   .muted { color: var(--text-3); font-size: 12px; }
+  .pullState { margin-left: auto; flex: none; font-style: normal; font-size: 11px; color: var(--text-3); }
+  .pullState.Open { color: var(--add); }
+  .pullState.Merged { color: var(--accent-text); }
 
   /* No wrapping: in a wrapping column the line is as wide as the longest summary, and so is the chip. */
   .parents { flex-direction: column; flex-wrap: nowrap !important; align-items: stretch !important; gap: var(--space-1) !important; }

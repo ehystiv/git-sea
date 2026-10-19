@@ -86,11 +86,7 @@ pub fn fetch_runs(providers: &[CiProvider], remote: Option<&RemoteRepo>) -> CiRu
         runs: Vec::new(),
         providers: Vec::new(),
     };
-    let agent: ureq::Agent = ureq::Agent::config_builder()
-        .timeout_global(Some(Duration::from_secs(20)))
-        .http_status_as_error(false)
-        .build()
-        .into();
+    let agent = agent();
     for &provider in providers {
         if seen.contains(&provider) {
             continue;
@@ -189,11 +185,11 @@ fn provider_runs(
 }
 
 /// Calls the service with the best token there is, or without one (public projects).
-fn with_token(
+pub(super) fn with_token<T>(
     provider: CiProvider,
     host: &str,
-    call: impl Fn(Option<&str>) -> Result<Vec<CiRun>, HttpError>,
-) -> (CiAccess, Vec<CiRun>) {
+    call: impl Fn(Option<&str>) -> Result<Vec<T>, HttpError>,
+) -> (CiAccess, Vec<T>) {
     let token = auth::token(provider, host);
     let via = token
         .as_ref()
@@ -215,8 +211,8 @@ fn with_token(
                 )
             } else {
                 crate::i18n::tr(
-                    "A token is needed to read this project's runs",
-                    "Serve un token per leggere le run di questo progetto",
+                    "A token is needed to read this project",
+                    "Serve un token per leggere questo progetto",
                 )
             };
             (CiAccess::NeedsToken { message }, Vec::new())
@@ -228,13 +224,13 @@ fn with_token(
 // ---- HTTP ------------------------------------------------------------------------------------
 
 #[derive(Debug)]
-enum HttpError {
+pub(super) enum HttpError {
     Unauthorized,
     NotFound,
     Other(String),
 }
 
-fn get_json(
+pub(super) fn get_json(
     agent: &ureq::Agent,
     url: &str,
     headers: &[(&str, String)],
@@ -262,7 +258,7 @@ fn get_json(
     serde_json::from_str(&text).map_err(|e| HttpError::Other(e.to_string()))
 }
 
-fn str_at(value: &Value, pointer: &str) -> Option<String> {
+pub(super) fn str_at(value: &Value, pointer: &str) -> Option<String> {
     match value.pointer(pointer)? {
         Value::String(s) => Some(s.clone()),
         Value::Number(n) => Some(n.to_string()),
@@ -270,14 +266,14 @@ fn str_at(value: &Value, pointer: &str) -> Option<String> {
     }
 }
 
-fn bearer(token: Option<&str>) -> Vec<(&'static str, String)> {
+pub(super) fn bearer(token: Option<&str>) -> Vec<(&'static str, String)> {
     token
         .map(|t| vec![("Authorization", format!("Bearer {t}"))])
         .unwrap_or_default()
 }
 
 /// Encodes a path segment for a URL (`group/repo` → `group%2Frepo`).
-fn encode(text: &str) -> String {
+pub(super) fn encode(text: &str) -> String {
     let mut out = String::new();
     for byte in text.bytes() {
         if byte.is_ascii_alphanumeric() || b"-_.~".contains(&byte) {
@@ -312,20 +308,43 @@ fn base64(input: &[u8]) -> String {
 
 // ---- services --------------------------------------------------------------------------------
 
+/// The REST API root of a GitHub host (github.com or GitHub Enterprise).
+pub(super) fn github_api(remote: &RemoteRepo) -> String {
+    if remote.host == "github.com" {
+        "https://api.github.com".to_owned()
+    } else {
+        format!("https://{}/api/v3", remote.host)
+    }
+}
+
+/// The headers GitHub's REST API wants, with the token when there is one.
+pub(super) fn github_headers(token: Option<&str>) -> Vec<(&'static str, String)> {
+    let mut headers = bearer(token);
+    headers.push(("Accept", "application/vnd.github+json".to_owned()));
+    headers.push(("X-GitHub-Api-Version", "2022-11-28".to_owned()));
+    headers
+}
+
+/// An HTTP client that times out and reads error statuses as answers.
+pub(super) fn agent() -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(20)))
+        .http_status_as_error(false)
+        .build()
+        .into()
+}
+
 fn github(
     agent: &ureq::Agent,
     remote: &RemoteRepo,
     token: Option<&str>,
 ) -> Result<Vec<CiRun>, HttpError> {
-    let api = if remote.host == "github.com" {
-        "https://api.github.com".to_owned()
-    } else {
-        format!("https://{}/api/v3", remote.host)
-    };
-    let url = format!("{api}/repos/{}/actions/runs?per_page={PAGE}", remote.path);
-    let mut headers = bearer(token);
-    headers.push(("Accept", "application/vnd.github+json".to_owned()));
-    headers.push(("X-GitHub-Api-Version", "2022-11-28".to_owned()));
+    let url = format!(
+        "{}/repos/{}/actions/runs?per_page={PAGE}",
+        github_api(remote),
+        remote.path
+    );
+    let headers = github_headers(token);
     let body = get_json(agent, &url, &headers)?;
     let runs = body
         .get("workflow_runs")

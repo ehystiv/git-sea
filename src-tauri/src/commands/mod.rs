@@ -4,6 +4,7 @@ use tauri::ipc::Channel;
 use tauri::{Emitter, State};
 
 use crate::cache::{self, CacheUsage, CachedGraph, Fingerprint, MIN_CACHED_COMMITS};
+use crate::ci::pulls::PullRequestsReport;
 use crate::ci::remote::RepoWeb;
 use crate::ci::runs::CiRunsReport;
 use crate::ci::{self, CiOverview, CiProvider};
@@ -426,6 +427,23 @@ pub async fn ci_runs(
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// The recently updated pull requests (GitHub) or merge requests (GitLab) of the main remote's
+/// project. Calls the service's API.
+#[tauri::command]
+#[specta::specta]
+pub async fn pull_requests(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<PullRequestsReport, AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let remote = ci::remote::main_remote(&session.repo.to_thread_local());
+        ci::pulls::fetch_pulls(remote.as_ref())
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))
 }
 
 /// Saves the token for a CI service in the Keychain; None removes it.

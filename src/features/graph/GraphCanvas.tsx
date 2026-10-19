@@ -7,6 +7,7 @@ import { GraphController, type Unseen } from "./GraphController";
 import type { CiScene } from "./ciDraw";
 import type { WorktreeMarker } from "./draw";
 import type { Emphasis } from "./emphasis";
+import type { PullBadge } from "../pulls/pulls";
 import type { GraphIndex } from "./GraphIndex";
 import { Minimap } from "./MinimapOverlay";
 import { SeaLayer } from "../sea/SeaLayer";
@@ -48,6 +49,8 @@ interface GraphCanvasProps {
   worktree: WorktreeMarker | null;
   /** Ids of the bookmarked commits. */
   bookmarks: ReadonlySet<string>;
+  /** Pull or merge requests to draw, by commit id. */
+  pulls: ReadonlyMap<string, readonly PullBadge[]>;
   /** The badge of local changes was clicked. */
   onOpenWorktree?: () => void;
   /** CI runs and hypothetical workflow starts to show on the links; null for none. */
@@ -76,7 +79,7 @@ export interface GraphCanvasHandle {
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { index, version, initialSelectedId, active, keyboard, minimap: showMinimap, flow, emphasis, onSelect, onClickCommit, onCompare, onContextMenu, onExpandGroup, onCollapseGroup, worktree, bookmarks, onOpenWorktree, ci, onOpenCi, insetRight, sea, onExport },
+  { index, version, initialSelectedId, active, keyboard, minimap: showMinimap, flow, emphasis, onSelect, onClickCommit, onCompare, onContextMenu, onExpandGroup, onCollapseGroup, worktree, bookmarks, pulls, onOpenWorktree, ci, onOpenCi, insetRight, sea, onExport },
   ref,
 ) {
   const m = useT();
@@ -107,6 +110,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const onCollapseRef = useRef(onCollapseGroup);
   const worktreeRef = useRef(worktree);
   const bookmarksRef = useRef(bookmarks);
+  const pullsRef = useRef(pulls);
   const insetRef = useRef(insetRight);
   const onOpenWorktreeRef = useRef(onOpenWorktree);
   const ciRef = useRef(ci);
@@ -187,6 +191,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     controller.setEmphasis(emphasisRef.current);
     controller.setWorktree(worktreeRef.current);
     controller.setBookmarks(bookmarksRef.current);
+    controller.setPulls(pullsRef.current);
     controller.setCi(ciRef.current);
     controller.setInsetRight(insetRef.current);
     const minimap = new Minimap(minimapCanvas, graphMinimap(index), controller);
@@ -286,6 +291,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     bookmarksRef.current = bookmarks;
     controllerRef.current?.setBookmarks(bookmarks);
   }, [bookmarks]);
+
+  useEffect(() => {
+    pullsRef.current = pulls;
+    controllerRef.current?.setPulls(pulls);
+  }, [pulls]);
 
   useEffect(() => {
     ciRef.current = ci;

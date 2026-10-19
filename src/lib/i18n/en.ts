@@ -352,6 +352,16 @@ export const en = {
     unstagedLower: "unstaged",
   },
 
+  pulls: {
+    pullRequests: "Pull requests",
+    mergeRequests: "Merge requests",
+    label: "Request",
+    itemTitle: (label: string, from: string | null, into: string | null, draft: boolean) =>
+      `${label}${from && into ? `\n${from} → ${into}` : ""}${draft ? "\nDraft" : ""}\nSelect its newest commit`,
+    open: (label: string) => `Open ${label} in the browser`,
+    states: { Open: "open", Draft: "draft", Merged: "merged", Closed: "closed" },
+  },
+
   contains: {
     release: "Release",
     in: "In",

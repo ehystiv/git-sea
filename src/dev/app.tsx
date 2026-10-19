@@ -144,6 +144,21 @@ if (new URLSearchParams(location.search).has("updates")) (window as unknown as R
         return { files: 3, bytes: 24_600_000 };
       case "clear_cache":
         return 3;
+      case "pull_requests": {
+        // An open request on the newest commit of a branch, and a merged one on a merge commit.
+        const branch = dump.refs.find((r) => r.kind === "Branch");
+        const merge = dump.commits.find((c) => c.parents.length > 1);
+        const base = { author: "ada", url: "https://github.com/example/repo/pull/1", sourceBranch: branch?.name ?? null, targetBranch: "main", updated: null };
+        return {
+          provider: "GitHub",
+          access: { kind: "ok", via: "Anonymous", runs: 2 },
+          pulls: [
+            { ...base, number: 42, title: "Add the login page", state: "Open", head: branch?.commit ?? null, mergeCommit: null },
+            { ...base, number: 41, title: "Draft: try a new layout", state: "Draft", head: branch?.commit ?? null, mergeCommit: null },
+            { ...base, number: 17, title: "Merge the feature", state: "Merged", head: merge?.parents[1] ?? null, mergeCommit: merge?.id ?? null },
+          ],
+        };
+      }
       case "repo_web":
         return { name: "GitHub", commitUrl: "https://github.com/example/repo/commit/" };
       case "list_upstreams":

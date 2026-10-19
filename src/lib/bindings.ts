@@ -56,6 +56,11 @@ export const commands = {
 	/**  Saves the token for a CI service in the Keychain; None removes it. */
 	ciSetToken: (provider: CiProvider, token: string | null) => typedError<null, AppError>(__TAURI_INVOKE("ci_set_token", { provider, token })),
 	/**
+	 *  The recently updated pull requests (GitHub) or merge requests (GitLab) of the main remote's
+	 *  project. Calls the service's API.
+	 */
+	pullRequests: (sessionId: string) => typedError<PullRequestsReport, AppError>(__TAURI_INVOKE("pull_requests", { sessionId })),
+	/**
 	 *  Where the repository's commits can be seen on the web (from `origin`, else the first remote),
 	 *  or `None` for a local repository or an unknown service.
 	 */
@@ -377,6 +382,39 @@ export type Person = {
 	/**  Seconds since the Unix epoch. */
 	time: number | null,
 };
+
+export type PullRequest = {
+	/**  The number the service shows (`#12` on GitHub, `!12` on GitLab). */
+	number: number,
+	title: string,
+	author: string | null,
+	state: PullState,
+	url: string | null,
+	/**  The branch the changes come from, and the one they go into. */
+	sourceBranch: string | null,
+	targetBranch: string | null,
+	/**  Full hex id of the newest commit of the request. */
+	head: string | null,
+	/**
+	 *  Full hex id of the commit that brought it into the target branch, once merged (the merge
+	 *  commit, or the squashed or rebased commit).
+	 */
+	mergeCommit: string | null,
+	/**  When it was last updated, as the service writes it (ISO 8601). */
+	updated: string | null,
+};
+
+export type PullRequestsReport = {
+	/**  The service the remote is on, when it has pull or merge requests this app can read. */
+	provider: CiProvider | null,
+	access: CiAccess,
+	/**  Newest update first. */
+	pulls: PullRequest[],
+};
+
+export type PullState = "Open" | "Draft" | "Merged" | 
+/**  Closed without being merged. */
+"Closed";
 
 /**
  *  A ref chosen in the branch filter. Local branches match whether or not HEAD is on them, so

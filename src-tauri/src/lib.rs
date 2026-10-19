@@ -33,6 +33,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::ci_overview,
         commands::ci_runs,
         commands::ci_set_token,
+        commands::pull_requests,
         commands::repo_web,
         commands::save_png,
         commands::open_url,

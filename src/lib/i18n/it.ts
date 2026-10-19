@@ -349,6 +349,16 @@ export const it: Messages = {
     unstagedLower: "non staged",
   },
 
+  pulls: {
+    pullRequests: "Pull request",
+    mergeRequests: "Merge request",
+    label: "Richiesta",
+    itemTitle: (label: string, from: string | null, into: string | null, draft: boolean) =>
+      `${label}${from && into ? `\n${from} → ${into}` : ""}${draft ? "\nBozza" : ""}\nSeleziona il suo commit più recente`,
+    open: (label: string) => `Apri ${label} nel browser`,
+    states: { Open: "aperta", Draft: "bozza", Merged: "unita", Closed: "chiusa" },
+  },
+
   contains: {
     release: "Rilascio",
     in: "In",

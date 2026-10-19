@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Badge } from "../../components/Badge/Badge";
-import type { CommitDetails, CommitSummary, FileChange, RefLabel } from "../../lib/bindings";
+import type { CommitDetails, CommitSummary, FileChange, PullRequestsReport, RefLabel } from "../../lib/bindings";
+import { openUrl } from "../ci/useCi";
+import { pullLabel, pullsOfCommit } from "../pulls/pulls";
 import type { CommandError } from "../../lib/errors";
 import { describeError } from "../../lib/errors";
 import { formatAgo, formatDateTime, shortHash, splitPath } from "../../lib/format";
@@ -21,6 +23,8 @@ interface DetailsPanelProps {
   index: GraphIndex;
   /** Bumped when `index` changes. */
   version: number;
+  /** Pull or merge requests of the remote's project, to name the ones of the commit. */
+  pulls?: PullRequestsReport | null;
   onSelectCommit: (id: string) => void;
   /** Shows the commits that changed a file. */
   onFileHistory?: (path: string) => void;
@@ -29,7 +33,7 @@ interface DetailsPanelProps {
 /** Branches shown before "and N more". */
 const BRANCHES_SHOWN = 6;
 
-export function DetailsPanel({ sessionId, commit, index, version, onSelectCommit, onFileHistory }: DetailsPanelProps) {
+export function DetailsPanel({ sessionId, commit, index, version, pulls = null, onSelectCommit, onFileHistory }: DetailsPanelProps) {
   // Holding j or k moves through commits fast; only ask the backend once it settles.
   const commitId = useDebouncedValue(commit?.id ?? null, 80);
   const m = useT();
@@ -59,6 +63,7 @@ export function DetailsPanel({ sessionId, commit, index, version, onSelectCommit
   const data = details.data;
   const isMerge = commit.parents.length > 1;
   const refs = index.refs.get(commit.id) ?? [];
+  const requests = pullsOfCommit(pulls, commit.id);
 
   async function copyHash() {
     try {
@@ -123,6 +128,32 @@ export function DetailsPanel({ sessionId, commit, index, version, onSelectCommit
                     {ref.kind === "Head" ? `HEAD · ${ref.name}` : ref.name}
                   </Badge>
                 ))}
+              </dd>
+            </>
+          )}
+
+          {requests.length > 0 && (
+            <>
+              <dt>{m.pulls.label}</dt>
+              <dd className={styles.parents}>
+                {requests.map((pull) => {
+                  const label = pullLabel(pulls?.provider ?? null, pull.number);
+                  const url = pull.url;
+                  return (
+                    <button
+                      key={pull.number}
+                      type="button"
+                      className={styles.chip}
+                      disabled={!url}
+                      title={url ? m.pulls.open(label) : undefined}
+                      onClick={() => url && openUrl(url)}
+                    >
+                      <code>{label}</code>
+                      <span>{pull.title}</span>
+                      <i className={`${styles.pullState} ${styles[pull.state] ?? ""}`}>{m.pulls.states[pull.state]}</i>
+                    </button>
+                  );
+                })}
               </dd>
             </>
           )}

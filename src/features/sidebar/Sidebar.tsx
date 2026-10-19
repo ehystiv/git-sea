@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import type { CiProvider, RefFilter } from "../../lib/bindings";
+import type { CiProvider, PullRequestsReport, RefFilter } from "../../lib/bindings";
+import { pullSection } from "../pulls/pulls";
 import { CiSection } from "../ci/CiSection";
 import type { CiState } from "../ci/useCi";
 import type { GraphIndex } from "../graph/GraphIndex";
@@ -34,6 +35,8 @@ interface SidebarProps {
   /** Bookmarked commit ids, latest first. */
   bookmarks: readonly string[];
   onRemoveBookmark: (id: string) => void;
+  /** Pull or merge requests of the remote's project; the open ones get a section. */
+  pulls: PullRequestsReport | null;
   /** Collapsed: kept mounted (its filter and open sections stay) but out of sight and out of reach. */
   hidden?: boolean;
 }
@@ -44,6 +47,7 @@ const TAG = "M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .5
 const FUNNEL = "M22 3H2l8 9.46V19l4 2v-8.54z";
 const BOOKMARK = "M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z";
 const STASH = "M2 3h20v5H2z M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8 M10 12h4";
+const PULL = "M6 3a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z M6 16a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z M18 16a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5z M6 8v8 M18 16V9a3 3 0 0 0-3-3h-4 M13 3l-3 3 3 3";
 
 export function Sidebar({
   sessionId,
@@ -62,6 +66,7 @@ export function Sidebar({
   onDivergence,
   bookmarks,
   onRemoveBookmark,
+  pulls,
   hidden = false,
 }: SidebarProps) {
   const stashes = useStashes(sessionId);
@@ -76,9 +81,10 @@ export function Sidebar({
       filter,
       m,
     );
+    const requests = pullSection(pulls, filter, m);
     const refs = buildSections(index.refs.values(), stashes.data ?? [], filter, m);
-    return marked ? [marked, ...refs] : refs;
-  }, [index, version, stashes.data, filter, m, bookmarks]);
+    return [marked, requests, ...refs].filter((section) => section !== null);
+  }, [index, version, stashes.data, filter, m, bookmarks, pulls]);
 
   function toggle(id: string) {
     setCollapsed((prev) => {
@@ -131,9 +137,9 @@ export function Sidebar({
                         title={item.title ?? (at === null ? missing : item.label)}
                         onClick={() => item.commit !== null && onSelectCommit(item.commit)}
                       >
-                        {section.id === "tags" || section.id === "stashes" || section.id === "bookmarks" ? (
+                        {section.id === "tags" || section.id === "stashes" || section.id === "bookmarks" || section.id === "pulls" ? (
                           <svg viewBox="0 0 24 24" width="12" height="12" {...icon} className={styles.glyph}>
-                            <path d={section.id === "tags" ? TAG : section.id === "stashes" ? STASH : BOOKMARK} />
+                            <path d={section.id === "tags" ? TAG : section.id === "stashes" ? STASH : section.id === "pulls" ? PULL : BOOKMARK} />
                           </svg>
                         ) : (
                           <span className={styles.dot} style={{ background: color == null ? "var(--text-3)" : `var(--b${color % 8})` }} />

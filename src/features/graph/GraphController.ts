@@ -8,6 +8,7 @@ import { hitCi, type CiScene } from "./ciDraw";
 import { draw, hitTest, hitWorktree, RenderCache, type View, type WorktreeMarker } from "./draw";
 import type { Emphasis } from "./emphasis";
 import { drawFlow, FlowOverlay, type FlowFrame } from "./flow";
+import type { PullBadge } from "../pulls/pulls";
 import type { GraphIndex, ReplaceMotion } from "./GraphIndex";
 import { ARRIVAL, arrivalDuration, buildArrival, buildMorph, morphPositions, type Morph } from "./morph";
 import type { MinimapFrame } from "./MinimapOverlay";
@@ -112,6 +113,7 @@ export class GraphController {
   private emphasis: Emphasis | null = null;
   private worktree: WorktreeMarker | null = null;
   private bookmarks: ReadonlySet<string> = new Set();
+  private pulls: ReadonlyMap<string, readonly PullBadge[]> = new Map();
   /** The node clicked last, bobbing like a float, and when it was clicked. */
   private bobbing: { id: string; start: number } | null = null;
   private ci: CiScene | null = null;
@@ -473,6 +475,7 @@ export class GraphController {
       worktree: this.worktree,
       ci: this.ci,
       bookmarks: this.bookmarks,
+      pulls: this.pulls,
       bob: this.bobScene(time),
     });
     this.flowFrame = flow;
@@ -514,6 +517,7 @@ export class GraphController {
       worktree: this.worktree,
       ci: this.ci,
       bookmarks: this.bookmarks,
+      pulls: this.pulls,
       bob: null,
     });
     // On screen the background is another layer, under the transparent graph.
@@ -547,6 +551,12 @@ export class GraphController {
   /** Marks these commits with a bookmark ribbon. */
   setBookmarks(bookmarks: ReadonlySet<string>): void {
     this.bookmarks = bookmarks;
+    this.requestDraw();
+  }
+
+  /** Shows these pull or merge requests above the refs of their commits. */
+  setPulls(pulls: ReadonlyMap<string, readonly PullBadge[]>): void {
+    this.pulls = pulls;
     this.requestDraw();
   }
 

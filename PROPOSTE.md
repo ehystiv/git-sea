@@ -36,6 +36,7 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 ## Seconda tornata (19 ottobre 2026)
 
 - **Contenuto in e rilasciato in** ✅. Nel pannello dettagli: il tag più vecchio che contiene il commit ("Rilascio") e i branch locali e remoti che lo contengono ("In"), come `git tag/branch --contains`. Calcolato nel frontend (`features/graph/contains.ts`) scendendo dai figli del commit, quindi un commit recente costa pochi passi. Con il filtro dei branch conta solo la storia caricata.
+- **Pull request e merge request nel grafo** ✅. Comando `pull_requests` (`ci/pulls.rs`): le 100 richieste aggiornate più di recente da GitHub o GitLab, con gli stessi token della CI (`gh`/`glab` o portachiavi). Nel grafo un badge sopra i ref (`#12` o `!12`): sulla punta per quelle aperte (tratteggiato per le bozze), sul commit di merge (o squash) per quelle unite; le chiuse senza merge si saltano. Sezione in sidebar con le aperte, riga "Richiesta" nel pannello dettagli con il link. Richieste di nuovo ogni 3 minuti e dopo ogni fetch. Non nella timeline.
 
 ## Da valutare dopo
 
