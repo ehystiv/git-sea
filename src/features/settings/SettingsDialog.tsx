@@ -7,6 +7,7 @@ import { useUpdates } from "../updates/updatesStore";
 import { LANGUAGE_CHOICES, useLanguage, useSystemLanguage, useT, type LanguageChoice } from "../../lib/i18n";
 import { useTheme } from "../../lib/theme";
 import { THEME_MODES, type ThemeMode } from "../../lib/themeLogic";
+import { useFocusPause } from "../../lib/windowFocus";
 import { useSettings } from "./settingsStore";
 import styles from "./SettingsDialog.module.css";
 
@@ -25,6 +26,8 @@ function Dialog({ onClose }: { onClose: () => void }) {
   const system = useSystemLanguage();
   const themeMode = useTheme((s) => s.mode);
   const setTheme = useTheme((s) => s.setMode);
+  const pauseUnfocused = useFocusPause((s) => s.pauseUnfocused);
+  const setPauseUnfocused = useFocusPause((s) => s.setPauseUnfocused);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -59,6 +62,15 @@ function Dialog({ onClose }: { onClose: () => void }) {
         <section className={styles.row}>
           <h3 id="settings-theme">{m.settings.theme}</h3>
           <Segmented labelledBy="settings-theme" options={THEME_MODES} value={themeMode} label={(mode) => themeLabel[mode]} onChange={setTheme} />
+        </section>
+
+        <section className={styles.row}>
+          <h3>{m.settings.animations}</h3>
+          <label className={styles.check}>
+            <input type="checkbox" checked={pauseUnfocused} onChange={(e) => setPauseUnfocused(e.target.checked)} />
+            {m.settings.pauseUnfocused}
+          </label>
+          <p className={styles.hint}>{m.settings.pauseUnfocusedHint}</p>
         </section>
 
         <UpdatesSection />

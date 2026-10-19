@@ -159,7 +159,7 @@ export class GraphController {
     if (active) this.requestDraw();
   }
 
-  /** Without the window's focus nothing moves on its own (the dots); it resumes with the focus. */
+  /** False: nothing moves on its own (the dots) until it is true again (see `useWindowFocused`). */
   setFocused(focused: boolean): void {
     this.focused = focused;
     if (focused) this.schedule();

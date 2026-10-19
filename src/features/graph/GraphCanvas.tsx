@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import type { CommitSummary } from "../../lib/bindings";
 import { useT } from "../../lib/i18n";
 import { useFollow } from "../../lib/follow";
-import { useWindowFocused } from "../../lib/windowFocus";
+import { useWindowFocused, windowFocused } from "../../lib/windowFocus";
 import { GraphController, type Unseen } from "./GraphController";
 import type { CiScene } from "./ciDraw";
 import type { WorktreeMarker } from "./draw";
@@ -144,7 +144,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     const seaLayer = new SeaLayer(seaCanvas);
     seaRef.current = seaLayer;
     seaLayer.setEnabled(seaEnabledRef.current);
-    seaLayer.setActive(activeRef.current && document.hasFocus());
+    seaLayer.setActive(activeRef.current && windowFocused());
 
     const controller = new GraphController(canvas, index, {
       onSelect: (i) => onSelectRef.current(i === null ? null : (index.commits[i] ?? null)),
