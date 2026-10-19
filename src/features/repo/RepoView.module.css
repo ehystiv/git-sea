@@ -3,11 +3,21 @@
      views keep at least 640px. */
   .view {
     --sidebar-col: min(var(--sidebar-w, 232px), max(180px, calc(100% - 640px)));
+    /* The same width for the sidebar itself, where `100%` would be its own column: `cqw` is this
+       view's width wherever it is used inside. */
+    --sidebar-full: min(var(--sidebar-w, 232px), max(180px, calc(100cqw - 640px)));
+    container-type: inline-size;
     position: relative;
     display: grid;
     grid-template-columns: var(--sidebar-col) minmax(0, 1fr);
     height: 100%;
     min-height: 0;
+  }
+  .view.sidebarCollapsed { grid-template-columns: 0px minmax(0, 1fr); }
+  /* Only while the sidebar opens or closes: resizing it by hand follows the pointer at once. */
+  .view.sidebarAnimating { overflow: hidden; transition: grid-template-columns 260ms cubic-bezier(0.32, 0.72, 0, 1); }
+  @media (prefers-reduced-motion: reduce) {
+    .view.sidebarAnimating { transition: none; }
   }
   /* On the sidebar's right edge, above both sides of it. */
   .sidebarResizer { position: absolute; left: calc(var(--sidebar-col) - 4px); top: 0; bottom: 0; width: 8px; z-index: 6; cursor: col-resize; touch-action: none; }
@@ -26,6 +36,8 @@
   }
   /* Only the path gives way when the toolbar is short of room. */
   .toolbar > * { flex: none; }
+  .sidebarToggle { display: grid; place-items: center; width: 26px; height: 26px; margin-left: calc(var(--space-2) * -1); border-radius: 6px; color: var(--text-2); }
+  .sidebarToggle:hover { background: var(--hover); color: var(--text); }
 
   .detail { color: var(--text-3); }
   .meta { color: var(--text-2); }

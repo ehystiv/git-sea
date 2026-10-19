@@ -170,6 +170,8 @@ export const en = {
     viewList: "List view",
     hidePanel: "Hide the details panel",
     showPanel: "Show the details panel",
+    hideSidebar: "Hide the sidebar",
+    showSidebar: "Show the sidebar",
     stopFlow: "Stop the animated flow",
     startFlow: "Start the animated flow",
     hideSea: "Hide the fish in the background",

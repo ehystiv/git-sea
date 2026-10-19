@@ -1,6 +1,10 @@
 @layer components {
   /* translucent: with the window's sidebar vibrancy, the desktop shows through */
-  .sidebar { background: var(--sidebar); border-right: 1px solid var(--border); padding: var(--space-3) var(--space-2) var(--space-4); overflow: auto; min-height: 0; }
+  .sidebar { background: var(--sidebar); border-right: 1px solid var(--border); padding: var(--space-3) var(--space-2) var(--space-4); overflow: auto; min-height: 0;
+    /* Keeps its width while its column closes, so it slides out instead of squeezing its text. */
+    width: var(--sidebar-full); justify-self: unsafe end; }
+  /* Hidden once the column has closed (the delay matches the view's transition). */
+  .sidebar.hidden { visibility: hidden; transition: visibility 0s linear 260ms; }
 
   .search { display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 var(--space-2) 0 9px; margin-bottom: var(--space-3); border-radius: var(--r-md); background: var(--subtle); color: var(--text-3); }
   .search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; color: var(--text); }

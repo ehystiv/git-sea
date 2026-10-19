@@ -42,7 +42,7 @@ import { useBookmarks } from "../bookmarks/bookmarksStore";
 import { commitMenuItems } from "./commitMenu";
 import { emptyHistory, go, visit, type SelectionHistory } from "./history";
 import { useRepoWeb } from "./useRepoWeb";
-import { hasModKey } from "../../lib/platform";
+import { hasModKey, modShortcut } from "../../lib/platform";
 import { useDrawer } from "./useDrawer";
 import { useFetchStatus } from "./useFetchStatus";
 import { useRepoChanges } from "./useRepoChanges";
@@ -114,6 +114,15 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   /** The CI service whose token field is open in the sidebar. */
   const [tokenFor, setTokenFor] = useState<CiProvider | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
+  const sidebarCollapsed = useSidebarWidth((s) => s.collapsed);
+  const toggleSidebar = useSidebarWidth((s) => s.toggleCollapsed);
+  // Set in the same render as the change, so the transition is in place when the columns change.
+  const [sidebarShown, setSidebarShown] = useState(sidebarCollapsed);
+  const [sidebarAnimating, setSidebarAnimating] = useState(false);
+  if (sidebarShown !== sidebarCollapsed) {
+    setSidebarShown(sidebarCollapsed);
+    setSidebarAnimating(!window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
   const [panelWidth, setPanelWidth] = useState(PANEL_DEFAULT);
   const graphRef = useRef<GraphCanvasHandle>(null);
   const head = describeHead(repo.head, m);
@@ -395,12 +404,17 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
     [index, recordHistory, selectById],
   );
 
-  // ⌘[ and ⌘] (Ctrl on Linux and Windows), and the mouse's back and forward buttons. The key code
+  // ⌘B shows or hides the sidebar. ⌘[ and ⌘] (Ctrl on Linux and Windows), and the mouse's back and forward buttons. The key code
   // is checked too, since on some layouts (Italian) the brackets need ⌥.
   useEffect(() => {
     if (!active) return;
     function onKeyDown(event: KeyboardEvent) {
       if (!hasModKey(event) || event.shiftKey || usePalette.getState().open) return;
+      if (event.code === "KeyB" && !event.altKey) {
+        event.preventDefault();
+        useSidebarWidth.getState().toggleCollapsed();
+        return;
+      }
       const back = event.code === "BracketLeft" || event.key === "[";
       const forward = event.code === "BracketRight" || event.key === "]";
       if (!back && !forward) return;
@@ -527,6 +541,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   const actions = useStableActions<RepoCommandActions>({
     setMode,
     togglePanel: () => setPanelOpen((open) => !open),
+    toggleSidebar,
     toggleFlow,
     toggleSea,
     toggleAncestors: () => setAncestors((on) => !on),
@@ -576,6 +591,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         version: stream.version,
         mode,
         panelOpen,
+        sidebarCollapsed,
         flow,
         sea,
         ancestors,
@@ -661,16 +677,24 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   }
 
   return (
-    <div className={styles.view} style={{ "--sidebar-w": `${sidebarWidth}px` } as CSSProperties}>
-      <div
-        className={styles.sidebarResizer}
-        onPointerDown={startSidebarResize}
-        onDoubleClick={resetSidebarWidth}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label={m.repo.resizeSidebar}
-        title={m.repo.resizeSidebarTitle}
-      />
+    <div
+      className={`${styles.view} ${sidebarCollapsed ? styles.sidebarCollapsed : ""} ${sidebarAnimating ? styles.sidebarAnimating : ""}`}
+      style={{ "--sidebar-w": `${sidebarWidth}px` } as CSSProperties}
+      onTransitionEnd={(event) => {
+        if (event.target === event.currentTarget) setSidebarAnimating(false);
+      }}
+    >
+      {!sidebarCollapsed && !sidebarAnimating && (
+        <div
+          className={styles.sidebarResizer}
+          onPointerDown={startSidebarResize}
+          onDoubleClick={resetSidebarWidth}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={m.repo.resizeSidebar}
+          title={m.repo.resizeSidebarTitle}
+        />
+      )}
       <Sidebar
         sessionId={repo.sessionId}
         index={index}
@@ -688,10 +712,24 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         onDivergence={showDivergence}
         bookmarks={bookmarks}
         onRemoveBookmark={toggleBookmarkOf}
+        hidden={sidebarCollapsed}
       />
 
       <div className={styles.content}>
       <div className={styles.toolbar}>
+        <button
+          type="button"
+          className={styles.sidebarToggle}
+          aria-pressed={!sidebarCollapsed}
+          aria-label={sidebarCollapsed ? m.commands.showSidebar : m.commands.hideSidebar}
+          title={`${sidebarCollapsed ? m.commands.showSidebar : m.commands.hideSidebar} (${modShortcut("B")})`}
+          onClick={toggleSidebar}
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M9 4v16" />
+          </svg>
+        </button>
         <Badge color={0}>{head.label}</Badge>
         {head.detail && <code className={styles.detail}>{head.detail}</code>}
         <span className={styles.meta}>{m.repo.refs(formatCount(repo.refCount))}</span>

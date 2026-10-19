@@ -167,6 +167,8 @@ export const it: Messages = {
     viewList: "Vista elenco",
     hidePanel: "Nascondi il pannello dettagli",
     showPanel: "Mostra il pannello dettagli",
+    hideSidebar: "Nascondi la sidebar",
+    showSidebar: "Mostra la sidebar",
     stopFlow: "Ferma il flusso animato",
     startFlow: "Attiva il flusso animato",
     hideSea: "Nascondi i pesci sullo sfondo",

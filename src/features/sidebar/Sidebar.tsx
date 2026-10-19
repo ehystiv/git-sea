@@ -34,6 +34,8 @@ interface SidebarProps {
   /** Bookmarked commit ids, latest first. */
   bookmarks: readonly string[];
   onRemoveBookmark: (id: string) => void;
+  /** Collapsed: kept mounted (its filter and open sections stay) but out of sight and out of reach. */
+  hidden?: boolean;
 }
 
 const icon = { fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" } as const;
@@ -60,6 +62,7 @@ export function Sidebar({
   onDivergence,
   bookmarks,
   onRemoveBookmark,
+  hidden = false,
 }: SidebarProps) {
   const stashes = useStashes(sessionId);
   const m = useT();
@@ -86,7 +89,7 @@ export function Sidebar({
   }
 
   return (
-    <nav className={styles.sidebar} aria-label={m.sidebar.label}>
+    <nav className={`${styles.sidebar} ${hidden ? styles.hidden : ""}`} aria-label={m.sidebar.label} inert={hidden}>
       <div className={styles.search}>
         <svg viewBox="0 0 24 24" width="13" height="13" {...icon}>
           <circle cx="11" cy="11" r="8" />

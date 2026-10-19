@@ -31,6 +31,7 @@ export interface RepoCommandState {
   version: number;
   mode: ViewMode;
   panelOpen: boolean;
+  sidebarCollapsed: boolean;
   flow: boolean;
   sea: boolean;
   ancestors: boolean;
@@ -62,6 +63,7 @@ export interface RepoCommandState {
 export interface RepoCommandActions {
   setMode: (mode: ViewMode) => void;
   togglePanel: () => void;
+  toggleSidebar: () => void;
   toggleFlow: () => void;
   toggleSea: () => void;
   toggleAncestors: () => void;
@@ -94,7 +96,7 @@ export interface RepoCommandActions {
 
 /** What the active repository offers to the command palette. Null for a tab in the background. */
 export function useRepoCommands(active: boolean, state: RepoCommandState, actions: RepoCommandActions): PaletteSource | null {
-  const { index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci } = state;
+  const { index, version, mode, panelOpen, sidebarCollapsed, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci } = state;
   const m = useT();
 
   return useMemo(() => {
@@ -108,6 +110,7 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
       add({ id: `view:${view.mode}`, title: view.title, shortcut: view.shortcut, keywords: view.keywords, run: () => actions.setMode(view.mode) }, g.view);
     }
     add({ id: "panel", title: panelOpen ? m.commands.hidePanel : m.commands.showPanel, shortcut: "↩", keywords: "details dettagli diff", run: actions.togglePanel }, g.view);
+    add({ id: "sidebar", title: sidebarCollapsed ? m.commands.showSidebar : m.commands.hideSidebar, shortcut: modShortcut("B"), keywords: "sidebar barra laterale branch rami collassa collapse", run: actions.toggleSidebar }, g.view);
     if (mode !== "list") {
       add({ id: "flow", title: flow ? m.commands.stopFlow : m.commands.startFlow, keywords: "pallini animazione flow dots", run: actions.toggleFlow }, g.view);
       if (mode !== "timeline") {
@@ -211,5 +214,5 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
 
     return { commands, search };
     // `version` is what tells us the (mutable) index changed.
-  }, [m, active, index, version, mode, panelOpen, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci, actions]);
+  }, [m, active, index, version, mode, panelOpen, sidebarCollapsed, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci, actions]);
 }
