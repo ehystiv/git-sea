@@ -19,6 +19,9 @@
   .grid dt { color: var(--text-3); font-size: 12px; padding-top: 2px; }
   .grid dd { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-width: 0; }
   .link { color: var(--accent-text); font-size: 12px; }
+  /* Buttons keep the arrow cursor, as in a native app: the underline says they can be clicked. */
+  .link:not(:disabled):hover { text-decoration: underline; }
+  .link:not(:disabled):active { opacity: 0.7; }
   .refs { gap: var(--space-1) !important; }
 
   /* No wrapping: in a wrapping column the line is as wide as the longest summary, and so is the chip. */
