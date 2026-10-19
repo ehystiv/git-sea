@@ -202,6 +202,42 @@ pub async fn load_commits(
     .map_err(|err| AppError::Internal(err.to_string()))?
 }
 
+/// Streams the history of one commit (it and its ancestors), laid out as a graph of its own, for
+/// a replay that ends there. Leaves the session's load and the cache alone.
+#[tauri::command]
+#[specta::specta]
+pub async fn replay_commits(
+    state: State<'_, AppState>,
+    session_id: String,
+    commit_id: String,
+    on_event: Channel<LoadEvent>,
+) -> Result<(), AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = commits::repo_for_walk(&session.repo);
+        let tip = gix::ObjectId::from_hex(commit_id.as_bytes())
+            .map_err(|_| AppError::Git(format!("not an object id: {commit_id}")))?;
+        let refs = commits::collect_refs(&repo)?.labels;
+        if on_event.send(LoadEvent::Refs { refs }).is_err() {
+            return Ok(());
+        }
+        let stats = commits::stream_commits(&repo, vec![tip], &|| false, &mut |commits, rows| {
+            on_event.send(LoadEvent::Chunk { commits, rows }).is_ok()
+        })?;
+        let _ = on_event.send(LoadEvent::Done {
+            total: stats.total,
+            setup_ms: stats.setup_ms,
+            first_chunk_ms: stats.first_chunk_ms,
+            total_ms: stats.total_ms,
+            max_lanes: stats.max_lanes,
+            from_cache: false,
+        });
+        Ok(())
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
 /// Metadata and changed files of one commit, compared with its first parent, or with `base`
 /// (another parent of a merge, or any commit) when given.
 #[tauri::command]

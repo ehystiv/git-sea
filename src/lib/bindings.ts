@@ -16,6 +16,11 @@ export const commands = {
 	 */
 	loadCommits: (sessionId: string, only: RefFilter[] | null, onEvent: Channel<LoadEvent>) => typedError<null, AppError>(__TAURI_INVOKE("load_commits", { sessionId, only, onEvent })),
 	/**
+	 *  Streams the history of one commit (it and its ancestors), laid out as a graph of its own, for
+	 *  a replay that ends there. Leaves the session's load and the cache alone.
+	 */
+	replayCommits: (sessionId: string, commitId: string, onEvent: Channel<LoadEvent>) => typedError<null, AppError>(__TAURI_INVOKE("replay_commits", { sessionId, commitId, onEvent })),
+	/**
 	 *  Metadata and changed files of one commit, compared with its first parent, or with `base`
 	 *  (another parent of a merge, or any commit) when given.
 	 */

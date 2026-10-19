@@ -10,6 +10,37 @@ export const FRONT = 0.78;
 export const GIF_FPS = 15;
 /** Longest side of an exported GIF, in pixels. */
 export const GIF_MAX_WIDTH = 960;
+/** Longest replay saved as a GIF: past this the file gets huge and slow to make. */
+export const GIF_MAX_MS = 2 * 60_000;
+
+/** The paces a replay can go at, in commits per second. */
+export const SPEEDS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000] as const;
+export type Speed = (typeof SPEEDS)[number];
+/** The pace picked at first makes a replay about this long. */
+const DEFAULT_MS = 30_000;
+
+/** The slowest pace that replays `commits` in about `DEFAULT_MS` at most. */
+export function defaultSpeed(commits: number): Speed {
+  return SPEEDS.find((speed) => (commits / speed) * 1000 <= DEFAULT_MS) ?? SPEEDS[SPEEDS.length - 1];
+}
+
+/** How long it takes to bring in `commits` at `speed` commits per second. */
+export function durationFor(commits: number, speed: number): number {
+  return speed <= 0 ? 0 : (Math.max(0, commits) / speed) * 1000;
+}
+
+/** What a replay brings in: from which column (the newest is 0), and over how long. */
+export interface ReplayPlan {
+  /** The column of the commit the replay starts at; it and the older ones are there from the start. */
+  start: number;
+  durationMs: number;
+}
+
+/** A time as the replay's controls show it: "0:05", "1:40", "12:03". */
+export function formatClock(ms: number): string {
+  const seconds = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
 
 /** How long a replay lasts in all, the hold at the end included. */
 export function replayLength(durationMs: number): number {
@@ -17,21 +48,14 @@ export function replayLength(durationMs: number): number {
 }
 
 /**
- * How many commits are shown `ms` into a replay of `total` commits lasting `durationMs`: from one
- * to all of them, at an even pace (fractional, so the camera glides between commits).
+ * The column (fractional) of the newest commit shown `ms` into a replay lasting `durationMs`.
+ * Columns count from the newest commit of the history (0) to the oldest, so the replay walks them
+ * downwards: from `start` (the commit it starts at, with all the history before it already
+ * there) to 0 (the commit it ends at), at an even pace, so the camera glides between commits.
  */
-export function revealedAt(total: number, ms: number, durationMs: number): number {
-  if (total <= 0) return 0;
+export function frontierAt(start: number, ms: number, durationMs: number): number {
   const progress = durationMs <= 0 ? 1 : Math.min(1, Math.max(0, ms / durationMs));
-  return 1 + (total - 1) * progress;
-}
-
-/**
- * The column (fractional) the newest commit shown sits at. Columns count from the newest commit
- * of the history (0) to the oldest (total - 1), so the replay walks them downwards.
- */
-export function frontierColumn(total: number, revealed: number): number {
-  return Math.max(0, total - revealed);
+  return Math.max(0, start) * (1 - progress);
 }
 
 /** The view that keeps the frontier at `FRONT` of the width, at the zoom and height of `view`. */
@@ -59,8 +83,8 @@ export function gifSize(width: number, height: number): { width: number; height:
 }
 
 /** When the frontier reaches column `column`, in milliseconds from the start of the replay. */
-export function reachedAt(total: number, column: number, durationMs: number): number {
-  return total <= 1 ? 0 : ((total - 1 - column) / (total - 1)) * durationMs;
+export function reachedAt(start: number, column: number, durationMs: number): number {
+  return start <= 0 ? 0 : ((start - column) / start) * durationMs;
 }
 
 /**
@@ -74,24 +98,25 @@ export const ARRIVAL_MS = ARRIVAL.ping.at + ARRIVAL.ping.ms - START;
 
 /**
  * The arrival animation of the graph (see `ARRIVAL`) for the commits the frontier reached in the
- * last `ARRIVAL_MS`. Per column, its place in the
- * arrival (`order`, -1 for the commits that are settled) and the time `elapsed` since the first
- * of them, as `draw` reads them. Each commit starts popping in when the frontier reaches it.
- * The order counts in `ARRIVAL.stagger` steps, so commits closer than a step start together.
- * Null when no commit is moving.
+ * last `ARRIVAL_MS`, in a history of `total` columns replayed from column `start`. Per column,
+ * its place in the arrival (`order`, -1 for the commits that are settled or were there from the
+ * start) and the time `elapsed` since the first of them, as `draw` reads them. Each commit starts
+ * popping in when the frontier reaches it. The order counts in `ARRIVAL.stagger` steps, so
+ * commits closer than a step start together. Null when no commit is moving.
  */
-export function replayArrival(total: number, ms: number, durationMs: number): { order: Int16Array; fade: Int8Array; elapsed: number } | null {
-  if (total <= 0 || ms - ARRIVAL_MS >= durationMs) return null;
-  const perColumn = total <= 1 ? 0 : durationMs / (total - 1);
-  const frontier = frontierColumn(total, revealedAt(total, ms, durationMs));
-  // The oldest column still moving, and the newest one reached.
-  const oldest = perColumn <= 0 ? total - 1 : Math.min(total - 1, Math.floor(frontier + ARRIVAL_MS / perColumn));
+export function replayArrival(total: number, start: number, ms: number, durationMs: number): { order: Int16Array; fade: Int8Array; elapsed: number } | null {
+  if (total <= 0 || start <= 0 || ms - ARRIVAL_MS >= durationMs) return null;
+  const perColumn = durationMs / start;
+  const frontier = frontierAt(start, ms, durationMs);
+  // The oldest column still moving (the first one is there from the start), and the newest one reached.
+  const oldest = Math.min(start - 1, perColumn <= 0 ? start - 1 : Math.floor(frontier + ARRIVAL_MS / perColumn));
   const newest = revealedColumn(frontier);
+  if (newest > oldest) return null;
   const order = new Int16Array(total).fill(-1);
   const fade = new Int8Array(total);
-  const base = reachedAt(total, oldest, durationMs);
+  const base = reachedAt(start, oldest, durationMs);
   for (let column = newest; column <= oldest; column++) {
-    order[column] = Math.min(32_000, Math.max(0, Math.round((reachedAt(total, column, durationMs) - base) / ARRIVAL.stagger)));
+    order[column] = Math.min(32_000, Math.max(0, Math.round((reachedAt(start, column, durationMs) - base) / ARRIVAL.stagger)));
     fade[column] = 1;
   }
   return { order, fade, elapsed: ms - base + START };

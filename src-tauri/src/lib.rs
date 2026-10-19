@@ -18,6 +18,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::open_repo,
         commands::close_repo,
         commands::load_commits,
+        commands::replay_commits,
         commands::commit_details,
         commands::file_diff,
         commands::blame_file,

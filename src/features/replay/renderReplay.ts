@@ -5,7 +5,7 @@ import { draw, RenderCache, withAlpha, type View } from "../graph/draw";
 import type { GraphIndex } from "../graph/GraphIndex";
 import type { Palette } from "../graph/palette";
 import type { PullBadge } from "../pulls/pulls";
-import { frontierColumn, replayArrival, replayView, revealedAt, revealedColumn } from "./replay";
+import { frontierAt, replayArrival, replayView, revealedColumn, type ReplayPlan } from "./replay";
 
 /** The graph as it is on screen when the replay starts: what it shows, and how. */
 export interface ReplaySource {
@@ -32,7 +32,7 @@ function identityPositions(count: number): Float64Array {
 }
 
 /**
- * Draws the history `ms` into a replay lasting `durationMs`: the commits up to the frontier, each
+ * Draws the history `ms` into a replay following `plan`: the commits up to the frontier, each
  * entering with the graph's arrival animation (its link traced, its node popping in, a ring), the
  * newer ones not drawn and the links towards them fading out, and the date and count of the
  * frontier in a corner.
@@ -42,9 +42,9 @@ function identityPositions(count: number): Float64Array {
 export function drawReplayFrame(
   ctx: CanvasRenderingContext2D,
   source: ReplaySource,
+  plan: ReplayPlan,
   cache: RenderCache,
   ms: number,
-  durationMs: number,
   scale: number,
   title: string,
   m: Messages = t(),
@@ -53,8 +53,8 @@ export function drawReplayFrame(
   const { index, height, palette } = source;
   const width = Math.max(source.width, drawWidth);
   const total = index.length;
-  const revealed = revealedAt(total, ms, durationMs);
-  const frontier = frontierColumn(total, revealed);
+  const { start, durationMs } = plan;
+  const frontier = frontierAt(start, ms, durationMs);
   const view = replayView(source.view, source.width, frontier);
   const newest = revealedColumn(frontier);
   const z = view.z;
@@ -65,7 +65,7 @@ export function drawReplayFrame(
   const edge = Math.max(fadeFrom + 8, nodeX + (COLUMN_W / 2) * z);
   // Far out the nodes are dots, which have no animation; drawing every column one by one, as an
   // arrival does, would only cost time there.
-  const arrival = view.z >= LOD_TILE ? replayArrival(total, ms, durationMs) : null;
+  const arrival = view.z >= LOD_TILE ? replayArrival(total, start, ms, durationMs) : null;
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = "source-over";
@@ -116,7 +116,7 @@ export function drawReplayFrame(
   ctx.fillRect(0, 0, width, height);
   ctx.globalCompositeOperation = "source-over";
 
-  drawCaption(ctx, source, Math.round(frontier), Math.round(revealed), title, m);
+  drawCaption(ctx, source, newest, total - newest, title, m);
 }
 
 /** The repository, the month of the frontier commit and how many commits are shown, top left. */

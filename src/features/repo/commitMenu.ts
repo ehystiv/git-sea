@@ -10,6 +10,9 @@ export interface CommitMenuActions {
   compare: (commit: CommitSummary) => void;
   toggleBookmark: (commit: CommitSummary) => void;
   openUrl: (url: string) => void;
+  /** Opens the replay starting or ending at the commit; without them there are no such items. */
+  replayFrom?: (commit: CommitSummary) => void;
+  replayTo?: (commit: CommitSummary) => void;
 }
 
 /** The items of the right-click menu of a commit. */
@@ -36,6 +39,11 @@ export function commitMenuItems(
     run: () => actions.toggleBookmark(commit),
     separated: !items.some((i) => i.id === "compare"),
   });
+  const { replayFrom, replayTo } = actions;
+  if (replayFrom && replayTo) {
+    items.push({ id: "replay-from", label: m.menu.replayFrom, run: () => replayFrom(commit), separated: true });
+    items.push({ id: "replay-to", label: m.menu.replayTo, run: () => replayTo(commit) });
+  }
   if (web) {
     items.push({ id: "open-web", label: m.menu.openOn(web.name), run: () => actions.openUrl(`${web.commitUrl}${commit.id}`), separated: true });
   }

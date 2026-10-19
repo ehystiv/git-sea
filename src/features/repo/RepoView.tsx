@@ -24,6 +24,7 @@ import { useCompressedIndex } from "../graph/useCompressedIndex";
 import { usePalette, usePaletteSource } from "../palette/paletteStore";
 import { pullBadges } from "../pulls/pulls";
 import { usePullRequests } from "../pulls/usePullRequests";
+import { replayChoices, type ReplayChoices, type ReplayPicks } from "../replay/choices";
 import type { ReplaySource } from "../replay/renderReplay";
 import { ReplayPanel } from "../replay/ReplayPanel";
 import { stepMatch } from "../search/query";
@@ -256,12 +257,16 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
     if (result.data) setNotice(m.export.saved(splitPath(result.data)[1]));
   }, [m, repo.name, mode]);
   // The history growing commit by commit, at the zoom of the graph, over the view.
-  const [replay, setReplay] = useState<ReplaySource | null>(null);
-  const openReplay = useCallback(() => {
-    const source = graphRef.current?.replaySource?.() ?? null;
-    if (source) setReplay(source);
-    else setNotice(m.replay.empty);
-  }, [m]);
+  const [replay, setReplay] = useState<{ source: ReplaySource; choices: ReplayChoices } | null>(null);
+  const openReplay = useCallback(
+    (picks: ReplayPicks = {}) => {
+      const source = graphRef.current?.replaySource?.() ?? null;
+      if (!source) return setNotice(m.replay.empty);
+      // The choices name commits of the whole history, whatever the view compresses.
+      setReplay({ source, choices: replayChoices(index, selectedIdRef.current, picks, m) });
+    },
+    [m, index],
+  );
   useEffect(() => setReplay(null), [mode]);
   const copyImage = useCallback(async () => {
     const snapshot = graphRef.current?.snapshot() ?? Promise.resolve(null);
@@ -581,7 +586,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
       if (selectedIdRef.current !== null) toggleBookmarkOf(selectedIdRef.current);
     },
     exportPng: () => void savePng(),
-    openReplay,
+    openReplay: () => openReplay(),
     copyImage: () => void copyImage(),
     goBack: () => goHistory(-1),
     goForward: () => goHistory(1),
@@ -966,7 +971,10 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
           )}
           {replay && (
             <ReplayPanel
-              source={replay}
+              sessionId={repo.sessionId}
+              source={replay.source}
+              compressed={mode === "topology"}
+              {...replay.choices}
               title={repo.name}
               fileBase={`${repo.name}-replay-${new Date().toISOString().slice(0, 10)}`}
               onClose={() => setReplay(null)}
@@ -1047,7 +1055,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
           items={[
             { id: "save", label: m.export.save, run: () => void savePng() },
             { id: "copy", label: m.export.copy, run: () => void copyImage() },
-            ...(mode === "graph" || mode === "topology" ? [{ id: "replay", label: m.replay.open, run: openReplay }] : []),
+            ...(mode === "graph" || mode === "topology" ? [{ id: "replay", label: m.replay.open, run: () => openReplay() }] : []),
           ]}
         />
       )}
@@ -1064,6 +1072,9 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
             compare: compareWithCommit,
             toggleBookmark: (commit) => toggleBookmarkOf(commit.id),
             openUrl,
+            ...(mode === "graph" || mode === "topology"
+              ? { replayFrom: (commit: CommitSummary) => openReplay({ start: commit.id }), replayTo: (commit: CommitSummary) => openReplay({ end: commit.id }) }
+              : {}),
           })}
         />
       )}

@@ -2,7 +2,7 @@ import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import type { Messages } from "../../lib/i18n";
 import { RenderCache } from "../graph/draw";
 import { drawReplayFrame, type ReplaySource } from "./renderReplay";
-import { GIF_FPS, gifFrames, gifSize, replayLength } from "./replay";
+import { GIF_FPS, gifFrames, gifSize, replayLength, type ReplayPlan } from "./replay";
 
 export type VideoFormat = { mime: string; format: "Mp4" | "Webm"; extension: "mp4" | "webm" };
 
@@ -28,7 +28,7 @@ const breathe = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
  */
 export async function encodeGif(
   source: ReplaySource,
-  durationMs: number,
+  plan: ReplayPlan,
   title: string,
   m: Messages,
   onProgress: (progress: number) => void,
@@ -41,10 +41,10 @@ export async function encodeGif(
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) return null;
   const cache = new RenderCache();
-  const length = replayLength(durationMs);
+  const length = replayLength(plan.durationMs);
   const frames = gifFrames(length);
   const read = (ms: number) => {
-    drawReplayFrame(ctx, source, cache, ms, durationMs, size.scale, title, m);
+    drawReplayFrame(ctx, source, plan, cache, ms, size.scale, title, m);
     return ctx.getImageData(0, 0, size.width, size.height).data;
   };
 

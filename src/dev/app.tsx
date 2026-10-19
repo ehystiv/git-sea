@@ -25,13 +25,16 @@ const dump = (await (await fetch(`/dev-data/${name}.json`)).json()) as Dump;
 const callbacks = new Map<number, (message: unknown) => void>();
 let nextCallback = 1;
 
-/** Commits reachable from the refs of the filter, in walk order. */
-function reachable(only: RefFilter[]): Set<number> {
+/** Commits reachable from the refs of the filter (or from one commit), in walk order. */
+function reachable(only: RefFilter[] | string): Set<number> {
   const position = new Map(dump.commits.map((c, i) => [c.id, i]));
   const local = (k: string) => k === "Head" || k === "Branch";
-  const stack = dump.refs
-    .filter((r) => only.some((f) => f.name === r.name && (f.kind === r.kind || (local(f.kind) && local(r.kind)))))
-    .flatMap((r) => position.get(r.commit) ?? []);
+  const stack =
+    typeof only === "string"
+      ? [position.get(only) ?? 0]
+      : dump.refs
+          .filter((r) => only.some((f) => f.name === r.name && (f.kind === r.kind || (local(f.kind) && local(r.kind)))))
+          .flatMap((r) => position.get(r.commit) ?? []);
   const seen = new Set<number>(stack);
   while (stack.length > 0) {
     for (const parent of dump.commits[stack.pop() ?? 0]?.parents ?? []) {
@@ -45,7 +48,7 @@ function reachable(only: RefFilter[]): Set<number> {
   return seen;
 }
 
-function load(args: { only: RefFilter[] | null; onEvent: { id: number } }): null {
+function load(args: { only: RefFilter[] | string | null; onEvent: { id: number } }): null {
   const send = callbacks.get(args.onEvent.id);
   if (!send) return null;
   const keep = args.only ? reachable(args.only) : null;
@@ -118,6 +121,9 @@ if (new URLSearchParams(location.search).has("updates")) (window as unknown as R
     switch (command) {
       case "load_commits":
         return load(args as unknown as Parameters<typeof load>[0]);
+      case "replay_commits":
+        // The history of one commit, keeping the full graph's layout (approximated, as the filter).
+        return load({ only: String(args.commitId), onEvent: args.onEvent as { id: number } });
       case "search_commits": {
         const text = String(args.text).toLowerCase();
         await new Promise((resolve) => setTimeout(resolve, 400));
