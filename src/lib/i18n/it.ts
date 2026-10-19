@@ -57,6 +57,13 @@ export const it: Messages = {
     settings: "Impostazioni…",
     dismissAlert: "Chiudi l'avviso",
     pickFolder: "Apri un repository",
+    splitWith: (name) => `Vista divisa con ${name}`,
+    openInSplit: "Apri un repository nella vista divisa…",
+    openRecentInSplit: (name) => `Apri ${name} nella vista divisa`,
+    closeSplit: "Chiudi la vista divisa",
+    swapSplit: "Scambia i due repository della vista divisa",
+    resizeSplit: "Ridimensiona la vista divisa",
+    resizeSplitTitle: "Trascina per ridimensionare la vista divisa, doppio clic per ripristinarla",
   },
 
   titlebar: {
@@ -71,6 +78,7 @@ export const it: Messages = {
     themeTitle: (label) => `${label} (clic per cambiare)`,
     settings: "Impostazioni",
     settingsTitle: (shortcut) => `Impostazioni (${shortcut})`,
+    tabMenu: "Scheda",
   },
 
   settings: {
@@ -161,6 +169,9 @@ export const it: Messages = {
     resizeSidebarTitle: "Trascina per ridimensionare la sidebar, doppio clic per tornare alla larghezza iniziale",
     divergence: (branch, upstream) => `${branch} ↔ ${upstream}`,
     stopDivergence: "Smetti di evidenziare la divergenza",
+    split: "Vista divisa",
+    splitTitle: "Mostra due repository insieme",
+    splitClose: "Chiudi la vista divisa",
   },
 
   commands: {

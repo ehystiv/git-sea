@@ -99,6 +99,7 @@ export class GraphController {
   private gestureStartZoom = 1;
   private pendingG = 0;
   private active = true;
+  private keyboard = true;
   private flow = false;
   /** Canvas the dots move on; without one (profiling) they are drawn with the graph. */
   private flowOverlay: FlowOverlay | null = null;
@@ -158,10 +159,15 @@ export class GraphController {
     this.disposers.forEach((dispose) => dispose());
   }
 
-  /** Inactive controllers (background tabs) ignore the keyboard. */
+  /** Inactive controllers (background tabs) neither move on their own nor take the keyboard. */
   setActive(active: boolean): void {
     this.active = active;
     if (active) this.requestDraw();
+  }
+
+  /** False for the view of a split that does not have the keyboard: it still moves on its own. */
+  setKeyboard(keyboard: boolean): void {
+    this.keyboard = keyboard;
   }
 
   /** False: nothing moves on its own (the dots) until it is true again (see `useWindowFocused`). */
@@ -769,7 +775,7 @@ export class GraphController {
   }
 
   private onKeyDown(e: KeyboardEvent): void {
-    if (!this.active) return;
+    if (!this.active || !this.keyboard) return;
     const target = e.target as HTMLElement | null;
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
       return;

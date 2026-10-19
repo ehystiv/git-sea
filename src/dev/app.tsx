@@ -190,6 +190,11 @@ for (let n = 1; n <= tabCount; n++) {
     isBare: false,
   });
 }
+// `?split=1` (with `?tabs=2` or more): the first two tabs in a split view.
+if (tabCount > 1 && new URLSearchParams(location.search).has("split")) {
+  useTabs.getState().activate("s1");
+  useTabs.getState().openSplit("s2");
+}
 
 createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>

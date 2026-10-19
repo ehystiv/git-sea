@@ -23,6 +23,25 @@
   .pane { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
   .visible { visibility: visible; pointer-events: auto; }
 
+  /* Split view: two tabs one above the other, meeting at `--split-at`. */
+  .top { bottom: calc(100% - var(--split-at)); }
+  .bottom { top: var(--split-at); border-top: 1px solid var(--border-strong); }
+  /* The half with the keyboard: a thin accent line along its top edge. */
+  .focused::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 2px;
+    z-index: 20;
+    background: var(--accent);
+    pointer-events: none;
+  }
+  /* A wider hit area than the border it sits on. */
+  .divider { position: absolute; left: 0; right: 0; top: calc(var(--split-at) - 4px); height: 8px; z-index: 30; cursor: row-resize; touch-action: none; }
+  .divider:hover, .divider:active { background: linear-gradient(transparent 3px, var(--accent) 3px, var(--accent) 5px, transparent 5px); }
+
   .empty {
     position: absolute;
     inset: 0;

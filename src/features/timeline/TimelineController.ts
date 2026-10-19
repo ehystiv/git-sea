@@ -64,6 +64,7 @@ export class TimelineController {
   private gestureStartZoom = 1;
   private pendingG = 0;
   private active = true;
+  private keyboard = true;
   private flow = false;
   /** See the fields of the same name in GraphController. */
   private flowOverlay: FlowOverlay | null = null;
@@ -107,6 +108,11 @@ export class TimelineController {
   setActive(active: boolean): void {
     this.active = active;
     if (active) this.requestDraw();
+  }
+
+  /** False for the view of a split that does not have the keyboard: it still moves on its own. */
+  setKeyboard(keyboard: boolean): void {
+    this.keyboard = keyboard;
   }
 
   /** See `GraphController.setFocused`. */
@@ -511,7 +517,7 @@ export class TimelineController {
   }
 
   private onKeyDown(e: KeyboardEvent): void {
-    if (!this.active) return;
+    if (!this.active || !this.keyboard) return;
     const target = e.target as HTMLElement | null;
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
       return;

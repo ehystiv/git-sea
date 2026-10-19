@@ -22,8 +22,12 @@ interface TimelineCanvasProps {
   version: number;
   /** Commit to show as selected when the canvas is created (e.g. after switching views). */
   initialSelectedId: string | null;
-  /** False for a tab in the background: it keeps its state but ignores the keyboard. */
+  /** False for a tab in the background: it keeps its state, stands still and ignores the keyboard. */
   active: boolean;
+  /** False for the view of a split that does not have the keyboard. */
+  keyboard: boolean;
+  /** The overview in a corner; left out when two repositories share the window. */
+  minimap: boolean;
   /** Dots travelling along the links. */
   flow: boolean;
   /** Commits to keep bright while the rest fades; built for `index`. */
@@ -41,7 +45,7 @@ interface TimelineCanvasProps {
 
 /** The history on a time axis: one row per lane of the graph layout, newest commits on the right. */
 export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>(function TimelineCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onCompare, onContextMenu, insetRight, onExport },
+  { index, version, initialSelectedId, active, keyboard, minimap: showMinimap, flow, emphasis, onSelect, onCompare, onContextMenu, insetRight, onExport },
   ref,
 ) {
   const m = useT();
@@ -59,6 +63,7 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
   const onCompareRef = useRef(onCompare);
   const onContextMenuRef = useRef(onContextMenu);
   const flowRef = useRef(flow);
+  const keyboardRef = useRef(keyboard);
   const emphasisRef = useRef(emphasis);
   const insetRef = useRef(insetRight);
   const pendingSelectRef = useRef<string | null>(null);
@@ -107,6 +112,7 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
     controllerRef.current = controller;
     controller.attachFlowCanvas(flowCanvas);
     controller.setFlow(flowRef.current);
+    controller.setKeyboard(keyboardRef.current);
     controller.setEmphasis(emphasisRef.current);
     controller.setInsetRight(insetRef.current);
 
@@ -147,6 +153,11 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
   }, [active]);
 
   useEffect(() => {
+    keyboardRef.current = keyboard;
+    controllerRef.current?.setKeyboard(keyboard);
+  }, [keyboard]);
+
+  useEffect(() => {
     flowRef.current = flow;
     controllerRef.current?.setFlow(flow);
   }, [flow]);
@@ -170,7 +181,7 @@ export const TimelineCanvas = forwardRef<GraphCanvasHandle, TimelineCanvasProps>
     <div ref={wrapRef} className={styles.wrap}>
       <canvas ref={canvasRef} className={styles.canvas} />
       <canvas ref={flowCanvasRef} className={styles.flow} aria-hidden="true" />
-      <div ref={minimapBoxRef} className={minimapStyles.box}>
+      <div ref={minimapBoxRef} className={minimapStyles.box} hidden={!showMinimap}>
         <canvas
           ref={minimapRef}
           className={minimapStyles.minimap}

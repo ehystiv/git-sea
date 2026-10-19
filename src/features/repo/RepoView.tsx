@@ -70,8 +70,14 @@ function describeHead(head: HeadInfo, m: Messages): { label: string; detail?: st
 
 interface RepoViewProps {
   repo: RepoInfo;
-  /** False for a tab in the background: it stays mounted but ignores the keyboard. */
+  /** False for a tab in the background: it stays mounted but stands still. */
+  visible: boolean;
+  /** Has the keyboard and offers its commands to the palette: the shown tab, or the focused half of a split view. */
   active: boolean;
+  /** Shares the window with another repository: the views leave out the minimap. */
+  split: boolean;
+  /** The split view button was pressed; the point is below it, in window coordinates. */
+  onSplit: (x: number, y: number) => void;
   onClose: () => void;
 }
 
@@ -91,7 +97,7 @@ function useStableActions<T extends object>(actions: T): T {
   }, []);
 }
 
-export function RepoView({ repo, active, onClose }: RepoViewProps) {
+export function RepoView({ repo, visible, active, split, onSplit, onClose }: RepoViewProps) {
   const m = useT();
   const [branchFilter, setBranchFilter] = useState<RefFilter[] | null>(null);
   const stream = useCommitStream(repo.sessionId, branchFilter);
@@ -179,7 +185,7 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
   }, []);
 
   // CI: workflows in HEAD, runs from the services, and where both go on the graph.
-  const ci = useCi(repo.sessionId, active);
+  const ci = useCi(repo.sessionId, visible);
   const ciRuns = ci.report?.runs;
   const ciMarkers = useMemo(() => buildCiMarkers(index, ci.overview, ciRuns ?? [], null), [index, stream.version, ci.overview, ciRuns]);
   const ciScene = useMemo((): CiScene | null => {
@@ -854,6 +860,23 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
         )}
         <button
           type="button"
+          className={`${styles.iconButton} ${split ? styles.active : ""}`}
+          aria-label={split ? m.repo.splitClose : m.repo.split}
+          aria-pressed={split}
+          aria-haspopup={split ? undefined : "menu"}
+          title={split ? m.repo.splitClose : m.repo.splitTitle}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            onSplit(rect.left, rect.bottom + 4);
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M3 12h18" />
+          </svg>
+        </button>
+        <button
+          type="button"
           className={`${styles.iconButton} ${panelOpen ? styles.active : ""}`}
           aria-label={m.repo.panel}
           aria-pressed={panelOpen}
@@ -882,7 +905,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               index={index}
               version={stream.version}
               initialSelectedId={selected?.id ?? null}
-              active={active}
+              active={visible}
+              keyboard={active}
+              minimap={!split}
               flow={flow}
               emphasis={emphasis}
               onSelect={selectCommit}
@@ -897,7 +922,9 @@ export function RepoView({ repo, active, onClose }: RepoViewProps) {
               index={canvasIndex}
               version={canvasVersion}
               initialSelectedId={selected?.id ?? null}
-              active={active}
+              active={visible}
+              keyboard={active}
+              minimap={!split}
               flow={flow}
               emphasis={emphasis}
               onSelect={selectCommit}

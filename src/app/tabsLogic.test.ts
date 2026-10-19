@@ -5,6 +5,8 @@ import {
   activate,
   activateAt,
   addTab,
+  addTabAlongside,
+  closeSplit,
   closeTab,
   emptyTabs,
   findTabByPath,
@@ -13,8 +15,10 @@ import {
   dropIndex,
   moveTab,
   removeRecent,
+  openSplit,
   restoreTabs,
   sessionOf,
+  swapSplit,
 } from "./tabsLogic";
 
 function repo(n: number, path = `/repos/r${n}`): RepoInfo {
@@ -142,8 +146,8 @@ describe("dropIndex", () => {
 describe("saved session", () => {
   it("saves the paths in tab order and the active tab", () => {
     const data = activate(open(repo(1), repo(2, "/repos/r2/")), "s2");
-    expect(sessionOf(data)).toEqual({ paths: ["/repos/r1", "/repos/r2"], active: "/repos/r2" });
-    expect(sessionOf(emptyTabs)).toEqual({ paths: [], active: null });
+    expect(sessionOf(data)).toEqual({ paths: ["/repos/r1", "/repos/r2"], active: "/repos/r2", split: null });
+    expect(sessionOf(emptyTabs)).toEqual({ paths: [], active: null, split: null });
   });
 
   it("reopens the tabs in order and focuses the saved active one", () => {
@@ -166,6 +170,77 @@ describe("saved session", () => {
     expect(data.tabs.map((t) => t.id)).toEqual(["s1", "s2"]);
     expect(data.activeId).toBe("s1");
     expect(duplicates).toEqual(["s5"]);
+  });
+});
+
+describe("split view", () => {
+  it("shows a tab below the active one and gives it the keyboard", () => {
+    const data = openSplit(activate(open(repo(1), repo(2), repo(3)), "s1"), "s3");
+    expect(data.split).toEqual(["s1", "s3"]);
+    expect(data.activeId).toBe("s3");
+  });
+
+  it("ignores the active tab, unknown tabs and having no tab", () => {
+    const data = open(repo(1), repo(2));
+    expect(openSplit(data, "s2")).toBe(data);
+    expect(openSplit(data, "nope")).toBe(data);
+    expect(openSplit(emptyTabs, "s1")).toBe(emptyTabs);
+  });
+
+  it("replaces the other half when a third tab is split in", () => {
+    const data = openSplit(activate(openSplit(activate(open(repo(1), repo(2), repo(3)), "s1"), "s2"), "s1"), "s3");
+    expect(data.split).toEqual(["s1", "s3"]);
+    expect(data.activeId).toBe("s3");
+  });
+
+  it("moves the keyboard between the halves without changing them", () => {
+    const data = activate(openSplit(activate(open(repo(1), repo(2)), "s1"), "s2"), "s1");
+    expect(data.split).toEqual(["s1", "s2"]);
+    expect(data.activeId).toBe("s1");
+  });
+
+  it("puts a tab activated from outside in the place of the focused half", () => {
+    const split = openSplit(activate(open(repo(1), repo(2), repo(3)), "s1"), "s2");
+    expect(activate(split, "s3").split).toEqual(["s1", "s3"]);
+    expect(activateAt(activate(split, "s1"), 2).split).toEqual(["s3", "s2"]);
+  });
+
+  it("opens a new repository in the focused half, or below with addTabAlongside", () => {
+    const split = openSplit(activate(open(repo(1), repo(2)), "s1"), "s2");
+    expect(addTab(split, repo(3)).split).toEqual(["s1", "s3"]);
+    const alongside = addTabAlongside(open(repo(1)), repo(2));
+    expect(alongside.split).toEqual(["s1", "s2"]);
+    expect(alongside.activeId).toBe("s2");
+    expect(addTabAlongside(emptyTabs, repo(1)).split).toBeNull();
+  });
+
+  it("leaves the other half alone when one of them closes", () => {
+    const split = openSplit(activate(open(repo(1), repo(2), repo(3)), "s1"), "s2");
+    const data = closeTab(split, "s2");
+    expect(data.split).toBeNull();
+    expect(data.activeId).toBe("s1");
+    expect(closeTab(split, "s3").split).toEqual(["s1", "s2"]);
+  });
+
+  it("swaps and closes", () => {
+    const split = openSplit(open(repo(1), repo(2), repo(3)), "s1");
+    expect(swapSplit(split).split).toEqual(["s1", "s3"]);
+    expect(closeSplit(split).split).toBeNull();
+    expect(closeSplit(split).activeId).toBe("s1");
+  });
+
+  it("is saved and restored with the session", () => {
+    const split = openSplit(activate(open(repo(1), repo(2), repo(3)), "s3"), "s1");
+    const saved = sessionOf(split);
+    expect(saved.split).toEqual(["/repos/r3", "/repos/r1"]);
+    const { data } = restoreTabs(emptyTabs, [repo(1), repo(2), repo(3)], saved.active, saved.split ?? null);
+    expect(data.split).toEqual(["s3", "s1"]);
+    expect(data.activeId).toBe("s1");
+  });
+
+  it("is not restored when one of its repositories is gone", () => {
+    const { data } = restoreTabs(emptyTabs, [repo(1)], "/repos/r1", ["/repos/r1", "/repos/r2"]);
+    expect(data.split).toBeNull();
   });
 });
 

@@ -12,6 +12,8 @@
 
   .tab { display: flex; align-items: center; min-width: 0; max-width: 200px; height: 28px; border-radius: var(--r-md); color: var(--text-2); }
   .tab:hover { background: var(--hover); }
+  /* The other half of a split view: shown, but without the keyboard. */
+  .alongside, .alongside:hover { background: var(--hover); color: var(--text); box-shadow: 0 0 0 0.5px var(--border-strong); }
   .active, .active:hover { background: var(--surface); color: var(--text); box-shadow: 0 0 0 0.5px var(--border-strong), 0 1px 2px rgb(0 0 0 / 0.05); }
 
   /* Lifted while dragged: above the others, with a shadow, a little larger. */

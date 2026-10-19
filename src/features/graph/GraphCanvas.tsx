@@ -23,8 +23,12 @@ interface GraphCanvasProps {
   version: number;
   /** Commit to show as selected when the canvas is created (e.g. after switching views). */
   initialSelectedId: string | null;
-  /** False for a tab in the background: it keeps its state but ignores the keyboard. */
+  /** False for a tab in the background: it keeps its state, stands still and ignores the keyboard. */
   active: boolean;
+  /** False for the view of a split that does not have the keyboard. */
+  keyboard: boolean;
+  /** The overview in a corner; left out when two repositories share the window. */
+  minimap: boolean;
   /** Dots travelling along the links. */
   flow: boolean;
   /** Commits to keep bright while the rest fades; built for `index`. */
@@ -72,7 +76,7 @@ export interface GraphCanvasHandle {
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { index, version, initialSelectedId, active, flow, emphasis, onSelect, onClickCommit, onCompare, onContextMenu, onExpandGroup, onCollapseGroup, worktree, bookmarks, onOpenWorktree, ci, onOpenCi, insetRight, sea, onExport },
+  { index, version, initialSelectedId, active, keyboard, minimap: showMinimap, flow, emphasis, onSelect, onClickCommit, onCompare, onContextMenu, onExpandGroup, onCollapseGroup, worktree, bookmarks, onOpenWorktree, ci, onOpenCi, insetRight, sea, onExport },
   ref,
 ) {
   const m = useT();
@@ -87,6 +91,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const seaRef = useRef<SeaLayer | null>(null);
   const seaEnabledRef = useRef(sea);
   const activeRef = useRef(active);
+  const keyboardRef = useRef(keyboard);
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const minimapBoxRef = useRef<HTMLDivElement>(null);
   const zoomRef = useRef<HTMLDivElement>(null);
@@ -177,6 +182,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     controllerRef.current = controller;
     controller.attachFlowCanvas(flowCanvas);
     controller.setFlow(flowRef.current);
+    controller.setKeyboard(keyboardRef.current);
     controller.setFollow(followRef.current);
     controller.setEmphasis(emphasisRef.current);
     controller.setWorktree(worktreeRef.current);
@@ -235,6 +241,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     controllerRef.current?.setActive(active);
   }, [active]);
 
+  useEffect(() => {
+    keyboardRef.current = keyboard;
+    controllerRef.current?.setKeyboard(keyboard);
+  }, [keyboard]);
+
   // After the controller's creation, so a new one (and its sea) learns the focus too.
   useEffect(() => {
     controllerRef.current?.setFocused(focused);
@@ -286,7 +297,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       <canvas ref={seaCanvasRef} className={styles.sea} aria-hidden="true" />
       <canvas ref={canvasRef} className={styles.canvas} />
       <canvas ref={flowCanvasRef} className={styles.flow} aria-hidden="true" />
-      <div ref={minimapBoxRef} className={minimapStyles.box}>
+      <div ref={minimapBoxRef} className={minimapStyles.box} hidden={!showMinimap}>
         <canvas
           ref={minimapRef}
           className={minimapStyles.minimap}

@@ -10,6 +10,10 @@ import styles from "./TitleBar.module.css";
 interface TitleBarProps {
   tabs: Tab[];
   activeId: string | null;
+  /** The two tabs of a split view, or null. */
+  split: [string, string] | null;
+  /** Right click on a tab, at window coordinates. */
+  onTabMenu: (id: string, x: number, y: number) => void;
   onActivate: (id: string) => void;
   onMove: (id: string, to: number) => void;
   onClose: (id: string) => void;
@@ -165,7 +169,7 @@ function useTabDrag(tabs: Tab[], onMove: (id: string, to: number) => void) {
  * Overlay title bar: the macOS traffic lights float over the reserved left padding and the empty
  * space is a drag region. Tabs and buttons are the only interactive parts.
  */
-export function TitleBar({ tabs, activeId, onActivate, onMove, onClose, onNew, onPalette, onSettings }: TitleBarProps) {
+export function TitleBar({ tabs, activeId, split, onTabMenu, onActivate, onMove, onClose, onNew, onPalette, onSettings }: TitleBarProps) {
   const mode = useTheme((s) => s.mode);
   const cycleTheme = useTheme((s) => s.cycle);
   const m = useT();
@@ -181,8 +185,12 @@ export function TitleBar({ tabs, activeId, onActivate, onMove, onClose, onNew, o
           <div
             key={tab.id}
             data-tab-id={tab.id}
-            className={`${styles.tab} ${tab.id === activeId ? styles.active : ""}`}
+            className={`${styles.tab} ${tab.id === activeId ? styles.active : split?.includes(tab.id) ? styles.alongside : ""}`}
             onPointerDown={(event) => drag.onPointerDown(event, tab.id)}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              onTabMenu(tab.id, event.clientX, event.clientY);
+            }}
           >
             <button
               type="button"

@@ -60,6 +60,13 @@ export const en = {
     settings: "Settings…",
     dismissAlert: "Dismiss the alert",
     pickFolder: "Open a repository",
+    splitWith: (name: string) => `Split view with ${name}`,
+    openInSplit: "Open repository in split view…",
+    openRecentInSplit: (name: string) => `Open ${name} in split view`,
+    closeSplit: "Close the split view",
+    swapSplit: "Swap the two repositories of the split view",
+    resizeSplit: "Resize the split view",
+    resizeSplitTitle: "Drag to resize the split view, double-click to reset it",
   },
 
   titlebar: {
@@ -74,6 +81,7 @@ export const en = {
     themeTitle: (label: string) => `${label} (click to change)`,
     settings: "Settings",
     settingsTitle: (shortcut: string) => `Settings (${shortcut})`,
+    tabMenu: "Tab",
   },
 
   settings: {
@@ -164,6 +172,9 @@ export const en = {
     resizeSidebarTitle: "Drag to resize the sidebar, double-click to reset it",
     divergence: (branch: string, upstream: string) => `${branch} ↔ ${upstream}`,
     stopDivergence: "Stop highlighting the divergence",
+    split: "Split view",
+    splitTitle: "Show two repositories at once",
+    splitClose: "Close the split view",
   },
 
   commands: {
