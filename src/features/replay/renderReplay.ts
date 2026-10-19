@@ -11,7 +11,7 @@ import { frontierColumn, frontierX, replayView, revealedAt } from "./replay";
 export interface ReplaySource {
   index: GraphIndex;
   view: View;
-  /** CSS pixels. */
+  /** CSS pixels: the part of the view that is not under the details panel, where the camera works. */
   width: number;
   height: number;
   palette: Palette;
@@ -24,7 +24,8 @@ const monthYear = dateFormatter({ month: "long", year: "numeric" });
 /**
  * Draws the history `ms` into a replay lasting `durationMs`: the commits up to the frontier, the
  * newer ones hidden behind a soft edge, and the date and count of the frontier in a corner.
- * `scale` is device pixels per CSS pixel of the target.
+ * `scale` is device pixels per CSS pixel of the target. `drawWidth` is how much is drawn: on screen
+ * the replay also goes under the details panel, while exports keep to `source.width`.
  */
 export function drawReplayFrame(
   ctx: CanvasRenderingContext2D,
@@ -35,12 +36,14 @@ export function drawReplayFrame(
   scale: number,
   title: string,
   m: Messages = t(),
+  drawWidth: number = source.width,
 ): void {
-  const { index, width, height, palette } = source;
+  const { index, height, palette } = source;
+  const width = Math.max(source.width, drawWidth);
   const total = index.length;
   const revealed = revealedAt(total, ms, durationMs);
   const frontier = frontierColumn(total, revealed);
-  const view = replayView(source.view, width, frontier);
+  const view = replayView(source.view, source.width, frontier);
   const edge = frontierX(view, frontier);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);

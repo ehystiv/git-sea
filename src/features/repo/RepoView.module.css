@@ -64,7 +64,8 @@
     left: 50%;
     bottom: var(--space-6);
     transform: translateX(calc(-50% - var(--inset-right, 0px) / 2));
-    z-index: 5;
+    /* Above the replay, which tells through it where a file was saved. */
+    z-index: 9;
     padding: 6px 14px;
     border-radius: 16px;
     background: var(--text);

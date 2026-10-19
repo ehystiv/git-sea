@@ -1,12 +1,12 @@
 @layer components {
-  /* Over the graph, as wide as the part of it the details panel leaves visible. */
-  .overlay { position: absolute; top: 0; left: 0; z-index: 30; background: var(--canvas); overflow: hidden; }
+  /* Over the whole graph, under the details panel too; it follows the size of the view. */
+  .overlay { position: absolute; inset: 0; z-index: 8; background: var(--canvas); overflow: hidden; }
   .canvas { display: block; }
 
   .bar {
-    position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%);
+    position: absolute; bottom: var(--space-4); transform: translateX(-50%);
     display: flex; align-items: center; gap: var(--space-2);
-    width: min(680px, calc(100% - 32px)); padding: 6px 8px 6px 10px;
+    width: min(680px, calc(100% - 32px - var(--inset-right, 0px))); padding: 6px 8px 6px 10px;
     border-radius: 12px; background: var(--surface); color: var(--text);
     box-shadow: 0 0 0 0.5px var(--border-strong), 0 8px 24px rgb(0 0 0 / 0.12);
   }

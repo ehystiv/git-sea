@@ -22,15 +22,24 @@ interface ReplayPanelProps {
   onClose: () => void;
   /** A short message for the user: saved, failed. */
   onNotice: (text: string) => void;
+  /** CSS pixels on the right covered by the details panel. */
+  insetRight: number;
 }
 
 /**
  * Plays the history growing commit by commit over the graph, at the zoom and height the graph
  * had, and saves it as a GIF or a video.
  */
-export function ReplayPanel({ source, title, fileBase, onClose, onNotice }: ReplayPanelProps) {
+export function ReplayPanel({ source: initial, title, fileBase, onClose, onNotice, insetRight }: ReplayPanelProps) {
   const m = useT();
+  const overlayRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // The replay covers the whole view and follows its size; the camera works in the visible part.
+  const [area, setArea] = useState({ width: initial.width + insetRight, height: initial.height });
+  const source = useMemo(
+    () => ({ ...initial, width: Math.max(1, area.width - insetRight), height: Math.max(1, area.height) }),
+    [initial, area, insetRight],
+  );
   const cache = useMemo(() => new RenderCache(), []);
   const [seconds, setSeconds] = useState<(typeof DURATIONS)[number]>(20);
   const durationMs = seconds * 1000;
@@ -39,6 +48,31 @@ export function ReplayPanel({ source, title, fileBase, onClose, onNotice }: Repl
   const msRef = useRef(0);
   const [playing, setPlaying] = useState(true);
   const [busy, setBusy] = useState<{ kind: "gif" | "video"; progress: number } | null>(null);
+  // While a video is recorded the canvas keeps its size: the recording would change size too.
+  const recording = busy?.kind === "video";
+  const pendingArea = useRef<{ width: number; height: number } | null>(null);
+  const recordingRef = useRef(recording);
+  useEffect(() => {
+    recordingRef.current = recording;
+    if (!recording && pendingArea.current) {
+      setArea(pendingArea.current);
+      pendingArea.current = null;
+    }
+  }, [recording]);
+  useLayoutEffect(() => {
+    const overlay = overlayRef.current;
+    if (!overlay) return;
+    const measure = () => {
+      const next = { width: overlay.clientWidth, height: overlay.clientHeight };
+      if (next.width <= 0 || next.height <= 0) return;
+      if (recordingRef.current) pendingArea.current = next;
+      else setArea((current) => (current.width === next.width && current.height === next.height ? current : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(overlay);
+    return () => observer.disconnect();
+  }, []);
   const cancelRef = useRef(false);
   const video = useMemo(() => videoFormat(), []);
   const scale = Math.min(2, window.devicePixelRatio || 1);
@@ -46,9 +80,9 @@ export function ReplayPanel({ source, title, fileBase, onClose, onNotice }: Repl
   const paint = useCallback(
     (at: number) => {
       const ctx = canvasRef.current?.getContext("2d");
-      if (ctx) drawReplayFrame(ctx, source, cache, at, durationMs, scale, title, m);
+      if (ctx) drawReplayFrame(ctx, source, cache, at, durationMs, scale, title, m, area.width);
     },
-    [source, cache, durationMs, scale, title, m],
+    [source, cache, durationMs, scale, title, m, area.width],
   );
 
   const seek = useCallback(
@@ -179,15 +213,15 @@ export function ReplayPanel({ source, title, fileBase, onClose, onNotice }: Repl
   }, [busy, cancel, onClose]);
 
   return (
-    <div className={styles.overlay} style={{ width: source.width, height: source.height }} role="dialog" aria-label={m.replay.title}>
+    <div ref={overlayRef} className={styles.overlay} role="dialog" aria-label={m.replay.title}>
       <canvas
         ref={canvasRef}
         className={styles.canvas}
-        width={Math.round(source.width * scale)}
-        height={Math.round(source.height * scale)}
-        style={{ width: source.width, height: source.height }}
+        width={Math.round(area.width * scale)}
+        height={Math.round(area.height * scale)}
+        style={{ width: area.width, height: area.height }}
       />
-      <div className={styles.bar}>
+      <div className={styles.bar} style={{ left: source.width / 2 }}>
         <button
           type="button"
           className={styles.icon}

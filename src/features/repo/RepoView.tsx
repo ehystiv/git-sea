@@ -971,6 +971,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
               fileBase={`${repo.name}-replay-${new Date().toISOString().slice(0, 10)}`}
               onClose={() => setReplay(null)}
               onNotice={setNotice}
+              insetRight={insetRight}
             />
           )}
           {notice && (
