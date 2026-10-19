@@ -8,6 +8,7 @@ import type { CiScene } from "./ciDraw";
 import type { WorktreeMarker } from "./draw";
 import type { Emphasis } from "./emphasis";
 import type { PullBadge } from "../pulls/pulls";
+import type { ReplaySource } from "../replay/renderReplay";
 import type { GraphIndex } from "./GraphIndex";
 import { Minimap } from "./MinimapOverlay";
 import { SeaLayer } from "../sea/SeaLayer";
@@ -76,6 +77,8 @@ export interface GraphCanvasHandle {
   fit: () => void;
   /** The visible part of the view as a PNG; null when there is nothing to draw. */
   snapshot: () => Promise<Blob | null>;
+  /** The view as it is now, for a replay of the history; absent where there is none (timeline). */
+  replaySource?: () => ReplaySource | null;
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
@@ -142,6 +145,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
       zoomOut: () => controllerRef.current?.zoomBy(1 / 1.25),
       fit: () => controllerRef.current?.fit(),
       snapshot: () => controllerRef.current?.snapshot() ?? Promise.resolve(null),
+      replaySource: () => controllerRef.current?.replaySource() ?? null,
     }),
     [index],
   );

@@ -76,6 +76,7 @@ export interface RepoCommandActions {
   toggleBookmark: () => void;
   exportPng: () => void;
   copyImage: () => void;
+  openReplay: () => void;
   goBack: () => void;
   goForward: () => void;
   openSearch: () => void;
@@ -118,6 +119,9 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
       }
       add({ id: "export:png", title: m.commands.exportPng, keywords: "esporta export png immagine image salva save screenshot", run: actions.exportPng }, g.view);
       add({ id: "export:copy", title: m.commands.copyImage, keywords: "copia copy immagine image appunti clipboard screenshot", run: actions.copyImage }, g.view);
+      if (mode === "graph" || mode === "topology") {
+        add({ id: "export:replay", title: m.replay.open, keywords: "replay storia history video gif registra record animazione animation", run: actions.openReplay }, g.view);
+      }
       add({ id: "fit", title: m.commands.fit, shortcut: modShortcut("0"), keywords: "zoom adatta fit", run: actions.fit }, g.view);
       add({ id: "zoom-in", title: m.commands.zoomIn, shortcut: modShortcut("+"), keywords: "zoom in ingrandisci", run: actions.zoomIn }, g.view);
       add({ id: "zoom-out", title: m.commands.zoomOut, shortcut: modShortcut("−"), keywords: "zoom out riduci", run: actions.zoomOut }, g.view);

@@ -9,6 +9,7 @@ import { draw, hitTest, hitWorktree, RenderCache, type View, type WorktreeMarker
 import type { Emphasis } from "./emphasis";
 import { drawFlow, FlowOverlay, type FlowFrame } from "./flow";
 import type { PullBadge } from "../pulls/pulls";
+import type { ReplaySource } from "../replay/renderReplay";
 import type { GraphIndex, ReplaceMotion } from "./GraphIndex";
 import { ARRIVAL, arrivalDuration, buildArrival, buildMorph, morphPositions, type Morph } from "./morph";
 import type { MinimapFrame } from "./MinimapOverlay";
@@ -552,6 +553,20 @@ export class GraphController {
   setBookmarks(bookmarks: ReadonlySet<string>): void {
     this.bookmarks = bookmarks;
     this.requestDraw();
+  }
+
+  /** What a replay of the history needs to draw the graph as it is on screen; null when empty. */
+  replaySource(): ReplaySource | null {
+    if (this.index.length === 0 || this.visibleWidth <= 0 || this.height <= 0) return null;
+    return {
+      index: this.index,
+      view: { ...this.view },
+      width: this.visibleWidth,
+      height: this.height,
+      palette: this.palette,
+      bookmarks: this.bookmarks,
+      pulls: this.pulls,
+    };
   }
 
   /** Shows these pull or merge requests above the refs of their commits. */

@@ -352,6 +352,27 @@ export const en = {
     unstagedLower: "unstaged",
   },
 
+  replay: {
+    title: "Replay of the history",
+    open: "Replay the history…",
+    play: "Play",
+    pause: "Pause",
+    position: "Position in the replay",
+    duration: "Length",
+    seconds: (n: number) => `${n} s`,
+    saveGif: "Save GIF…",
+    gifTitle: "Save the replay as a looping GIF, at most 960 pixels wide",
+    saveVideo: "Save video…",
+    videoTitle: (n: number) => `Record the replay as a video: it plays once, about ${n} seconds`,
+    encodingGif: (percent: number) => `Making the GIF… ${percent}%`,
+    recording: "Recording…",
+    cancel: "Cancel",
+    close: "Close the replay",
+    failed: "Could not save the replay",
+    empty: "Nothing to replay",
+    commits: (n: string) => `${n} commits`,
+  },
+
   pulls: {
     pullRequests: "Pull requests",
     mergeRequests: "Merge requests",

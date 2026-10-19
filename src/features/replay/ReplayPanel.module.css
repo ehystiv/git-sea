@@ -1,0 +1,20 @@
+@layer components {
+  /* Over the graph, as wide as the part of it the details panel leaves visible. */
+  .overlay { position: absolute; top: 0; left: 0; z-index: 30; background: var(--canvas); overflow: hidden; }
+  .canvas { display: block; }
+
+  .bar {
+    position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%);
+    display: flex; align-items: center; gap: var(--space-2);
+    width: min(680px, calc(100% - 32px)); padding: 6px 8px 6px 10px;
+    border-radius: 12px; background: var(--surface); color: var(--text);
+    box-shadow: 0 0 0 0.5px var(--border-strong), 0 8px 24px rgb(0 0 0 / 0.12);
+  }
+  .icon { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--text-2); font-size: 18px; line-height: 1; }
+  .icon:not(:disabled):hover { background: var(--subtle); color: var(--text); }
+  .icon:disabled { opacity: 0.4; }
+  .scrub { flex: 1; min-width: 60px; accent-color: var(--accent); }
+  .duration { display: flex; align-items: center; gap: 6px; flex: none; color: var(--text-3); font-size: 12px; }
+  .duration select { font: inherit; color: var(--text); background: var(--subtle); border: 0; border-radius: 6px; padding: 3px 4px; }
+  .progress { flex: none; min-width: 120px; color: var(--text-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+}

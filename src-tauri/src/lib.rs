@@ -35,7 +35,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::ci_set_token,
         commands::pull_requests,
         commands::repo_web,
-        commands::save_png,
+        commands::save_export,
         commands::open_url,
         commands::system_locale,
         commands::set_language

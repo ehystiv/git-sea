@@ -349,6 +349,27 @@ export const it: Messages = {
     unstagedLower: "non staged",
   },
 
+  replay: {
+    title: "Replay della storia",
+    open: "Replay della storia…",
+    play: "Riproduci",
+    pause: "Pausa",
+    position: "Posizione nel replay",
+    duration: "Durata",
+    seconds: (n: number) => `${n} s`,
+    saveGif: "Salva GIF…",
+    gifTitle: "Salva il replay come GIF che si ripete, larga al massimo 960 pixel",
+    saveVideo: "Salva video…",
+    videoTitle: (n: number) => `Registra il replay come video: viene riprodotto una volta, circa ${n} secondi`,
+    encodingGif: (percent: number) => `Preparo la GIF… ${percent}%`,
+    recording: "Registrazione…",
+    cancel: "Annulla",
+    close: "Chiudi il replay",
+    failed: "Non è stato possibile salvare il replay",
+    empty: "Niente da riprodurre",
+    commits: (n: string) => `${n} commit`,
+  },
+
   pulls: {
     pullRequests: "Pull request",
     mergeRequests: "Merge request",

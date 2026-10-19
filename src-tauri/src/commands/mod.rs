@@ -478,26 +478,48 @@ pub async fn repo_web(
     .map_err(|err| AppError::Internal(err.to_string()))
 }
 
-/// Asks where to save an exported image (a PNG sent as base64) and writes it there. Returns the
-/// path, or `None` when the user cancelled. The dialog is opened here, so the frontend has no way
-/// to write anywhere it was not told to.
+/// Kinds of file the views can be exported as.
+#[derive(Debug, Clone, Copy, serde::Deserialize, specta::Type)]
+pub enum ExportFormat {
+    Png,
+    Gif,
+    Webm,
+    Mp4,
+}
+
+impl ExportFormat {
+    fn filter(self) -> (&'static str, &'static str) {
+        match self {
+            ExportFormat::Png => ("PNG", "png"),
+            ExportFormat::Gif => ("GIF", "gif"),
+            ExportFormat::Webm => ("WebM", "webm"),
+            ExportFormat::Mp4 => ("MP4", "mp4"),
+        }
+    }
+}
+
+/// Asks where to save an export (an image or a video, sent as base64) and writes it there.
+/// Returns the path, or `None` when the user cancelled. The dialog is opened here, so the
+/// frontend has no way to write anywhere it was not told to.
 #[tauri::command]
 #[specta::specta]
-pub async fn save_png(
+pub async fn save_export(
     app: tauri::AppHandle,
     file_name: String,
     base64: String,
+    format: ExportFormat,
 ) -> Result<Option<String>, AppError> {
     use base64::Engine;
     use tauri_plugin_dialog::DialogExt;
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(base64.as_bytes())
-        .map_err(|err| AppError::Internal(format!("not a base64 image: {err}")))?;
+        .map_err(|err| AppError::Internal(format!("not a base64 file: {err}")))?;
+    let (name, extension) = format.filter();
     tauri::async_runtime::spawn_blocking(move || {
         let Some(chosen) = app
             .dialog()
             .file()
-            .add_filter("PNG", &["png"])
+            .add_filter(name, &[extension])
             .set_file_name(&file_name)
             .blocking_save_file()
         else {

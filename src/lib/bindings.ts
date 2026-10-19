@@ -71,11 +71,11 @@ export const commands = {
 	commitUrl: string,
 } | null, AppError>(__TAURI_INVOKE("repo_web", { sessionId })),
 	/**
-	 *  Asks where to save an exported image (a PNG sent as base64) and writes it there. Returns the
-	 *  path, or `None` when the user cancelled. The dialog is opened here, so the frontend has no way
-	 *  to write anywhere it was not told to.
+	 *  Asks where to save an export (an image or a video, sent as base64) and writes it there.
+	 *  Returns the path, or `None` when the user cancelled. The dialog is opened here, so the
+	 *  frontend has no way to write anywhere it was not told to.
 	 */
-	savePng: (fileName: string, base64: string) => typedError<string | null, AppError>(__TAURI_INVOKE("save_png", { fileName, base64 })),
+	saveExport: (fileName: string, base64: string, format: ExportFormat) => typedError<string | null, AppError>(__TAURI_INVOKE("save_export", { fileName, base64, format })),
 	/**  Opens a web page (a CI run) in the default browser. Only `https` links are opened. */
 	openUrl: (url: string) => typedError<null, AppError>(__TAURI_INVOKE("open_url", { url })),
 	/**  The user's system language (a BCP 47 tag such as "it-IT"), for the default UI language. */
@@ -282,6 +282,9 @@ export type EdgeKind =
 "MergeIn" | 
 /**  The commit's lane (`from_lane`) reaching the lane (`to_lane`) of a non-first parent. */
 "ForkOut";
+
+/**  Kinds of file the views can be exported as. */
+export type ExportFormat = "Png" | "Gif" | "Webm" | "Mp4";
 
 export type FetchState = {
 	/**  False when the repository has no remotes: there is nothing to fetch. */
