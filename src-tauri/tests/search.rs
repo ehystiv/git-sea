@@ -67,6 +67,22 @@ fn path_search_finds_the_commits_that_changed_a_file_against_their_first_parent(
 }
 
 #[test]
+fn path_search_follows_a_file_across_renames() {
+    let dir = scratch("search-follow");
+    run_fixture("renames.sh", &dir);
+
+    assert_eq!(
+        search(&dir, SearchField::Path, "new.txt"),
+        set(&["after", "move", "edit", "create"])
+    );
+    // The old name alone stops at the rename, which deleted it.
+    assert_eq!(
+        search(&dir, SearchField::Path, "old.txt"),
+        set(&["move", "edit", "create"])
+    );
+}
+
+#[test]
 fn path_search_matches_directories() {
     let dir = scratch("search-dir");
     run_fixture("merges.sh", &dir);

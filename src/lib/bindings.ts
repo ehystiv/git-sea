@@ -25,6 +25,8 @@ export const commands = {
 	 *  previous path of a renamed file.
 	 */
 	fileDiff: (sessionId: string, commitId: string, path: string, oldPath: string | null, base: string | null) => typedError<FileDiff, AppError>(__TAURI_INVOKE("file_diff", { sessionId, commitId, path, oldPath, base })),
+	/**  For every line of a file as it is in a commit, the commit that last changed it. */
+	blameFile: (sessionId: string, commitId: string, path: string) => typedError<FileBlame, AppError>(__TAURI_INVOKE("blame_file", { sessionId, commitId, path })),
 	/**  Stashes of the repository, newest first. */
 	listStashes: (sessionId: string) => typedError<StashEntry[], AppError>(__TAURI_INVOKE("list_stashes", { sessionId })),
 	/**  The upstream of every local branch that has one. */
@@ -88,6 +90,31 @@ export type AppError = { kind: "PathNotFound"; message: string } | { kind: "NotA
  *  clone (`--filter=tree:0`, `--filter=blob:none`…), and this app does not fetch them.
  */
 { kind: "MissingObjects"; message: string } | { kind: "Internal"; message: string };
+
+/**
+ *  What the blame view shows about a commit, so commits outside the loaded graph (the branch
+ *  filter hides them) still have a summary.
+ */
+export type BlameCommit = {
+	id: string,
+	summary: string,
+	author: string,
+	/**  Author time, seconds since the Unix epoch. */
+	time: number | null,
+};
+
+/**  A run of consecutive lines that came from the same commit. */
+export type BlameHunk = {
+	/**  0-based index of the first line of the run in the blamed file. */
+	start: number,
+	len: number,
+	/**  Full hex id of the commit that introduced the lines. */
+	commit: string,
+	/**  1-based line number of the first line in that commit's version of the file. */
+	sourceLine: number,
+	/**  The file's path in that commit, when it was different (the file was renamed since). */
+	sourcePath: string | null,
+};
 
 /**  What the cache directory holds. */
 export type CacheUsage = {
@@ -261,6 +288,19 @@ export type FetchState = {
 	lastError: string | null,
 };
 
+export type FileBlame = {
+	path: string,
+	binary: boolean,
+	/**  The file is too big to blame. */
+	tooLarge: boolean,
+	/**  The file's lines, without their line endings. */
+	lines: string[],
+	/**  In file order, covering every line. */
+	hunks: BlameHunk[],
+	/**  Every commit named by a hunk, once. */
+	commits: BlameCommit[],
+};
+
 export type FileChange = {
 	path: string,
 	/**  Where the file was before, for renames. */
@@ -381,7 +421,10 @@ export type RepoWeb = {
 export type SearchField = 
 /**  The whole commit message (subject and body), case-insensitive. */
 "Message" | 
-/**  Commits whose first-parent diff touches a file or directory (path relative to the root). */
+/**
+ *  Commits whose first-parent diff touches a file or directory (path relative to the root).
+ *  A file is followed across renames, like `git log --follow`.
+ */
 "Path" | 
 /**
  *  Commits that change how many times a text appears in some file, against their first

@@ -1,5 +1,5 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import { commands, type CommitDetails, type FileChange, type FileDiff } from "../../lib/bindings";
+import { commands, type CommitDetails, type FileBlame, type FileChange, type FileDiff } from "../../lib/bindings";
 import { CommandError } from "../../lib/errors";
 
 // Commits never change, so what the backend says about one stays valid for the whole session.
@@ -31,6 +31,20 @@ export function useFileDiff(sessionId: string, commitId: string | null, file: Fi
     ...IMMUTABLE,
     queryFn: async () => {
       const result = await commands.fileDiff(sessionId, commitId ?? "", file?.path ?? "", file?.oldPath ?? null, base);
+      if (result.status === "error") throw new CommandError(result.error);
+      return result.data;
+    },
+  });
+}
+
+/** For every line of `path` as it is in the commit, the commit that last changed it. */
+export function useBlame(sessionId: string, commitId: string | null, path: string | null) {
+  return useQuery<FileBlame, CommandError>({
+    queryKey: ["blame", sessionId, commitId, path],
+    enabled: commitId !== null && path !== null,
+    ...IMMUTABLE,
+    queryFn: async () => {
+      const result = await commands.blameFile(sessionId, commitId ?? "", path ?? "");
       if (result.status === "error") throw new CommandError(result.error);
       return result.data;
     },

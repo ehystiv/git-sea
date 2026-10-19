@@ -352,6 +352,16 @@ export const en = {
     unstagedLower: "unstaged",
   },
 
+  blame: {
+    tab: "Blame",
+    title: "Show the commit that last changed each line",
+    deleted: "The file was deleted in this commit: there are no lines to blame.",
+    loading: "Looking for the commit of each line…",
+    tooLarge: "File too large to blame.",
+    empty: "The file is empty.",
+    renamedFrom: (path: string) => `Then the file was ${path}`,
+  },
+
   diff: {
     showAll: (n: string) => `Show all ${n} lines`,
     truncated: "Differences cut short: very long file.",
@@ -426,7 +436,7 @@ export const en = {
       author: "only the author",
       hash: "only the hash",
       msg: "the whole message, body included",
-      path: "commits that changed a file or a folder",
+      path: "commits that changed a file (across renames) or a folder",
       diff: "commits that added or removed the text in a file",
       dates: "from or before a date: 2024-05-17, 2024-05, 2w, today",
       regex: "regular expression on subject and author",

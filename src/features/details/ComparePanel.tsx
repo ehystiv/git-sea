@@ -69,7 +69,7 @@ export function ComparePanel({ sessionId, base, target, counts, onSelectCommit, 
 
       {details.isError && <p className={styles.error}>{describeError(details.error, m)}</p>}
       {details.isPending && <p className={styles.empty}>{m.details.loading}</p>}
-      <FileChanges sessionId={sessionId} commitId={target.id} base={base.id} details={details} onFileHistory={onFileHistory} />
+      <FileChanges sessionId={sessionId} commitId={target.id} base={base.id} details={details} onFileHistory={onFileHistory} onSelectCommit={onSelectCommit} />
     </aside>
   );
 }

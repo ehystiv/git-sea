@@ -121,7 +121,7 @@ fn person(signature: gix::actor::SignatureRef<'_>) -> Person {
     }
 }
 
-fn parse_id(hex: &str) -> Result<gix::ObjectId, AppError> {
+pub(crate) fn parse_id(hex: &str) -> Result<gix::ObjectId, AppError> {
     gix::ObjectId::from_hex(hex.as_bytes())
         .map_err(|_| AppError::Git(format!("not an object id: {hex}")))
 }

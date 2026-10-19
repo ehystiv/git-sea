@@ -1,0 +1,31 @@
+@layer components {
+  .blame { font: 11.5px/20px var(--font-mono); font-variant-ligatures: none; color: var(--shiki-foreground); min-width: max-content; padding-bottom: var(--space-3); }
+  .note { padding: var(--space-3) var(--space-4); color: var(--text-3); }
+
+  .row { display: grid; grid-template-columns: 196px 38px 1fr; white-space: pre; }
+  .odd .gutter { background: var(--subtle); }
+  .first { border-top: 1px solid var(--border); }
+  .row:first-child { border-top: 0; }
+
+  /* The strip on the left goes from faint (oldest commit of the file) to the accent (newest). */
+  .gutter {
+    position: sticky; left: 0; z-index: 1;
+    display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 var(--space-2) 0 10px;
+    background: var(--surface); color: var(--text-2); text-align: left; font: inherit;
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) calc(15% + var(--age) * 85%), transparent);
+  }
+  button.gutter:hover { color: var(--text); }
+  button.gutter:hover code { text-decoration: underline; }
+  .gutter code { color: var(--accent-text); flex: none; }
+  .who { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; font-family: var(--font-ui); font-size: 11px; }
+  .ago { flex: none; color: var(--text-3); font-family: var(--font-ui); font-size: 11px; }
+
+  .no { text-align: right; padding-right: var(--space-2); color: var(--text-3); opacity: 0.7; user-select: none; }
+  .code { padding: 0 var(--space-3) 0 6px; }
+  /* Lines the shown commit wrote. */
+  .own .code, .own .no { background: var(--add-bg); }
+  .own .code { box-shadow: inset 2px 0 0 var(--add); }
+
+  .more { padding: var(--space-3); text-align: center; color: var(--text-3); font-family: var(--font-ui); font-size: 12px; }
+  .more button { color: var(--accent-text); }
+}

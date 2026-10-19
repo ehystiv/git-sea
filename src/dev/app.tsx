@@ -154,7 +154,33 @@ if (new URLSearchParams(location.search).has("updates")) (window as unknown as R
       case "commit_details": {
         const commit = dump.commits.find((c) => c.id === args.commitId);
         const person = { name: commit?.author ?? "", email: "dev@example.com", time: commit?.time ?? 0 };
-        return { id: args.commitId, summary: commit?.summary ?? "", body: "", author: person, committer: person, parents: commit?.parents ?? [], comparedWith: null, files: [], statsTruncated: false };
+        const files = [
+          { path: "src/app.ts", oldPath: null, status: "Modified", additions: 2, deletions: 1, binary: false },
+          { path: "src/gone.ts", oldPath: null, status: "Deleted", additions: 0, deletions: 3, binary: false },
+        ];
+        return { id: args.commitId, summary: commit?.summary ?? "", body: "", author: person, committer: person, parents: commit?.parents ?? [], comparedWith: null, files, statsTruncated: false };
+      }
+      case "file_diff":
+        return {
+          path: args.path,
+          binary: false,
+          tooLarge: false,
+          truncated: false,
+          hunks: [{ oldStart: 1, oldLines: 2, newStart: 1, newLines: 3, lines: [
+            { kind: "Context", oldNo: 1, newNo: 1, text: "const a = 1;" },
+            { kind: "Del", oldNo: 2, newNo: null, text: "const b = 2;" },
+            { kind: "Add", oldNo: null, newNo: 2, text: "const b = 3;" },
+            { kind: "Add", oldNo: null, newNo: 3, text: "export { a, b };" },
+          ] }],
+        };
+      case "blame_file": {
+        // A few commits of the dump, each owning a run of lines; the shown commit owns the last run.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        const picked = [...dump.commits.slice(-3), ...dump.commits.filter((c) => c.id === args.commitId)];
+        const lines = Array.from({ length: 24 }, (_, i) => (i % 6 === 0 ? `// section ${i / 6 + 1}` : `export const value${i} = ${i} * 2;`));
+        const hunks = picked.map((c, n) => ({ start: n * 6, len: 6, commit: c.id, sourceLine: n * 6 + 1, sourcePath: n === 0 ? "src/old-app.ts" : null }));
+        const commits = [...new Map(picked.map((c) => [c.id, { id: c.id, summary: c.summary, author: c.author, time: c.time }])).values()];
+        return { path: args.path, binary: false, tooLarge: false, lines, hunks, commits };
       }
       case "ci_overview":
         return ci.overview;

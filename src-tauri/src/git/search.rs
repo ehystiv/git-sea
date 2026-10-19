@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use gix::bstr::ByteSlice;
 use gix::object::tree::diff::ChangeDetached;
+use gix::traverse::commit::topo::{Builder, Sorting};
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -21,6 +22,7 @@ pub enum SearchField {
     /// The whole commit message (subject and body), case-insensitive.
     Message,
     /// Commits whose first-parent diff touches a file or directory (path relative to the root).
+    /// A file is followed across renames, like `git log --follow`.
     Path,
     /// Commits that change how many times a text appears in some file, against their first
     /// parent (like `git log -S`): they add or remove it. Case-sensitive.
@@ -51,8 +53,8 @@ pub fn normalize_path(path: &str) -> String {
     trimmed.trim_matches('/').to_owned()
 }
 
-/// Walks every commit reachable from `tips` and returns those matching `text` in `field`.
-/// `cancelled` is polled between commits.
+/// Walks every commit reachable from `tips`, children before parents, and returns those matching
+/// `text` in `field`. `cancelled` is polled between commits.
 pub fn search_commits(
     repo: &gix::Repository,
     tips: Vec<gix::ObjectId>,
@@ -74,13 +76,22 @@ pub fn search_commits(
 
     if !needle.is_empty() {
         let mut entries = EntryMemo::default();
-        let walk = repo.rev_walk(tips).all().map_err(git)?;
+        // The paths a file had: the one searched for, then the ones it was renamed from. A child
+        // comes before its parents, so a rename is known before the older commits are reached.
+        let mut paths = vec![needle.clone()];
+        let graph = repo.commit_graph_if_enabled().ok().flatten();
+        let walk = Builder::from_iters(&repo.objects, tips, None::<Vec<gix::ObjectId>>)
+            .sorting(Sorting::TopoOrder)
+            .with_commit_graph(graph)
+            .build()
+            .map_err(git)?;
         for info in walk {
             if cancelled() {
                 was_cancelled = true;
                 break;
             }
             let info = info.map_err(git)?;
+            let parent = info.parent_ids.first().copied();
             let matched = match field {
                 SearchField::Message => {
                     let commit = repo.find_commit(info.id).map_err(git)?;
@@ -90,15 +101,9 @@ pub fn search_commits(
                         .contains(&needle)
                 }
                 SearchField::Path => {
-                    let own = entries.get(repo, info.id, &needle)?;
-                    match info.parent_ids.first() {
-                        Some(&parent) => own != entries.get(repo, parent, &needle)?,
-                        None => own.is_some(),
-                    }
+                    touches_paths(repo, &mut entries, &mut paths, info.id, parent)?
                 }
-                SearchField::Diff => {
-                    changes_occurrences(repo, info.id, info.parent_ids.first().copied(), &needle)?
-                }
+                SearchField::Diff => changes_occurrences(repo, info.id, parent, &needle)?,
             };
             if matched {
                 if ids.len() == MAX_RESULTS {
@@ -116,6 +121,59 @@ pub fn search_commits(
         cancelled: was_cancelled,
         elapsed_ms: u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX),
     })
+}
+
+/// Whether `commit` changed one of `paths` against `parent` (or added it, for a root). When it
+/// added a file that its parent had under another name, that name joins `paths`.
+fn touches_paths(
+    repo: &gix::Repository,
+    entries: &mut EntryMemo,
+    paths: &mut Vec<String>,
+    commit: gix::ObjectId,
+    parent: Option<gix::ObjectId>,
+) -> Result<bool, AppError> {
+    let mut matched = false;
+    for at in 0..paths.len() {
+        let own = entries.get(repo, commit, paths, at)?;
+        let Some(parent) = parent else {
+            matched |= own.is_some();
+            continue;
+        };
+        let before = entries.get(repo, parent, paths, at)?;
+        if own == before {
+            continue;
+        }
+        matched = true;
+        if let (Some((_, true)), None) = (own, before)
+            && let Some(source) = renamed_from(repo, commit, parent, &paths[at])?
+            && !paths.contains(&source)
+        {
+            paths.push(source);
+        }
+    }
+    Ok(matched)
+}
+
+/// Where `commit` moved the file at `path` from, if its diff against `parent` is a rename.
+fn renamed_from(
+    repo: &gix::Repository,
+    commit: gix::ObjectId,
+    parent: gix::ObjectId,
+    path: &str,
+) -> Result<Option<String>, AppError> {
+    let tree = repo.find_commit(commit).map_err(git)?.tree().map_err(git)?;
+    let parent_tree = repo.find_commit(parent).map_err(git)?.tree().map_err(git)?;
+    let changes = repo
+        .diff_tree_to_tree(Some(&parent_tree), Some(&tree), None)
+        .map_err(git)?;
+    Ok(changes.iter().find_map(|change| match change {
+        ChangeDetached::Rewrite {
+            location,
+            source_location,
+            ..
+        } if location.as_slice() == path.as_bytes() => Some(source_location.to_string()),
+        _ => None,
+    }))
 }
 
 /// Whether some file changed by `commit` (against `parent`, or the empty tree for a root) holds
@@ -178,27 +236,29 @@ fn changes_occurrences(
     Ok(false)
 }
 
-/// The object a path points to in each commit's tree. A commit is usually asked about twice (as
-/// itself, then as its child's parent), so remembering the answer halves the tree lookups.
+/// The object a path points to in each commit's tree, and whether it is a file. A commit is
+/// usually asked about twice (as itself, then as its child's parent), so remembering the answer
+/// halves the tree lookups. Keyed by the position of the path in the list of followed paths.
 #[derive(Default)]
-struct EntryMemo(HashMap<gix::ObjectId, Option<gix::ObjectId>>);
+struct EntryMemo(HashMap<(gix::ObjectId, usize), Option<(gix::ObjectId, bool)>>);
 
 impl EntryMemo {
     fn get(
         &mut self,
         repo: &gix::Repository,
         commit: gix::ObjectId,
-        path: &str,
-    ) -> Result<Option<gix::ObjectId>, AppError> {
-        if let Some(&known) = self.0.get(&commit) {
+        paths: &[String],
+        at: usize,
+    ) -> Result<Option<(gix::ObjectId, bool)>, AppError> {
+        if let Some(&known) = self.0.get(&(commit, at)) {
             return Ok(known);
         }
         let tree = repo.find_commit(commit).map_err(git)?.tree().map_err(git)?;
         let entry = tree
-            .lookup_entry_by_path(path)
+            .lookup_entry_by_path(paths[at].as_str())
             .map_err(git)?
-            .map(|e| e.object_id());
-        self.0.insert(commit, entry);
+            .map(|e| (e.object_id(), e.mode().is_blob()));
+        self.0.insert((commit, at), entry);
         Ok(entry)
     }
 }

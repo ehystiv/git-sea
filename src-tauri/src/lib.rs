@@ -20,6 +20,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::load_commits,
         commands::commit_details,
         commands::file_diff,
+        commands::blame_file,
         commands::list_stashes,
         commands::list_upstreams,
         commands::cache_usage,

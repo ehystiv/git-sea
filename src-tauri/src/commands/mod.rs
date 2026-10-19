@@ -8,6 +8,7 @@ use crate::ci::remote::RepoWeb;
 use crate::ci::runs::CiRunsReport;
 use crate::ci::{self, CiOverview, CiProvider};
 use crate::error::AppError;
+use crate::git::blame::{self, FileBlame};
 use crate::git::commits::{self, LoadEvent, RefFilter};
 use crate::git::diff::{self, CommitDetails, FileDiff};
 use crate::git::fetch::{FetchState, Fetcher};
@@ -243,6 +244,25 @@ pub async fn file_diff(
             base.as_deref(),
         )
         .map_err(|err| repo::in_partial_clone(&repo, err))
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// For every line of a file as it is in a commit, the commit that last changed it.
+#[tauri::command]
+#[specta::specta]
+pub async fn blame_file(
+    state: State<'_, AppState>,
+    session_id: String,
+    commit_id: String,
+    path: String,
+) -> Result<FileBlame, AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = commits::repo_for_walk(&session.repo);
+        blame::blame_file(&repo, &commit_id, &path)
+            .map_err(|err| repo::in_partial_clone(&repo, err))
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?

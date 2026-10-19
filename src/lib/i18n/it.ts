@@ -349,6 +349,16 @@ export const it: Messages = {
     unstagedLower: "non staged",
   },
 
+  blame: {
+    tab: "Blame",
+    title: "Mostra il commit che ha cambiato per ultimo ogni riga",
+    deleted: "Il file è stato eliminato in questo commit: non ci sono righe da attribuire.",
+    loading: "Cerco il commit di ogni riga…",
+    tooLarge: "File troppo grande per il blame.",
+    empty: "Il file è vuoto.",
+    renamedFrom: (path: string) => `Allora il file era ${path}`,
+  },
+
   diff: {
     showAll: (n) => `Mostra tutte le ${n} righe`,
     truncated: "Differenze troncate: file molto lungo.",
@@ -423,7 +433,7 @@ export const it: Messages = {
       author: "solo l'autore",
       hash: "solo l'hash",
       msg: "tutto il messaggio, corpo compreso",
-      path: "commit che hanno cambiato un file o una cartella",
+      path: "commit che hanno cambiato un file (anche prima di una rinomina) o una cartella",
       diff: "commit che hanno aggiunto o tolto il testo in un file",
       dates: "da o prima di una data: 2024-05-17, 2024-05, 2s, oggi",
       regex: "espressione regolare su oggetto e autore",

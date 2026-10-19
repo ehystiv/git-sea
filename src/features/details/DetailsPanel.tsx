@@ -7,9 +7,10 @@ import { formatAgo, formatDateTime, shortHash, splitPath } from "../../lib/forma
 import { useT } from "../../lib/i18n";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import type { GraphIndex } from "../graph/GraphIndex";
+import { BlameView } from "./BlameView";
 import { DiffView, type DiffMode } from "./DiffView";
 import { FileList } from "./FileList";
-import { useCommitDetails, useFileDiff } from "./useCommitDetails";
+import { useBlame, useCommitDetails, useFileDiff } from "./useCommitDetails";
 import type { UseQueryResult } from "@tanstack/react-query";
 import styles from "./DetailsPanel.module.css";
 
@@ -120,6 +121,7 @@ export function DetailsPanel({ sessionId, commit, index, onSelectCommit, onFileH
         base={base}
         details={details}
         onFileHistory={onFileHistory}
+        onSelectCommit={onSelectCommit}
         hint={
           isMerge && (
             <div className={styles.hint}>
@@ -150,20 +152,31 @@ interface FileChangesProps {
   /** Shown under the heading, before the files. */
   hint?: ReactNode;
   onFileHistory?: (path: string) => void;
+  /** Picks a commit named by the blame. */
+  onSelectCommit: (id: string) => void;
 }
 
+/** How the picked file is shown: its differences, or who last changed each line. */
+type FileView = DiffMode | "blame";
+const FILE_VIEWS: readonly FileView[] = ["unified", "split", "blame"];
+
 /** The changed files of a commit (against its parent or another commit) and the diff of one of them. */
-export function FileChanges({ sessionId, commitId, base, details, hint, onFileHistory }: FileChangesProps) {
+export function FileChanges({ sessionId, commitId, base, details, hint, onFileHistory, onSelectCommit }: FileChangesProps) {
   const m = useT();
   const [picked, setPicked] = useState<FileChange | null>(null);
-  const [mode, setMode] = useState<DiffMode>("unified");
+  const [view, setView] = useState<FileView>("unified");
 
   const files = details.data?.files;
   // The first file is shown until another is picked; picks do not carry over to other comparisons.
   const file = files?.find((f) => f.path === picked?.path) ?? files?.[0] ?? null;
   useEffect(() => setPicked(null), [commitId, base]);
 
-  const diff = useFileDiff(sessionId, commitId, file, base);
+  // A deleted file has nothing left to blame; its diff is shown instead.
+  const canBlame = file !== null && file.status !== "Deleted";
+  const blaming = view === "blame" && canBlame;
+  const diff = useFileDiff(sessionId, commitId, blaming ? null : file, base);
+  const blame = useBlame(sessionId, blaming ? commitId : null, blaming ? (file?.path ?? null) : null);
+  const mode: DiffMode = view === "split" ? "split" : "unified";
   if (!files) return null;
   const additions = files.reduce((sum, f) => sum + (f.additions ?? 0), 0);
   const deletions = files.reduce((sum, f) => sum + (f.deletions ?? 0), 0);
@@ -196,24 +209,39 @@ export function FileChanges({ sessionId, commitId, base, details, hint, onFileHi
               {splitPath(file.path)[1]}
             </span>
             <span className={styles.seg} role="tablist" aria-label={m.details.diffMode}>
-              {(["unified", "split"] as const).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === d}
-                  className={mode === d ? styles.on : undefined}
-                  onClick={() => setMode(d)}
-                >
-                  {d === "unified" ? m.details.unified : m.details.split}
-                </button>
-              ))}
+              {FILE_VIEWS.map((d) => {
+                const on = d === "blame" ? blaming : view === d || (d === "unified" && view === "blame" && !canBlame);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    role="tab"
+                    aria-selected={on}
+                    className={on ? styles.on : undefined}
+                    disabled={d === "blame" && !canBlame}
+                    title={d === "blame" ? (canBlame ? m.blame.title : m.blame.deleted) : undefined}
+                    onClick={() => setView(d)}
+                  >
+                    {d === "unified" ? m.details.unified : d === "split" ? m.details.split : m.blame.tab}
+                  </button>
+                );
+              })}
             </span>
           </h3>
           <div className={styles.diffScroll}>
-            {diff.isError && <p className={styles.error}>{describeError(diff.error, m)}</p>}
-            {diff.isPending && <p className={styles.empty}>{m.details.loadingDiff}</p>}
-            {diff.data && <DiffView diff={diff.data} mode={mode} />}
+            {blaming ? (
+              <>
+                {blame.isError && <p className={styles.error}>{describeError(blame.error, m)}</p>}
+                {blame.isPending && <p className={styles.empty}>{m.blame.loading}</p>}
+                {blame.data && commitId !== null && <BlameView blame={blame.data} commitId={commitId} onSelectCommit={onSelectCommit} />}
+              </>
+            ) : (
+              <>
+                {diff.isError && <p className={styles.error}>{describeError(diff.error, m)}</p>}
+                {diff.isPending && <p className={styles.empty}>{m.details.loadingDiff}</p>}
+                {diff.data && <DiffView diff={diff.data} mode={mode} />}
+              </>
+            )}
           </div>
         </section>
       )}
