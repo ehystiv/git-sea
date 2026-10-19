@@ -39,12 +39,12 @@ export function replayView(view: View, width: number, frontier: number): View {
   return { ...view, tx: width * FRONT + frontier * COLUMN_W * view.z };
 }
 
-/** How far past the frontier the graph is drawn, in columns: just right of the frontier's node. */
-export const EDGE = 0.6;
-
-/** Screen x past which nothing is drawn. */
-export function frontierX(view: View, frontier: number): number {
-  return -frontier * COLUMN_W * view.z + view.tx + COLUMN_W * view.z * EDGE;
+/**
+ * The newest column the frontier has reached: it and the older ones are drawn, the newer ones
+ * not at all (a commit not reached yet would show its links before its node).
+ */
+export function revealedColumn(frontier: number): number {
+  return Math.max(0, Math.ceil(frontier - 1e-9));
 }
 
 /** How many frames a GIF of a replay lasting `lengthMs` has. */
@@ -63,16 +63,20 @@ export function reachedAt(total: number, column: number, durationMs: number): nu
   return total <= 1 ? 0 : ((total - 1 - column) / (total - 1)) * durationMs;
 }
 
-/** How long a commit keeps moving after the frontier reaches it: its link, its pop, its ring. */
-export const ARRIVAL_MS = ARRIVAL.ping.at + ARRIVAL.ping.ms - ARRIVAL.trace.at;
+/**
+ * Where a replayed commit's arrival starts: when its node begins to pop in. Its links appear with
+ * the node (a commit is drawn only once reached), so the stages before would show them alone.
+ */
+const START = ARRIVAL.pop.at;
+
+/** How long a commit keeps moving after the frontier reaches it: its pop, its ring. */
+export const ARRIVAL_MS = ARRIVAL.ping.at + ARRIVAL.ping.ms - START;
 
 /**
  * The arrival animation of the graph (see `ARRIVAL`) for the commits the frontier reached in the
- * last `ARRIVAL_MS`, and for the ones not reached yet that are still drawn (between the frontier
- * and the edge), which wait unseen. Those further on are cut away anyway: marking them would
- * hide their links, which cross the whole view when their parent is far behind. Per column, its place in the
+ * last `ARRIVAL_MS`. Per column, its place in the
  * arrival (`order`, -1 for the commits that are settled) and the time `elapsed` since the first
- * of them, as `draw` reads them. Each commit starts tracing its link when the frontier reaches it.
+ * of them, as `draw` reads them. Each commit starts popping in when the frontier reaches it.
  * The order counts in `ARRIVAL.stagger` steps, so commits closer than a step start together.
  * Null when no commit is moving.
  */
@@ -80,9 +84,9 @@ export function replayArrival(total: number, ms: number, durationMs: number): { 
   if (total <= 0 || ms - ARRIVAL_MS >= durationMs) return null;
   const perColumn = total <= 1 ? 0 : durationMs / (total - 1);
   const frontier = frontierColumn(total, revealedAt(total, ms, durationMs));
-  // The oldest column still moving, and the newest one drawn past the frontier.
+  // The oldest column still moving, and the newest one reached.
   const oldest = perColumn <= 0 ? total - 1 : Math.min(total - 1, Math.floor(frontier + ARRIVAL_MS / perColumn));
-  const newest = Math.max(0, Math.floor(frontier - EDGE) + 1);
+  const newest = revealedColumn(frontier);
   const order = new Int16Array(total).fill(-1);
   const fade = new Int8Array(total);
   const base = reachedAt(total, oldest, durationMs);
@@ -90,5 +94,5 @@ export function replayArrival(total: number, ms: number, durationMs: number): { 
     order[column] = Math.min(32_000, Math.max(0, Math.round((reachedAt(total, column, durationMs) - base) / ARRIVAL.stagger)));
     fade[column] = 1;
   }
-  return { order, fade, elapsed: ms - base + ARRIVAL.trace.at };
+  return { order, fade, elapsed: ms - base + START };
 }

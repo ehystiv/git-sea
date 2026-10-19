@@ -1,11 +1,11 @@
 import { dateFormatter, formatCount } from "../../lib/format";
 import { t, type Messages } from "../../lib/i18n";
-import { COLUMN_W, LOD_TILE } from "../graph/constants";
+import { COLUMN_W, HALF, LANE_H, LOD_TILE } from "../graph/constants";
 import { draw, RenderCache, withAlpha, type View } from "../graph/draw";
 import type { GraphIndex } from "../graph/GraphIndex";
 import type { Palette } from "../graph/palette";
 import type { PullBadge } from "../pulls/pulls";
-import { frontierColumn, frontierX, replayArrival, replayView, revealedAt } from "./replay";
+import { frontierColumn, replayArrival, replayView, revealedAt, revealedColumn } from "./replay";
 
 /** The graph as it is on screen when the replay starts: what it shows, and how. */
 export interface ReplaySource {
@@ -19,6 +19,9 @@ export interface ReplaySource {
   pulls: ReadonlyMap<string, readonly PullBadge[]>;
 }
 
+/** How far the ring of a new commit spreads past its node, in world units (see `drawPing`). */
+const RING = 26;
+
 const monthYear = dateFormatter({ month: "long", year: "numeric" });
 
 /** Every column at its own place: the arrival in a replay moves nothing aside. */
@@ -31,7 +34,8 @@ function identityPositions(count: number): Float64Array {
 /**
  * Draws the history `ms` into a replay lasting `durationMs`: the commits up to the frontier, each
  * entering with the graph's arrival animation (its link traced, its node popping in, a ring), the
- * newer ones hidden behind a soft edge, and the date and count of the frontier in a corner.
+ * newer ones not drawn and the links towards them fading out, and the date and count of the
+ * frontier in a corner.
  * `scale` is device pixels per CSS pixel of the target. `drawWidth` is how much is drawn: on screen
  * the replay also goes under the details panel, while exports keep to `source.width`.
  */
@@ -52,7 +56,13 @@ export function drawReplayFrame(
   const revealed = revealedAt(total, ms, durationMs);
   const frontier = frontierColumn(total, revealed);
   const view = replayView(source.view, source.width, frontier);
-  const edge = frontierX(view, frontier);
+  const newest = revealedColumn(frontier);
+  const z = view.z;
+  // Past the newest drawn node (and the ring it sends out) the links going on to the commits still
+  // to come fade out, up to the end of its column, where they stop.
+  const nodeX = -newest * COLUMN_W * z + view.tx;
+  const fadeFrom = nodeX + (HALF + RING) * z;
+  const edge = Math.max(fadeFrom + 8, nodeX + (COLUMN_W / 2) * z);
   // Far out the nodes are dots, which have no animation; drawing every column one by one, as an
   // arrival does, would only cost time there.
   const arrival = view.z >= LOD_TILE ? replayArrival(total, ms, durationMs) : null;
@@ -62,11 +72,6 @@ export function drawReplayFrame(
   ctx.globalAlpha = 1;
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  ctx.save();
-  ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  ctx.beginPath();
-  ctx.rect(0, 0, Math.max(0, edge), height);
-  ctx.clip();
   draw(ctx, {
     width,
     height,
@@ -90,17 +95,21 @@ export function drawReplayFrame(
     bookmarks: source.bookmarks,
     pulls: source.pulls,
     bob: null,
+    revealFrom: newest,
   });
-  ctx.restore();
 
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  // The links of the commits still to come fade out into the water past the frontier's node.
-  const fade = arrival ? Math.max(8, COLUMN_W * view.z * 0.35) : Math.min(width * 0.12, COLUMN_W * view.z * 1.5 + 24);
-  const gradient = ctx.createLinearGradient(edge - fade, 0, edge, 0);
+  // Only along the lanes, where the links run: the labels and badges of the node stay whole.
+  const gradient = ctx.createLinearGradient(fadeFrom, 0, edge, 0);
   gradient.addColorStop(0, withAlpha(palette.canvas, 0));
   gradient.addColorStop(1, palette.canvas);
   ctx.fillStyle = gradient;
-  ctx.fillRect(edge - fade, 0, fade, height);
+  const band = Math.max(4, 5 * z);
+  for (let lane = 0; lane <= index.maxLane; lane++) {
+    const y = lane * LANE_H * z + view.ty;
+    if (y < -band || y > height + band) continue;
+    ctx.fillRect(fadeFrom, y - band, edge + 2 - fadeFrom, band * 2);
+  }
 
   ctx.globalCompositeOperation = "destination-over";
   ctx.fillStyle = palette.canvas;

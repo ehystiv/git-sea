@@ -73,6 +73,8 @@ export interface Scene {
   pulls: ReadonlyMap<string, readonly PullBadge[]>;
   /** A clicked node bobbing like a float (column, milliseconds since the click); null for none. */
   bob: { column: number; ms: number } | null;
+  /** Replay: the columns before this one (the newer commits) are not drawn at all. */
+  revealFrom?: number;
 }
 
 /** How many files have local changes, and the commit they sit on. */
@@ -88,9 +90,10 @@ export interface Arrival {
   /** Reduced motion: the new commits only fade in, nothing grows, traces or rings. */
   gentle: boolean;
   /**
-   * Longest piece of a link that is traced, in columns, ending at the new node; the rest is drawn
-   * from the start. Unset: the whole link from the parent (the replay keeps it short, since there
-   * a parent can be far away and hiding the whole link would cut every line crossing it).
+   * Longest piece of a link that is traced, in columns, ending at the new node and starting at the
+   * edge of the node before; the rest is drawn from the start. Unset: the whole link from the
+   * parent (the replay keeps it short, since there a parent can be far away and hiding the whole
+   * link would cut every line crossing it).
    */
   maxTrace?: number;
 }
@@ -149,7 +152,8 @@ export function draw(ctx: Ctx, input: Scene): FlowFrame | null {
   const xMax = (width - view.tx) / z;
   const positions = scene.morph?.positions;
   // Columns move during a morph, but stay in order, so the visible ones can still be searched.
-  const first = positions ? Math.max(0, firstAtLeast(positions, -xMax / COLUMN_W - 1) - 1) : Math.max(0, Math.floor(-xMax / COLUMN_W) - 1);
+  const firstVisible = positions ? Math.max(0, firstAtLeast(positions, -xMax / COLUMN_W - 1) - 1) : Math.max(0, Math.floor(-xMax / COLUMN_W) - 1);
+  const first = Math.max(firstVisible, scene.revealFrom ?? 0);
   const last = positions ? Math.min(count - 1, firstAtLeast(positions, -xMin / COLUMN_W + 1)) : Math.min(count - 1, Math.ceil(-xMin / COLUMN_W) + 1);
   if (first > last) return null;
 
@@ -209,7 +213,8 @@ function clipUntraced(ctx: Ctx, scene: Scene, last: number): boolean {
     const parent = index.parentIndex(r) ?? (r + 1 < index.length ? r + 1 : null);
     const nodeX = columnX(scene, r);
     const parentX = parent === null ? nodeX - COLUMN_W * view.z : columnX(scene, parent);
-    const from = arrival.maxTrace === undefined ? parentX : Math.max(parentX, nodeX - arrival.maxTrace * COLUMN_W * view.z);
+    // A short trace starts at the edge of the node before, which it would otherwise cut through.
+    const from = arrival.maxTrace === undefined ? parentX : Math.max(parentX, nodeX - arrival.maxTrace * COLUMN_W * view.z) + HALF * view.z;
     const reached = from + (nodeX - from) * (1 - (1 - trace) ** 3);
     const y = (index.rows[r]?.lane ?? 0) * LANE_H * view.z + view.ty;
     if (nodeX <= reached) continue;

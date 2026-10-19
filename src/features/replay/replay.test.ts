@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COLUMN_W } from "../graph/constants";
 import { ARRIVAL, arrivalProgress } from "../graph/morph";
-import { ARRIVAL_MS, FRONT, HOLD_MS, reachedAt, replayArrival, frontierColumn, frontierX, gifFrames, gifSize, replayLength, replayView, revealedAt } from "./replay";
+import { ARRIVAL_MS, FRONT, HOLD_MS, reachedAt, replayArrival, revealedColumn, frontierColumn, gifFrames, gifSize, replayLength, replayView, revealedAt } from "./replay";
 
 describe("revealedAt", () => {
   it("goes from one commit to all of them, then stays", () => {
@@ -33,7 +33,6 @@ describe("the camera", () => {
       expect(v.ty).toBe(40);
       // Screen x of the frontier column.
       expect(-frontier * COLUMN_W * v.z + v.tx).toBeCloseTo(1000 * FRONT);
-      expect(frontierX(v, frontier)).toBeCloseTo(1000 * FRONT + COLUMN_W * 0.5 * 0.6);
     }
   });
 });
@@ -47,19 +46,19 @@ describe("GIF sizes", () => {
 });
 
 describe("replayArrival", () => {
-  const trace = (arrival: NonNullable<ReturnType<typeof replayArrival>>, column: number) =>
-    arrivalProgress(ARRIVAL.trace, arrival.elapsed, arrival.order[column] ?? -1);
+  const pop = (arrival: NonNullable<ReturnType<typeof replayArrival>>, column: number) =>
+    arrivalProgress(ARRIVAL.pop, arrival.elapsed, arrival.order[column] ?? -1);
 
-  it("starts each commit's link when the frontier reaches it", () => {
+  it("starts popping each commit in when the frontier reaches it", () => {
     // 101 commits in 10 s: one every 100 ms; column 100 is reached at 0, column 50 at 5 s.
     expect(reachedAt(101, 100, 10_000)).toBe(0);
     expect(reachedAt(101, 50, 10_000)).toBe(5_000);
     const arrival = replayArrival(101, 5_000, 10_000);
     if (!arrival) throw new Error("expected an arrival");
-    // Just reached: its link is about to be traced.
-    expect(trace(arrival, 50)).toBeCloseTo(0);
-    // Reached 100 ms ago: part of its link is traced.
-    expect(trace(arrival, 51)).toBeCloseTo(100 / ARRIVAL.trace.ms, 1);
+    // Just reached: about to pop in.
+    expect(pop(arrival, 50)).toBeCloseTo(0);
+    // Reached 100 ms ago: popping in.
+    expect(pop(arrival, 51)).toBeCloseTo(100 / ARRIVAL.pop.ms, 1);
     // Long settled, or past the edge: not part of the arrival.
     expect(arrival.order[50 + Math.ceil(ARRIVAL_MS / 100) + 1]).toBe(-1);
     expect(arrival.order[49]).toBe(-1);
@@ -67,13 +66,14 @@ describe("replayArrival", () => {
     expect(arrival.fade[49]).toBe(0);
   });
 
-  it("keeps unseen the commit drawn past the frontier until it is reached", () => {
-    // 50 ms before column 50 is reached, the frontier is at 50.5: column 50 is drawn, 49 is not.
+  it("draws a commit only once the frontier has reached it", () => {
+    expect(revealedColumn(50.5)).toBe(51);
+    expect(revealedColumn(50)).toBe(50);
+    expect(revealedColumn(0)).toBe(0);
+    // 50 ms before column 50 is reached, only 51 and older are drawn and moving.
     const arrival = replayArrival(101, 4_950, 10_000);
-    if (!arrival) throw new Error("expected an arrival");
-    expect(arrival.order[50]).toBeGreaterThanOrEqual(0);
-    expect(trace(arrival, 50)).toBe(0);
-    expect(arrival.order[49]).toBe(-1);
+    expect(arrival?.order[51]).toBeGreaterThanOrEqual(0);
+    expect(arrival?.order[50]).toBe(-1);
   });
 
   it("ends once the last commit has settled", () => {
