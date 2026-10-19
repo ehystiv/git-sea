@@ -128,6 +128,12 @@ export class GraphIndex {
     return this.idToIndex.get(id) ?? this.aliases.get(id) ?? null;
   }
 
+  /** Indices of the loaded children of a commit, oldest last. */
+  children(index: number): readonly number[] {
+    const id = this.commits[index]?.id;
+    return (id === undefined ? undefined : this.childrenOf.get(id)) ?? [];
+  }
+
   /** Index of the only child of a commit, or null when it has none or several. */
   soleChild(index: number): number | null {
     const id = this.commits[index]?.id;

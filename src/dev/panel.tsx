@@ -36,7 +36,7 @@ createRoot(document.getElementById("root") as HTMLElement).render(
   <StrictMode>
     <QueryClientProvider client={new QueryClient()}>
       <div style={{ width: Number(new URLSearchParams(location.search).get("w") ?? 460), height: "100%", borderRight: "1px solid var(--border)" }}>
-        <DetailsPanel sessionId="s1" commit={dump.commit} index={index} onSelectCommit={() => undefined} />
+        <DetailsPanel sessionId="s1" commit={dump.commit} index={index} version={0} onSelectCommit={() => undefined} />
       </div>
     </QueryClientProvider>
   </StrictMode>,

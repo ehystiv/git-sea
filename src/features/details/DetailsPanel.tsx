@@ -1,11 +1,12 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Badge } from "../../components/Badge/Badge";
-import type { CommitDetails, CommitSummary, FileChange } from "../../lib/bindings";
+import type { CommitDetails, CommitSummary, FileChange, RefLabel } from "../../lib/bindings";
 import type { CommandError } from "../../lib/errors";
 import { describeError } from "../../lib/errors";
 import { formatAgo, formatDateTime, shortHash, splitPath } from "../../lib/format";
 import { useT } from "../../lib/i18n";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
+import { containingRefs } from "../graph/contains";
 import type { GraphIndex } from "../graph/GraphIndex";
 import { BlameView } from "./BlameView";
 import { DiffView, type DiffMode } from "./DiffView";
@@ -18,12 +19,17 @@ interface DetailsPanelProps {
   sessionId: string;
   commit: CommitSummary | null;
   index: GraphIndex;
+  /** Bumped when `index` changes. */
+  version: number;
   onSelectCommit: (id: string) => void;
   /** Shows the commits that changed a file. */
   onFileHistory?: (path: string) => void;
 }
 
-export function DetailsPanel({ sessionId, commit, index, onSelectCommit, onFileHistory }: DetailsPanelProps) {
+/** Branches shown before "and N more". */
+const BRANCHES_SHOWN = 6;
+
+export function DetailsPanel({ sessionId, commit, index, version, onSelectCommit, onFileHistory }: DetailsPanelProps) {
   // Holding j or k moves through commits fast; only ask the backend once it settles.
   const commitId = useDebouncedValue(commit?.id ?? null, 80);
   const m = useT();
@@ -33,6 +39,18 @@ export function DetailsPanel({ sessionId, commit, index, onSelectCommit, onFileH
   const base = parentAt > 0 && commit?.id === commitId ? (commit.parents[parentAt] ?? null) : null;
   const details = useCommitDetails(sessionId, commitId, base);
   const [copied, setCopied] = useState(false);
+  const [allBranches, setAllBranches] = useState(false);
+  useEffect(() => setAllBranches(false), [commitId]);
+
+  // The branches and tags that hold the commit, once the selection settles.
+  const containment = useMemo(() => {
+    if (commitId === null) return null;
+    const at = index.indexOf(commitId);
+    if (at === null || index.commits[at]?.id !== commitId) return null;
+    const hasTags = [...index.refs.values()].some((list) => list.some((ref) => ref.kind === "Tag"));
+    return { ...containingRefs(index, at), hasTags };
+    // `version` stands for the contents of `index`, which is mutated in place.
+  }, [index, version, commitId]);
 
   if (!commit) {
     return <aside className={styles.panel}><p className={styles.empty}>{m.details.selectCommit}</p></aside>;
@@ -108,6 +126,50 @@ export function DetailsPanel({ sessionId, commit, index, onSelectCommit, onFileH
               </dd>
             </>
           )}
+
+          {containment?.hasTags && (
+            <>
+              <dt>{m.contains.release}</dt>
+              <dd className={styles.refs}>
+                {containment.firstTag ? (
+                  <>
+                    <RefButton label={containment.firstTag} title={m.contains.firstTag} onSelect={onSelectCommit} />
+                    {containment.tags.length > 1 && <span className={styles.muted}>{m.contains.moreTags(containment.tags.length - 1)}</span>}
+                  </>
+                ) : (
+                  <span className={styles.muted}>{m.contains.noTag}</span>
+                )}
+              </dd>
+            </>
+          )}
+
+          {containment && (
+            <>
+              <dt>{m.contains.in}</dt>
+              <dd className={styles.refs}>
+                {containment.branches.length + containment.remotes.length === 0 ? (
+                  <span className={styles.muted}>{m.contains.noBranch}</span>
+                ) : (
+                  (() => {
+                    const all = [...containment.branches, ...containment.remotes];
+                    const shown = allBranches ? all : all.slice(0, BRANCHES_SHOWN);
+                    return (
+                      <>
+                        {shown.map((ref) => (
+                          <RefButton key={`${ref.kind}:${ref.name}`} label={ref} title={m.contains.goTo(ref.name)} onSelect={onSelectCommit} />
+                        ))}
+                        {all.length > shown.length && (
+                          <button type="button" className={styles.link} onClick={() => setAllBranches(true)}>
+                            {m.contains.more(all.length - shown.length)}
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()
+                )}
+              </dd>
+            </>
+          )}
         </dl>
         <p className={styles.tip}>{m.compare.hint}</p>
       </header>
@@ -140,6 +202,15 @@ export function DetailsPanel({ sessionId, commit, index, onSelectCommit, onFileH
         }
       />
     </aside>
+  );
+}
+
+/** A branch or tag that selects the commit it points to. */
+function RefButton({ label, title, onSelect }: { label: RefLabel; title: string; onSelect: (id: string) => void }) {
+  return (
+    <button type="button" className={styles.refButton} title={title} onClick={() => onSelect(label.commit)}>
+      <Badge color={label.kind === "Tag" ? 3 : label.kind === "Remote" ? 4 : 0}>{label.name}</Badge>
+    </button>
   );
 }
 

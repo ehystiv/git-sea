@@ -349,6 +349,17 @@ export const it: Messages = {
     unstagedLower: "non staged",
   },
 
+  contains: {
+    release: "Rilascio",
+    in: "In",
+    firstTag: "Il tag più vecchio che contiene questo commit: seleziona il suo commit",
+    moreTags: (n: number) => (n === 1 ? "e 1 tag successivo" : `e ${n} tag successivi`),
+    noTag: "Non ancora in un tag",
+    noBranch: "In nessun branch",
+    more: (n: number) => `e altri ${n}`,
+    goTo: (name: string) => `Seleziona il commit a cui punta ${name}`,
+  },
+
   blame: {
     tab: "Blame",
     title: "Mostra il commit che ha cambiato per ultimo ogni riga",

@@ -23,6 +23,10 @@
   .link:not(:disabled):hover { text-decoration: underline; }
   .link:not(:disabled):active { opacity: 0.7; }
   .refs { gap: var(--space-1) !important; }
+  .refButton { display: inline-flex; border-radius: var(--r-sm); }
+  .refButton:hover { filter: brightness(1.08); box-shadow: 0 0 0 1px var(--border-strong); }
+  .refButton:active { opacity: 0.7; }
+  .muted { color: var(--text-3); font-size: 12px; }
 
   /* No wrapping: in a wrapping column the line is as wide as the longest summary, and so is the chip. */
   .parents { flex-direction: column; flex-wrap: nowrap !important; align-items: stretch !important; gap: var(--space-1) !important; }

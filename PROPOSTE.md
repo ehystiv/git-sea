@@ -33,6 +33,10 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 - **SVG**: scartato per ora. Il grafo è disegnato con `Path2D`, che le librerie di emulazione Canvas→SVG non sanno leggere; servirebbe un secondo renderer.
 - ~~Numero di nodi in Topologia~~: c'era già, nella toolbar.
 
+## Seconda tornata (19 ottobre 2026)
+
+- **Contenuto in e rilasciato in** ✅. Nel pannello dettagli: il tag più vecchio che contiene il commit ("Rilascio") e i branch locali e remoti che lo contengono ("In"), come `git tag/branch --contains`. Calcolato nel frontend (`features/graph/contains.ts`) scendendo dai figli del commit, quindi un commit recente costa pochi passi. Con il filtro dei branch conta solo la storia caricata.
+
 ## Da valutare dopo
 
 ### Navigazione

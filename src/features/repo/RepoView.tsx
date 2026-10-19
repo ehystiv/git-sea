@@ -1002,7 +1002,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
                 onFileHistory={showFileHistory}
               />
             ) : (
-              <DetailsPanel sessionId={repo.sessionId} commit={selected} index={index} onSelectCommit={selectById} onFileHistory={showFileHistory} />
+              <DetailsPanel sessionId={repo.sessionId} commit={selected} index={index} version={stream.version} onSelectCommit={selectById} onFileHistory={showFileHistory} />
             )}
           </div>
         )}

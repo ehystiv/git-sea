@@ -352,6 +352,17 @@ export const en = {
     unstagedLower: "unstaged",
   },
 
+  contains: {
+    release: "Release",
+    in: "In",
+    firstTag: "The oldest tag that holds this commit: select its commit",
+    moreTags: (n: number) => (n === 1 ? "and 1 later tag" : `and ${n} later tags`),
+    noTag: "Not in a tag yet",
+    noBranch: "In no branch",
+    more: (n: number) => `and ${n} more`,
+    goTo: (name: string) => `Select the commit ${name} points to`,
+  },
+
   blame: {
     tab: "Blame",
     title: "Show the commit that last changed each line",
