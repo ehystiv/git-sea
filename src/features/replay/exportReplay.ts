@@ -4,6 +4,9 @@ import { RenderCache } from "../graph/draw";
 import { drawReplayFrame, type ReplaySource } from "./renderReplay";
 import { GIF_FPS, gifFrames, gifSize, replayLength, type ReplayPlan } from "./replay";
 
+/** Frames per second of a recorded video: as smooth as the screen it is drawn on. */
+export const VIDEO_FPS = 60;
+
 export type VideoFormat = { mime: string; format: "Mp4" | "Webm"; extension: "mp4" | "webm" };
 
 /** The video format this webview can record a canvas in (MP4 on macOS, WebM elsewhere), or null. */
@@ -70,8 +73,9 @@ export async function encodeGif(
  * `play` does; null when recording fails or is cancelled.
  */
 export async function recordVideo(canvas: HTMLCanvasElement, format: VideoFormat, play: () => Promise<boolean>): Promise<Blob | null> {
-  const stream = canvas.captureStream(30);
-  const recorder = new MediaRecorder(stream, { mimeType: format.mime, videoBitsPerSecond: 8_000_000 });
+  const stream = canvas.captureStream(VIDEO_FPS);
+  // Twice the frames of the 30 fps it used to be, with the bits to keep them sharp.
+  const recorder = new MediaRecorder(stream, { mimeType: format.mime, videoBitsPerSecond: 16_000_000 });
   const chunks: Blob[] = [];
   recorder.ondataavailable = (event) => {
     if (event.data.size > 0) chunks.push(event.data);

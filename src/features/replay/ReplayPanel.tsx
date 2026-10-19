@@ -14,6 +14,9 @@ import { defaultSpeed, durationFor, formatClock, GIF_MAX_MS, replayLength, SPEED
 import styles from "./ReplayPanel.module.css";
 
 
+/** How often the controls show the position while a video is recorded. */
+const SHOW_EVERY_MS = 250;
+
 interface ReplayPanelProps {
   sessionId: string;
   /** The graph as it is on screen; its whole history is the replay without an end commit. */
@@ -155,11 +158,19 @@ export function ReplayPanel({ sessionId, source: initial, compressed, ends, star
         let last = performance.now();
         let frame = 0;
         let stopped = false;
+        let shownAt = -Infinity;
         const tick = (now: number) => {
           if (stopped) return;
           const at = Math.min(length, msRef.current + (now - last));
           last = now;
-          seek(at);
+          // While a video is recorded every frame goes to the canvas, but the controls follow
+          // only a few times a second: rendering them on every frame would cost frames.
+          msRef.current = at;
+          paint(at);
+          if (!recordingRef.current || now - shownAt >= SHOW_EVERY_MS || at >= length) {
+            setMs(at);
+            shownAt = now;
+          }
           if (at >= length) {
             playRef.current = null;
             resolve(true);
@@ -177,7 +188,7 @@ export function ReplayPanel({ sessionId, source: initial, compressed, ends, star
           },
         };
       }),
-    [length, seek],
+    [length, paint],
   );
 
   // Another start, end or pace: back to the beginning.
