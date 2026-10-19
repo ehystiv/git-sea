@@ -87,6 +87,12 @@ export interface Arrival {
   elapsed: number;
   /** Reduced motion: the new commits only fade in, nothing grows, traces or rings. */
   gentle: boolean;
+  /**
+   * Longest piece of a link that is traced, in columns, ending at the new node; the rest is drawn
+   * from the start. Unset: the whole link from the parent (the replay keeps it short, since there
+   * a parent can be far away and hiding the whole link would cut every line crossing it).
+   */
+  maxTrace?: number;
 }
 
 /** Screen x of the centre of column `r`, following a running morph. */
@@ -203,7 +209,8 @@ function clipUntraced(ctx: Ctx, scene: Scene, last: number): boolean {
     const parent = index.parentIndex(r) ?? (r + 1 < index.length ? r + 1 : null);
     const nodeX = columnX(scene, r);
     const parentX = parent === null ? nodeX - COLUMN_W * view.z : columnX(scene, parent);
-    const reached = parentX + (nodeX - parentX) * (1 - (1 - trace) ** 3);
+    const from = arrival.maxTrace === undefined ? parentX : Math.max(parentX, nodeX - arrival.maxTrace * COLUMN_W * view.z);
+    const reached = from + (nodeX - from) * (1 - (1 - trace) ** 3);
     const y = (index.rows[r]?.lane ?? 0) * LANE_H * view.z + view.ty;
     if (nodeX <= reached) continue;
     hidden.rect(reached, y - pad, nodeX - reached, pad * 2);

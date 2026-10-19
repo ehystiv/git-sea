@@ -1,11 +1,11 @@
 import { dateFormatter, formatCount } from "../../lib/format";
 import { t, type Messages } from "../../lib/i18n";
-import { COLUMN_W } from "../graph/constants";
+import { COLUMN_W, LOD_TILE } from "../graph/constants";
 import { draw, RenderCache, withAlpha, type View } from "../graph/draw";
 import type { GraphIndex } from "../graph/GraphIndex";
 import type { Palette } from "../graph/palette";
 import type { PullBadge } from "../pulls/pulls";
-import { frontierColumn, frontierX, replayView, revealedAt } from "./replay";
+import { frontierColumn, frontierX, replayArrival, replayView, revealedAt } from "./replay";
 
 /** The graph as it is on screen when the replay starts: what it shows, and how. */
 export interface ReplaySource {
@@ -21,8 +21,16 @@ export interface ReplaySource {
 
 const monthYear = dateFormatter({ month: "long", year: "numeric" });
 
+/** Every column at its own place: the arrival in a replay moves nothing aside. */
+let identity = new Float64Array(0);
+function identityPositions(count: number): Float64Array {
+  if (identity.length !== count) identity = Float64Array.from({ length: count }, (_, i) => i);
+  return identity;
+}
+
 /**
- * Draws the history `ms` into a replay lasting `durationMs`: the commits up to the frontier, the
+ * Draws the history `ms` into a replay lasting `durationMs`: the commits up to the frontier, each
+ * entering with the graph's arrival animation (its link traced, its node popping in, a ring), the
  * newer ones hidden behind a soft edge, and the date and count of the frontier in a corner.
  * `scale` is device pixels per CSS pixel of the target. `drawWidth` is how much is drawn: on screen
  * the replay also goes under the details panel, while exports keep to `source.width`.
@@ -45,6 +53,9 @@ export function drawReplayFrame(
   const frontier = frontierColumn(total, revealed);
   const view = replayView(source.view, source.width, frontier);
   const edge = frontierX(view, frontier);
+  // Far out the nodes are dots, which have no animation; drawing every column one by one, as an
+  // arrival does, would only cost time there.
+  const arrival = view.z >= LOD_TILE ? replayArrival(total, ms, durationMs) : null;
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = "source-over";
@@ -68,7 +79,12 @@ export function drawReplayFrame(
     hovered: null,
     flow: false,
     emphasis: null,
-    morph: null,
+    morph: arrival && {
+      positions: identityPositions(total),
+      fade: arrival.fade,
+      t: 1,
+      arrival: { order: arrival.order, elapsed: arrival.elapsed, gentle: false, maxTrace: 1 },
+    },
     worktree: null,
     ci: null,
     bookmarks: source.bookmarks,
@@ -78,8 +94,8 @@ export function drawReplayFrame(
   ctx.restore();
 
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
-  // The newest commits come out of the water: a fade into the background before the edge.
-  const fade = Math.min(width * 0.12, COLUMN_W * view.z * 1.5 + 24);
+  // The links of the commits still to come fade out into the water past the frontier's node.
+  const fade = arrival ? Math.max(8, COLUMN_W * view.z * 0.35) : Math.min(width * 0.12, COLUMN_W * view.z * 1.5 + 24);
   const gradient = ctx.createLinearGradient(edge - fade, 0, edge, 0);
   gradient.addColorStop(0, withAlpha(palette.canvas, 0));
   gradient.addColorStop(1, palette.canvas);
