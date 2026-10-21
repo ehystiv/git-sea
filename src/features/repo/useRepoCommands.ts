@@ -11,13 +11,19 @@ import { matchCommits, textQuery } from "../search/query";
 import { inFilter } from "../sidebar/refFilter";
 import type { BranchDivergence } from "../sidebar/upstream";
 
-export type ViewMode = "graph" | "topology" | "timeline" | "list";
+export type ViewMode = "graph" | "topology" | "timeline" | "list" | "stats";
+
+/** The views drawn on a canvas, with zoom, export and the highlights. */
+export function isCanvasMode(mode: ViewMode): boolean {
+  return mode !== "list" && mode !== "stats";
+}
 
 const views = (m: Messages): Array<{ mode: ViewMode; title: string; shortcut?: string; keywords: string }> => [
   { mode: "graph", title: m.commands.viewGraph, shortcut: "1", keywords: "graph grafo nodi canvas" },
   { mode: "topology", title: m.commands.viewTopology, shortcut: "2", keywords: "topology topologia compressa catene" },
   { mode: "timeline", title: m.commands.viewTimeline, shortcut: "3", keywords: "timeline tempo date" },
   { mode: "list", title: m.commands.viewList, keywords: "list lista elenco tabella" },
+  { mode: "stats", title: m.commands.viewStats, shortcut: "4", keywords: "statistiche statistics stats autori authors heatmap calendario calendar attività activity contributori contributors" },
 ];
 
 const kindLabel = (m: Messages, kind: RefLabel["kind"]): string => m.commands.kind[kind];
@@ -112,7 +118,7 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
     }
     add({ id: "panel", title: panelOpen ? m.commands.hidePanel : m.commands.showPanel, shortcut: "↩", keywords: "details dettagli diff", run: actions.togglePanel }, g.view);
     add({ id: "sidebar", title: sidebarCollapsed ? m.commands.showSidebar : m.commands.hideSidebar, shortcut: modShortcut("B"), keywords: "sidebar barra laterale branch rami collassa collapse", run: actions.toggleSidebar }, g.view);
-    if (mode !== "list") {
+    if (isCanvasMode(mode)) {
       add({ id: "flow", title: flow ? m.commands.stopFlow : m.commands.startFlow, keywords: "pallini animazione flow dots", run: actions.toggleFlow }, g.view);
       if (mode !== "timeline") {
         add({ id: "sea", title: sea ? m.commands.hideSea : m.commands.showSea, keywords: "pesci mare sfondo fish sea acquario", run: actions.toggleSea }, g.view);

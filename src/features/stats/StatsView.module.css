@@ -1,0 +1,77 @@
+@layer components {
+  .view { height: 100%; overflow: auto; background: var(--surface); }
+  .page { display: flex; flex-direction: column; gap: var(--space-4); max-width: 1120px; padding: var(--space-4) var(--space-6) var(--space-8); }
+  .empty { padding: var(--space-8); color: var(--text-3); text-align: center; }
+
+  .header { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+  .scope { font-weight: 500; color: var(--text-2); }
+  .loading { color: var(--text-3); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 2px 0 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-weight: 500; white-space: nowrap; max-width: 260px; overflow: hidden; }
+  .chip button { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; font-size: 14px; color: inherit; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); }
+  .tile { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-radius: var(--r-lg); }
+  .tileLabel { font-size: 11px; font-weight: 500; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
+  .tileValue { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tileSmall { font-size: 15px; line-height: 30px; }
+
+  .card { padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--r-lg); min-width: 0; }
+  .cardHead { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-3); }
+  .cardHead h2 { margin: 0; font-size: 13px; font-weight: 600; }
+  .note { font-size: 12px; color: var(--text-3); }
+  .select { margin-left: auto; height: 26px; padding: 0 var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface); color: var(--text); font: inherit; font-size: 12px; }
+
+  .scroll { overflow-x: auto; }
+  .chart { display: block; }
+  .axis { font-size: 10px; fill: var(--text-3); }
+
+  .day, .swatch { fill: var(--accent); }
+  .day[data-level="0"] { fill: var(--subtle); }
+  .day[data-level="1"] { fill-opacity: 0.3; }
+  .day[data-level="2"] { fill-opacity: 0.5; }
+  .day[data-level="3"] { fill-opacity: 0.75; }
+  .day:hover { stroke: var(--text-2); stroke-width: 1; }
+
+  .legend { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-2); }
+  .scale { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-3); }
+  .scale > :first-of-type { margin-left: 4px; }
+  .scale > :last-of-type { margin-right: 4px; }
+  .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 2px; background: var(--accent); }
+  .swatch[data-level="0"] { background: var(--subtle); }
+  .swatch[data-level="1"] { opacity: 0.3; }
+  .swatch[data-level="2"] { opacity: 0.5; }
+  .swatch[data-level="3"] { opacity: 0.75; }
+
+  .slotBase { fill: var(--dot); }
+  .slot { fill: var(--accent); }
+  .slot[data-level="1"] { fill-opacity: 0.45; }
+  .slot[data-level="2"] { fill-opacity: 0.6; }
+  .slot[data-level="3"] { fill-opacity: 0.8; }
+
+  .authors { list-style: none; margin: 0; padding: 0; }
+  .author { display: flex; align-items: center; border-radius: var(--r-md); }
+  .author:hover { background: var(--hover); }
+  .focused, .focused:hover { background: var(--accent-soft); }
+  .authorMain {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 28px minmax(120px, 220px) minmax(60px, 1fr) 64px 48px 170px;
+    align-items: center;
+    column-gap: var(--space-3);
+    height: 30px;
+    padding: 0 var(--space-2);
+    text-align: left;
+  }
+  .rank { color: var(--text-3); font-variant-numeric: tabular-nums; text-align: right; }
+  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar { height: 6px; border-radius: 3px; background: var(--subtle); overflow: hidden; }
+  .bar span { display: block; height: 100%; min-width: 2px; border-radius: 3px; background: var(--accent); }
+  .count { font-variant-numeric: tabular-nums; text-align: right; font-weight: 500; }
+  .share, .seen { color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .share { text-align: right; }
+  .showCommits { flex: none; width: 28px; height: 28px; display: grid; place-items: center; margin-right: var(--space-1); border-radius: var(--r-sm); color: var(--text-3); }
+  .showCommits:hover { background: var(--subtle); color: var(--text); }
+  .more { margin-top: var(--space-2); padding: 4px var(--space-2); border-radius: var(--r-sm); color: var(--accent-text); font-weight: 500; }
+  .more:hover { background: var(--accent-soft); }
+}

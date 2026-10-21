@@ -51,7 +51,8 @@ import { hasModKey, modShortcut } from "../../lib/platform";
 import { useDrawer } from "./useDrawer";
 import { useFetchStatus } from "./useFetchStatus";
 import { useRepoChanges } from "./useRepoChanges";
-import { useRepoCommands, type RepoCommandActions, type ViewMode } from "./useRepoCommands";
+import { isCanvasMode, useRepoCommands, type RepoCommandActions, type ViewMode } from "./useRepoCommands";
+import { StatsView } from "../stats/StatsView";
 import type { CiProvider, CommitSummary, HeadInfo, RefFilter, RepoInfo } from "../../lib/bindings";
 import styles from "./RepoView.module.css";
 
@@ -377,8 +378,18 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
     [openSearch],
   );
 
-  // Enter shows or hides the details panel; 1, 2 and 3 switch between graph, topology and
-  // timeline; / opens the search; a highlights the ancestors of the selected commit.
+  // A click in the statistics: the commits it stands for, found by a search, in the list.
+  const showSearch = useCallback(
+    (text: string) => {
+      setSearchText(text);
+      openSearch();
+      setMode("list");
+    },
+    [openSearch],
+  );
+
+  // Enter shows or hides the details panel; 1, 2, 3 and 4 switch between graph, topology,
+  // timeline and statistics; / opens the search; a highlights the ancestors of the selected commit.
   useEffect(() => {
     if (!active) return;
     function onKeyDown(event: KeyboardEvent) {
@@ -389,9 +400,9 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
       if (event.key === "Enter" && !onButton) {
         event.preventDefault();
         setPanelOpen((open) => !open);
-      } else if (event.key === "1" || event.key === "2" || event.key === "3") {
+      } else if (event.key === "1" || event.key === "2" || event.key === "3" || event.key === "4") {
         event.preventDefault();
-        setMode(event.key === "1" ? "graph" : event.key === "2" ? "topology" : "timeline");
+        setMode(event.key === "1" ? "graph" : event.key === "2" ? "topology" : event.key === "3" ? "timeline" : "stats");
       } else if (event.key === "/") {
         event.preventDefault();
         openSearch();
@@ -409,7 +420,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
 
   const selectById = useCallback(
     (id: string) => {
-      if (mode !== "list") {
+      if (isCanvasMode(mode)) {
         graphRef.current?.selectById(id);
         return;
       }
@@ -539,7 +550,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
   }, [index, stream.version, rangeA, rangeB]);
 
   const emphasis = useMemo((): Emphasis | null => {
-    if (mode === "list") return null;
+    if (!isCanvasMode(mode)) return null;
     // A scoped search keeps the commit it looks under lit, as a landmark.
     if (searchIds && searchIds.length > 0) return matchEmphasis(viewIndex, scopeMask && scopeId !== null ? [...searchIds, scopeId] : searchIds);
     if (range && rangeA !== null && rangeB !== null) {
@@ -782,6 +793,9 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
           <button type="button" role="tab" aria-selected={mode === "list"} className={mode === "list" ? styles.active : undefined} onClick={() => setMode("list")}>
             {m.repo.list}
           </button>
+          <button type="button" role="tab" aria-selected={mode === "stats"} className={mode === "stats" ? styles.active : undefined} title={`${m.repo.stats} (4)`} onClick={() => setMode("stats")}>
+            {m.repo.stats}
+          </button>
         </div>
 
         {mode === "topology" && (
@@ -833,7 +847,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
             <path d="m20 20-3.5-3.5" />
           </svg>
         </button>
-        {mode !== "list" && (
+        {isCanvasMode(mode) && (
           <button
             type="button"
             className={`${styles.iconButton} ${ancestors ? styles.active : ""}`}
@@ -850,7 +864,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
             </svg>
           </button>
         )}
-        {mode !== "list" && (
+        {isCanvasMode(mode) && (
           <button
             type="button"
             className={`${styles.iconButton} ${flow ? styles.active : ""}`}
@@ -865,7 +879,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
             </svg>
           </button>
         )}
-        {mode !== "list" && mode !== "timeline" && (
+        {isCanvasMode(mode) && mode !== "timeline" && (
           <button
             type="button"
             className={`${styles.iconButton} ${sea ? styles.active : ""}`}
@@ -919,7 +933,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
       <div className={styles.body}>
         {/* The panel floats above the views, which keep their size: resizing it redraws nothing. */}
         <div
-          className={`${styles.main} ${mode === "list" ? styles.reserve : ""}`}
+          className={`${styles.main} ${isCanvasMode(mode) ? "" : styles.reserve}`}
           style={{ "--inset-right": `${insetRight}px` } as CSSProperties}
         >
           {mode === "timeline" ? (
@@ -938,6 +952,14 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
               onContextMenu={openMenu}
               onExport={openExport}
               insetRight={insetRight}
+            />
+          ) : mode === "stats" ? (
+            <StatsView
+              index={index}
+              version={stream.version}
+              loading={stream.status === "loading"}
+              filter={branchFilter ? describeFilter(branchFilter, m) : null}
+              onSearch={showSearch}
             />
           ) : mode !== "list" ? (
             <GraphCanvas

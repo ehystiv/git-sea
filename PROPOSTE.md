@@ -39,6 +39,11 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 - **Pull request e merge request nel grafo** ✅. Comando `pull_requests` (`ci/pulls.rs`): le 100 richieste aggiornate più di recente da GitHub o GitLab, con gli stessi token della CI (`gh`/`glab` o portachiavi). Nel grafo un badge sopra i ref (`#12` o `!12`): sulla punta per quelle aperte (tratteggiato per le bozze), sul commit di merge (o squash) per quelle unite; le chiuse senza merge si saltano. Sezione in sidebar con le aperte, riga "Richiesta" nel pannello dettagli con il link. Richieste di nuovo ogni 3 minuti e dopo ogni fetch. Non nella timeline.
 - **Replay della storia in GIF o video** ✅. Dal menu di esportazione o dalla palette, in grafo e topologia: la storia cresce commit dopo commit da sinistra (in ordine topologico, così ogni commit arriva dopo i suoi parent), con lo zoom e l'altezza che il grafo aveva, ogni commit che entra con l'animazione d'arrivo del grafo (arco tracciato, nodo che spunta, anello; solo da riquadri in su, non con i puntini), la telecamera che segue il fronte e una didascalia con mese e numero di commit. Il disegno è quello del grafo (`draw()`) ritagliato al fronte (`features/replay/`). Inizio e fine a scelta ("Da"/"A": tag, branch, commit selezionato; "Replay da qui"/"Replay fino a qui" nel menu del commit): la storia fino all'inizio c'è già al primo fotogramma, e con una fine si vede solo la storia di quel commit, disposta a parte dal comando `replay_commits`. All'apertura finisce sul branch del commit selezionato (quello di cui è la punta, altrimenti il branch locale che lo contiene, HEAD prima). Velocità in commit al secondo (1–1000; all'inizio quella che dura circa 30 s), con la durata accanto; GIF fino a 2 minuti. "Salva GIF…" disegna i fotogrammi fuori schermo a 15 fps, larga al massimo 960 px, con la palette dell'ultimo fotogramma (dipendenza `gifenc`); "Salva video…" registra in tempo reale il canvas a 60 fps con `MediaRecorder` (MP4 dove c'è, altrimenti WebM; il pulsante manca dove la webview non sa registrare). Il comando `save_png` è diventato `save_export` con il formato.
 
+## Terza tornata (21 ottobre 2026)
+
+- **Statistiche** ✅. Quinta vista "Statistiche" (tasto 4, palette), calcolata nel frontend sulla storia caricata (`features/stats/stats.ts`), quindi segue il filtro dei branch: commit, autori, giorni attivi e periodo; calendario dell'attività per giorno (ultimi 12 mesi o un anno a scelta); giorno × ora nel fuso orario locale; classifica dei commit per autore. Il clic su un autore mostra solo la sua attività (e porta il calendario al suo ultimo anno, se da 12 mesi non committa); il clic su un giorno, o il pulsante accanto all'autore, apre l'Elenco con la ricerca (`author:`, `after:`/`before:`).
+- **`.mailmap`** ✅. Feature `mailmap` di `gix` (`git/mailmap.rs`): nome ed email canonici nel cammino dei commit (quindi grafo, ricerca e statistiche), nei dettagli e nel blame. La mailmap fa parte dell'impronta della cache (formato 3); una modifica a `.mailmap` nella copia di lavoro ricarica il grafo.
+
 ## Da valutare dopo
 
 ### Navigazione
@@ -46,6 +51,4 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 
 ### Capire la storia
 - **Vista del reflog:** dove stava HEAD prima di un rebase o reset, con i commit "fantasma" non più nel grafo.
-- **Statistiche** del repo o del branch: commit per autore, heatmap nel tempo.
-- **`.mailmap`** per unificare gli autori in ricerca e statistiche.
 - **Firme GPG/SSH** come badge nel pannello dettagli.

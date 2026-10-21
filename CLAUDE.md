@@ -40,6 +40,7 @@ The Rust integration tests build fixture repositories by running the shell scrip
 - compressed topology (`compress.ts`): folds linear runs into single nodes
 - timeline (`features/timeline/layout.ts`)
 - minimap
+- statistics (`features/stats/`): DOM and SVG, not canvas; pure counts in `stats.ts`
 
 The canvas views are drawn on Canvas 2D by imperative controller classes (`GraphController`, `TimelineController`) that live outside React's render cycle. React components only mount them and pass callbacks. Drawing is in `draw.ts`. View math (pan, zoom, fit, clamp), hit testing, morph and arrival animations, and "unseen commits" are separate pure modules with their own `.test.ts`, so new logic should be kept testable the same way. The graph has levels of detail (card, tile, dot) and only draws the visible columns. `features/sea/` is a decorative fish layer behind the graph, with pure simulation in `sea.ts`, drawing in `SeaLayer.ts` and on/off state in `src/lib/sea.ts`.
 
@@ -75,6 +76,7 @@ The UI is in English and Italian. Every user-visible text goes through `src/lib/
 
 ## Technical notes
 
+- Authors go through `.mailmap` (`git/mailmap.rs`) wherever the backend reads them; the mailmap is part of the cache fingerprint.
 - `gix` needs the `sha1` feature (with `max-performance-safe`). Its open errors are opaque, so "not a repository" is detected first by checking for `.git` (or `HEAD` + `objects/` for bare repos).
 - Topological order comes from `gix::traverse::commit::topo::Builder`, not `gix::revision::walk::Sorting`. `build()` first visits everything to count in-degrees; the 64 MB object cache keeps it fast.
 - `data-tauri-drag-region` applies only to the element itself, so non-interactive children of the title bar have `pointer-events: none`. Window dragging needs the `core:window:allow-start-dragging` and `allow-internal-toggle-maximize` permissions.
