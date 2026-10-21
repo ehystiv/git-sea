@@ -87,6 +87,15 @@ export const commands = {
 	systemLocale: () => __TAURI_INVOKE<string | null>("system_locale"),
 	/**  Sets the language of the native menu and of the messages the backend sends. */
 	setLanguage: (language: Language) => typedError<null, AppError>(__TAURI_INVOKE("set_language", { language })),
+	/**
+	 *  Repositories asked for from a terminal or the system, waiting to be opened; each is returned
+	 *  once. Called at start and on every `open-paths` event.
+	 */
+	takeLaunchPaths: () => __TAURI_INVOKE<string[]>("take_launch_paths"),
+	/**  Whether the `git-sea` shell command can be installed, and whether it is. */
+	shellCommandStatus: () => __TAURI_INVOKE<ShellCommandStatus>("shell_command_status"),
+	/**  Installs the `git-sea` shell command (macOS), asking for a password when needed. */
+	installShellCommand: () => typedError<ShellCommandStatus, AppError>(__TAURI_INVOKE("install_shell_command")),
 };
 
 /* Types */
@@ -486,6 +495,14 @@ export type SearchResult = {
 	/**  The search was cancelled by a newer one; `ids` is incomplete. */
 	cancelled: boolean,
 	elapsedMs: number | null,
+};
+
+export type ShellCommandStatus = {
+	/**  The command can be installed from here: macOS, running from an app bundle. */
+	installable: boolean,
+	/**  The command is there and opens this copy of the app. */
+	installed: boolean,
+	path: string,
 };
 
 export type StashEntry = {

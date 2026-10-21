@@ -92,7 +92,7 @@ pub fn open(
 }
 
 /// A working tree has `.git` (directory or file, for worktrees/submodules); a bare repo has `HEAD` and `objects/`.
-fn looks_like_repo(path: &Path) -> bool {
+pub(crate) fn looks_like_repo(path: &Path) -> bool {
     path.join(".git").exists() || (path.join("HEAD").is_file() && path.join("objects").is_dir())
 }
 

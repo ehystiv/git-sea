@@ -5,6 +5,7 @@ import { formatBytes } from "../../lib/format";
 import { useAppVersion } from "../updates/UpdateDialog";
 import { useUpdates } from "../updates/updatesStore";
 import { LANGUAGE_CHOICES, useLanguage, useSystemLanguage, useT, type LanguageChoice } from "../../lib/i18n";
+import { IS_MAC } from "../../lib/platform";
 import { useTheme } from "../../lib/theme";
 import { THEME_MODES, type ThemeMode } from "../../lib/themeLogic";
 import { useFocusPause } from "../../lib/windowFocus";
@@ -75,6 +76,8 @@ function Dialog({ onClose }: { onClose: () => void }) {
 
         <UpdatesSection />
 
+        <ShellCommandSection />
+
         <CacheSection />
       </div>
     </div>
@@ -120,6 +123,53 @@ function UpdatesSection() {
         <input type="checkbox" checked={autoCheck} onChange={(e) => setAutoCheck(e.target.checked)} />
         {m.updates.autoCheck}
       </label>
+    </section>
+  );
+}
+
+/** The `git-sea` command for the terminal: installed from here on macOS, explained elsewhere. */
+function ShellCommandSection() {
+  const m = useT();
+  const queryClient = useQueryClient();
+  const status = useQuery({ queryKey: ["shell-command"], queryFn: () => commands.shellCommandStatus(), enabled: IS_MAC, staleTime: 0, retry: false });
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+
+  async function install() {
+    setBusy(true);
+    setFailed(null);
+    const result = await commands.installShellCommand().catch((err: unknown) => ({ status: "error" as const, error: { kind: "Internal" as const, message: String(err) } }));
+    setBusy(false);
+    if (result.status === "ok") queryClient.setQueryData(["shell-command"], result.data);
+    else setFailed(result.error.message);
+  }
+
+  if (!IS_MAC) {
+    return (
+      <section className={styles.row}>
+        <h3>{m.settings.shellCommand}</h3>
+        <p className={styles.hint}>{/Windows/.test(navigator.userAgent) ? m.settings.shellWindows : m.settings.shellLinux}</p>
+      </section>
+    );
+  }
+  const data = status.data;
+  return (
+    <section className={styles.row}>
+      <h3>{m.settings.shellCommand}</h3>
+      {data && !data.installable ? (
+        <p className={styles.hint}>{m.settings.shellDev}</p>
+      ) : (
+        <div className={styles.cache}>
+          <span title={failed ?? undefined}>
+            {data ? (data.installed ? m.settings.shellInstalled(data.path) : m.settings.shellMissing(data.path)) : "…"}
+            {failed !== null && <span className={styles.status}> · {m.settings.shellFailed}</span>}
+          </span>
+          <button type="button" className={styles.button} disabled={!data || busy} onClick={() => void install()}>
+            {data?.installed ? m.settings.shellReinstall : m.settings.shellInstall}
+          </button>
+        </div>
+      )}
+      <p className={styles.hint}>{m.settings.shellHint}</p>
     </section>
   );
 }

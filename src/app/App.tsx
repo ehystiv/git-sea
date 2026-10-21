@@ -15,7 +15,7 @@ import { commands } from "../lib/bindings";
 import { pickRepoFolder } from "../lib/dialog";
 import { describeError } from "../lib/errors";
 import { LANGUAGE_CHOICES, useLanguage, useSystemLanguage, useT } from "../lib/i18n";
-import { hasModKey, modShortcut } from "../lib/platform";
+import { hasModKey, IS_MAC, modShortcut } from "../lib/platform";
 import { useTheme } from "../lib/theme";
 import { findTabByPath, normalizePath } from "./tabsLogic";
 import { useTabs } from "./tabsStore";
@@ -25,7 +25,7 @@ import styles from "./App.module.css";
 export function App() {
   const { tabs, activeId, split, recents, restored, addTab, addTabAlongside, closeTab, activate, activateAt, moveTab, openSplit, closeSplit, swapSplit, removeRecent, restore } = useTabs();
   const open = useOpenRepo();
-  const { mutate, reset, error, isPending } = open;
+  const { mutate, mutateAsync, reset, error, isPending } = open;
   const m = useT();
 
   // Opening a repository that already has a tab just switches to it. `alongside` shows it below
@@ -45,6 +45,44 @@ export function App() {
     [mutate, reset, addTab, addTabAlongside, activate, openSplit],
   );
   const isDragging = useRepoDrop(openPath);
+
+  // Repositories asked for from a terminal (`git-sea .`) or the system (a folder dropped on the
+  // Dock icon), one after the other: a tab each, the last one shown. They wait in the backend
+  // until taken, so those given at launch are opened once the saved tabs are back.
+  useEffect(() => {
+    if (!restored) return;
+    let cancelled = false;
+    let unlisten: (() => void) | undefined;
+    const openWaiting = async () => {
+      let paths: string[];
+      try {
+        paths = await commands.takeLaunchPaths();
+      } catch {
+        return; // outside Tauri
+      }
+      for (const path of paths) {
+        const existing = findTabByPath(useTabs.getState(), normalizePath(path));
+        if (existing) {
+          activate(existing.id);
+          continue;
+        }
+        reset();
+        await mutateAsync(normalizePath(path)).then(addTab, () => undefined);
+      }
+    };
+    void openWaiting();
+    listen("open-paths", () => void openWaiting())
+      .then((stop) => {
+        if (cancelled) stop();
+        else unlisten = stop;
+      })
+      // Outside Tauri (a plain browser) nothing is sent.
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [restored, mutateAsync, reset, addTab, activate]);
 
   useAutoUpdateCheck();
 
@@ -88,7 +126,7 @@ export function App() {
     listen<string>("menu", (event) => {
       if (event.payload === "open_repo") void menuHandlers.current.browse();
       else if (event.payload === "close_tab") menuHandlers.current.closeActive();
-      else if (event.payload === "settings") useSettings.getState().setOpen(true);
+      else if (event.payload === "settings" || event.payload === "shell_command") useSettings.getState().setOpen(true);
     })
       .then((stop) => {
         if (cancelled) stop();
@@ -174,6 +212,7 @@ export function App() {
           run: () => setLanguage(choice),
         })),
         { id: "app:settings", group: m.palette.groups.settings, title: m.app.settings, shortcut: modShortcut(","), keywords: "settings impostazioni preferenze preferences", run: () => openSettings(true) },
+        ...(IS_MAC ? [{ id: "app:shell-command", group: m.palette.groups.settings, title: m.app.shellCommand, keywords: "terminale terminal comando command cli shell path installa install", run: () => openSettings(true) }] : []),
       ],
     };
   }, [m, tabs, activeId, split, recents, themeMode, languageChoice, systemLanguage, browse, browseAlongside, closeActive, activate, openPath, openSplit, closeSplit, swapSplit, setTheme, setLanguage, openSettings]);

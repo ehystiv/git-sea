@@ -19,7 +19,9 @@ use crate::git::search::{self, SearchField, SearchResult};
 use crate::git::stash::{self, StashEntry};
 use crate::git::upstream::{self, Upstream};
 use crate::git::worktree::{self, WorktreeStatus};
+use crate::launch::LaunchPaths;
 use crate::session::AppState;
+use crate::shell_command::{self, ShellCommandStatus};
 use crate::watcher::RepoWatcher;
 
 /// Event sent to the frontend, with the session id as payload, when a repository's refs change.
@@ -610,4 +612,28 @@ pub fn set_language(
     app.set_menu(menu)
         .map(|_| ())
         .map_err(|err| AppError::Internal(err.to_string()))
+}
+
+/// Repositories asked for from a terminal or the system, waiting to be opened; each is returned
+/// once. Called at start and on every `open-paths` event.
+#[tauri::command]
+#[specta::specta]
+pub fn take_launch_paths(waiting: State<'_, LaunchPaths>) -> Vec<String> {
+    waiting.take()
+}
+
+/// Whether the `git-sea` shell command can be installed, and whether it is.
+#[tauri::command]
+#[specta::specta]
+pub fn shell_command_status() -> ShellCommandStatus {
+    shell_command::status()
+}
+
+/// Installs the `git-sea` shell command (macOS), asking for a password when needed.
+#[tauri::command]
+#[specta::specta]
+pub async fn install_shell_command() -> Result<ShellCommandStatus, AppError> {
+    tauri::async_runtime::spawn_blocking(shell_command::install)
+        .await
+        .map_err(|err| AppError::Internal(err.to_string()))?
 }

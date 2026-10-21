@@ -5,9 +5,13 @@ pub mod error;
 pub mod git;
 pub mod graph;
 pub mod i18n;
+pub mod launch;
 pub mod process;
 pub mod session;
+pub mod shell_command;
 pub mod watcher;
+
+use std::path::Path;
 
 use tauri::menu::{Menu, MenuItemBuilder, SubmenuBuilder};
 use tauri::{Emitter, Manager};
@@ -39,7 +43,10 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::save_export,
         commands::open_url,
         commands::system_locale,
-        commands::set_language
+        commands::set_language,
+        commands::take_launch_paths,
+        commands::shell_command_status,
+        commands::install_shell_command
     ])
 }
 
@@ -61,6 +68,15 @@ pub(crate) fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
     let settings = MenuItemBuilder::with_id("settings", tr("Settings…", "Impostazioni…"))
         .accelerator("CmdOrCtrl+,")
         .build(app)?;
+    #[cfg(target_os = "macos")]
+    let shell_command = MenuItemBuilder::with_id(
+        "shell_command",
+        tr(
+            "Install the git-sea Command…",
+            "Installa il comando git-sea…",
+        ),
+    )
+    .build(app)?;
 
     #[cfg(target_os = "macos")]
     {
@@ -68,6 +84,7 @@ pub(crate) fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wr
             .about_with_text(tr("About git-sea", "Informazioni su git-sea"), None)
             .separator()
             .item(&settings)
+            .item(&shell_command)
             .separator()
             .services_with_text(tr("Services", "Servizi"))
             .separator()
@@ -164,6 +181,15 @@ pub fn run() {
     write_bindings(&builder);
 
     tauri::Builder::default()
+        // First, so a second launch hands over its arguments before setting anything else up.
+        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+            open_paths(app, launch::paths_from_args(args, Path::new(&cwd)));
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -188,12 +214,43 @@ pub fn run() {
                 }
             });
             app.manage(session::AppState::new(cache_dir));
+            app.manage(launch::LaunchPaths::default());
+            if let Ok(cwd) = std::env::current_dir() {
+                open_paths(
+                    app.handle(),
+                    launch::paths_from_args(std::env::args_os(), &cwd),
+                );
+            }
             #[cfg(target_os = "macos")]
             apply_sidebar_vibrancy(app.handle());
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            // `open -a git-sea <folder>` (the shell command) and folders dropped on the Dock icon.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = _event {
+                let paths = urls
+                    .iter()
+                    .filter_map(|url| url.to_file_path().ok())
+                    .map(|path| launch::repository_root(&path))
+                    .collect();
+                open_paths(_app, paths);
+            }
+        });
+}
+
+/// Queues `paths` for the frontend, which opens each in a tab (see `launch`).
+fn open_paths(app: &tauri::AppHandle, paths: Vec<std::path::PathBuf>) {
+    if paths.is_empty() {
+        return;
+    }
+    tracing::info!(?paths, "repositories asked for from outside the window");
+    if let Some(waiting) = app.try_state::<launch::LaunchPaths>() {
+        waiting.push(paths);
+        let _ = app.emit(launch::OPEN_PATHS_EVENT, ());
+    }
 }
 
 /// Regenerates `src/lib/bindings.ts` without launching the app: `cargo test export_bindings`.

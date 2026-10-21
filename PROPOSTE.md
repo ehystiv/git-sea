@@ -44,10 +44,9 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 - **Statistiche** ✅. Quinta vista "Statistiche" (tasto 4, palette), calcolata nel frontend sulla storia caricata (`features/stats/stats.ts`), quindi segue il filtro dei branch: commit, autori, giorni attivi e periodo; calendario dell'attività per giorno (ultimi 12 mesi o un anno a scelta); giorno × ora nel fuso orario locale; classifica dei commit per autore. Il clic su un autore mostra solo la sua attività (e porta il calendario al suo ultimo anno, se da 12 mesi non committa); il clic su un giorno, o il pulsante accanto all'autore, apre l'Elenco con la ricerca (`author:`, `after:`/`before:`).
 - **`.mailmap`** ✅. Feature `mailmap` di `gix` (`git/mailmap.rs`): nome ed email canonici nel cammino dei commit (quindi grafo, ricerca e statistiche), nei dettagli e nel blame. La mailmap fa parte dell'impronta della cache (formato 3); una modifica a `.mailmap` nella copia di lavoro ricarica il grafo.
 
-## Da valutare dopo
+- **Apertura da terminale** ✅. `git-sea` apre il repo della cartella corrente, `git-sea <percorso>…` quelli indicati (risalendo alla radice del repo), ciascuno in una tab. Con `tauri-plugin-single-instance` un secondo avvio passa gli argomenti all'app aperta ed esce; su macOS anche l'evento "apri" del sistema (`open -a git-sea .`, una cartella trascinata sull'icona nel Dock; `Info.plist` dichiara le cartelle senza diventarne l'app predefinita). I percorsi aspettano nel backend (`launch.rs`) finché il frontend, dopo aver ripristinato le tab, li prende. Il comando: su macOS "Installa il comando git-sea…" (menu dell'app, palette, impostazioni) scrive in `/usr/local/bin` uno script che usa `open -a`, chiedendo la password se serve (`shell_command.rs`); con i pacchetti `.deb` e `.rpm` c'è già `/usr/bin/git-sea`. Niente plugin `cli`: basta leggere i percorsi.
 
-### Navigazione
-- **Apertura da terminale** (`git-sea .`) con i plugin `cli` e `single-instance`: se l'app è aperta, il repo arriva in una nuova tab.
+## Da valutare dopo
 
 ### Capire la storia
 - **Vista del reflog:** dove stava HEAD prima di un rebase o reset, con i commit "fantasma" non più nel grafo.

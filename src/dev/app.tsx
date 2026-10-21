@@ -109,6 +109,8 @@ const ci = fakeCi();
 // The updater only runs inside the app; `?updates=1` pretends to be there.
 if (new URLSearchParams(location.search).has("updates")) (window as unknown as Record<string, unknown>).isTauri = true;
 
+let shellInstalled = false;
+
 (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {
   metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main", windowLabel: "main" } },
   transformCallback: (callback: (message: unknown) => void) => {
@@ -146,6 +148,14 @@ if (new URLSearchParams(location.search).has("updates")) (window as unknown as R
         // Kept for inspection from the console: `__lastExport` is the PNG as base64.
         (window as unknown as Record<string, unknown>).__lastExport = args.base64;
         return `/dev/exports/${String(args.fileName)}`;
+      case "take_launch_paths":
+        return [];
+      case "shell_command_status":
+        return { installable: true, installed: shellInstalled, path: "/usr/local/bin/git-sea" };
+      case "install_shell_command":
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        shellInstalled = true;
+        return { installable: true, installed: true, path: "/usr/local/bin/git-sea" };
       case "cache_usage":
         return { files: 3, bytes: 24_600_000 };
       case "clear_cache":
