@@ -9,6 +9,7 @@ use serde::Serialize;
 use specta::Type;
 
 use crate::error::AppError;
+use crate::git::mailmap::{self, Mailmap};
 
 /// Line statistics are computed for at most this many files of a commit.
 pub(crate) const MAX_STATS_FILES: usize = 400;
@@ -113,10 +114,11 @@ pub(crate) fn git<E: std::fmt::Display>(e: E) -> AppError {
     AppError::Git(e.to_string())
 }
 
-fn person(signature: gix::actor::SignatureRef<'_>) -> Person {
+fn person(mailmap: &Mailmap, signature: gix::actor::SignatureRef<'_>) -> Person {
+    let (name, email) = mailmap::resolve(mailmap, signature);
     Person {
-        name: signature.name.to_string(),
-        email: signature.email.to_string(),
+        name: name.to_string(),
+        email: email.to_string(),
         time: signature.seconds(),
     }
 }
@@ -191,12 +193,13 @@ pub fn commit_details(
         }
     }
 
+    let mailmap = mailmap::open(repo);
     Ok(CommitDetails {
         id: commit.id.to_string(),
         summary: message.summary().to_string(),
         body,
-        author: person(commit.author().map_err(git)?),
-        committer: person(commit.committer().map_err(git)?),
+        author: person(&mailmap, commit.author().map_err(git)?),
+        committer: person(&mailmap, commit.committer().map_err(git)?),
         parents: commit.parent_ids().map(|id| id.to_string()).collect(),
         compared_with: parent.map(|(id, _)| id.to_string()),
         files,

@@ -133,11 +133,15 @@ fn reports_staging_in_a_linked_worktree() {
 
     let repo = gix::open(&linked).unwrap();
     let (tx, rx) = mpsc::channel();
-    let _watcher =
-        RepoWatcher::start_worktree(repo.workdir().unwrap(), repo.git_dir(), move || {
+    let _watcher = RepoWatcher::start_worktree(
+        repo.workdir().unwrap(),
+        repo.git_dir(),
+        move || {
             let _ = tx.send(());
-        })
-        .expect("watcher");
+        },
+        || {},
+    )
+    .expect("watcher");
     std::thread::sleep(Duration::from_millis(800));
     while rx.recv_timeout(Duration::from_millis(600)).is_ok() {}
 
@@ -148,5 +152,37 @@ fn reports_staging_in_a_linked_worktree() {
         "staging in the linked worktree was not reported"
     );
     let _ = std::fs::remove_dir_all(&linked);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn editing_the_mailmap_is_reported_apart() {
+    let dir = scratch("watch-mailmap");
+    std::fs::create_dir_all(&dir).unwrap();
+    git(&dir, &["init", "-q", "-b", "main"]);
+    let repo = gix::open(&dir).unwrap();
+    let (tx, rx) = mpsc::channel();
+    let _watcher = RepoWatcher::start_worktree(
+        repo.workdir().unwrap(),
+        repo.git_dir(),
+        || {},
+        move || {
+            let _ = tx.send(());
+        },
+    )
+    .expect("watcher");
+    std::thread::sleep(Duration::from_millis(800));
+    while rx.recv_timeout(Duration::from_millis(600)).is_ok() {}
+
+    std::fs::write(dir.join("other.txt"), "x\n").unwrap();
+    assert!(
+        rx.recv_timeout(Duration::from_millis(1500)).is_err(),
+        "another file counted as the mailmap"
+    );
+    std::fs::write(dir.join(".mailmap"), "Anna <anna@example.com>\n").unwrap();
+    assert!(
+        rx.recv_timeout(Duration::from_secs(5)).is_ok(),
+        "editing .mailmap was not reported"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }

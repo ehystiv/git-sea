@@ -2,6 +2,7 @@ pub mod blame;
 pub mod commits;
 pub mod diff;
 pub mod fetch;
+pub mod mailmap;
 pub mod repo;
 pub mod search;
 pub mod stash;

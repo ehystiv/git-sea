@@ -1,5 +1,6 @@
 //! Tells the app when a repository's refs change, so the graph can be refreshed, and when its
-//! working copy changes, so the local changes can be counted again.
+//! working copy changes, so the local changes can be counted again (and the graph refreshed when
+//! the change is to `.mailmap`, which names the authors).
 
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, RecvTimeoutError};
@@ -10,6 +11,8 @@ use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 /// Changes closer together than this count as one (a commit or a fetch touches several files).
 const QUIET: Duration = Duration::from_millis(300);
+/// Kind of change, beside the one a watcher is for: `.mailmap` was touched.
+const MAILMAP: u8 = 2;
 
 /// Watching stops when this is dropped.
 pub struct RepoWatcher {
@@ -30,18 +33,20 @@ impl RepoWatcher {
         let filter_roots = roots.clone();
         Self::watch(
             roots,
-            move |path| is_ref_path(path, &filter_roots),
-            on_change,
+            move |path| u8::from(is_ref_path(path, &filter_roots)),
+            move |_| on_change(),
         )
     }
 
     /// Watches the working copy `workdir` and calls `on_change` once changes to its files, or to
     /// the index in `git_dir` (staging), have settled. Ignored files count too: telling them
-    /// apart would cost more than counting the changes again.
+    /// apart would cost more than counting the changes again. `on_mailmap` is called too when
+    /// `.mailmap` at the top of the working copy is among the changes.
     pub fn start_worktree(
         workdir: &Path,
         git_dir: &Path,
         on_change: impl Fn() + Send + 'static,
+        on_mailmap: impl Fn() + Send + 'static,
     ) -> notify::Result<Self> {
         let (workdir, git_dir) = (real(workdir), real(git_dir));
         // A linked worktree keeps its index outside its files, in `.git/worktrees/<name>`.
@@ -49,26 +54,45 @@ impl RepoWatcher {
         if !git_dir.starts_with(&workdir) {
             roots.push(git_dir.clone());
         }
+        let mailmap = workdir.join(".mailmap");
         Self::watch(
             roots,
-            move |path| is_worktree_path(path, &workdir, &git_dir),
-            on_change,
+            move |path| {
+                let mut kinds = u8::from(is_worktree_path(path, &workdir, &git_dir));
+                if path == mailmap {
+                    kinds |= MAILMAP;
+                }
+                kinds
+            },
+            move |kinds| {
+                on_change();
+                if kinds & MAILMAP != 0 {
+                    on_mailmap();
+                }
+            },
         )
     }
 
+    /// `relevant` sorts each changed path into kinds, as bits (0 for noise); `on_change` gets the
+    /// kinds of all the changes that settled together.
     fn watch(
         roots: Vec<PathBuf>,
-        relevant: impl Fn(&Path) -> bool + Send + 'static,
-        on_change: impl Fn() + Send + 'static,
+        relevant: impl Fn(&Path) -> u8 + Send + 'static,
+        on_change: impl Fn(u8) + Send + 'static,
     ) -> notify::Result<Self> {
-        let (tx, rx) = mpsc::channel::<()>();
+        let (tx, rx) = mpsc::channel::<u8>();
         let mut watcher =
             notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-                if let Ok(event) = event
-                    && is_change(&event.kind)
-                    && event.paths.iter().any(|path| relevant(path))
-                {
-                    let _ = tx.send(());
+                let Ok(event) = event else { return };
+                if !is_change(&event.kind) {
+                    return;
+                }
+                let kinds = event
+                    .paths
+                    .iter()
+                    .fold(0, |kinds, path| kinds | relevant(path));
+                if kinds != 0 {
+                    let _ = tx.send(kinds);
                 }
             })?;
         for root in &roots {
@@ -77,15 +101,15 @@ impl RepoWatcher {
 
         thread::spawn(move || {
             // Ends when the watcher, which owns the sender, is dropped.
-            while rx.recv().is_ok() {
+            while let Ok(mut kinds) = rx.recv() {
                 loop {
                     match rx.recv_timeout(QUIET) {
-                        Ok(()) => continue,
+                        Ok(more) => kinds |= more,
                         Err(RecvTimeoutError::Timeout) => break,
                         Err(RecvTimeoutError::Disconnected) => return,
                     }
                 }
-                on_change();
+                on_change(kinds);
             }
         });
 

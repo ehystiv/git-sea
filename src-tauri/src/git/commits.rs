@@ -6,6 +6,7 @@ use specta::Type;
 
 use crate::cache::CachedGraph;
 use crate::error::AppError;
+use crate::git::mailmap::{self, Mailmap};
 use crate::graph::lanes::{GraphRow, LaneLayout};
 
 /// The first chunk is small so the UI can paint rows right away.
@@ -214,7 +215,7 @@ impl RefSnapshot {
 }
 
 /// Walks the commits reachable from `tips` in topological order (children before parents) and
-/// hands them to `send` in chunks. `send` returns `false` to stop (e.g. the frontend went away);
+/// hands them to `send` in chunks. Authors are named as the repository's mailmap says. `send` returns `false` to stop (e.g. the frontend went away);
 /// `cancelled` is polled between commits.
 pub fn stream_commits(
     repo: &gix::Repository,
@@ -233,6 +234,7 @@ pub fn stream_commits(
         .map_err(|e| git(&e))?;
     let setup_ms = millis(start);
 
+    let mailmap = mailmap::open(repo);
     let mut layout = LaneLayout::new();
     let mut chunk = Vec::with_capacity(FIRST_CHUNK_SIZE);
     let mut rows = Vec::with_capacity(FIRST_CHUNK_SIZE);
@@ -245,7 +247,7 @@ pub fn stream_commits(
             break;
         }
         let info = info.map_err(|e| git(&e))?;
-        chunk.push(summarize(repo, &info)?);
+        chunk.push(summarize(repo, &mailmap, &info)?);
         rows.push(layout.push(info.id, &info.parent_ids));
         total += 1;
 
@@ -317,17 +319,19 @@ fn count_u32(n: usize) -> u32 {
 
 fn summarize(
     repo: &gix::Repository,
+    mailmap: &Mailmap,
     info: &gix::traverse::commit::Info,
 ) -> Result<CommitSummary, AppError> {
     let git = |e: &dyn std::fmt::Display| AppError::Git(e.to_string());
     let commit = repo.find_commit(info.id).map_err(|e| git(&e))?;
     let message = commit.message().map_err(|e| git(&e))?;
     let author = commit.author().map_err(|e| git(&e))?;
+    let (name, _) = mailmap::resolve(mailmap, author);
 
     Ok(CommitSummary {
         id: info.id.to_string(),
         summary: message.summary().to_string(),
-        author: author.name.to_string(),
+        author: name.to_string(),
         time: author.seconds(),
         parents: info.parent_ids.iter().map(ToString::to_string).collect(),
     })

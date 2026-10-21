@@ -1,9 +1,9 @@
 //! On-disk cache of a repository's graph (commits and lane layout).
 //!
 //! Walking and laying out 50k commits takes a few hundred milliseconds; reading the result back
-//! from a file is faster still. A cache file is only trusted when the refs it was built from are
-//! exactly the refs the repository has now, so a new commit, branch, tag or deletion makes it
-//! stale and the graph is built again.
+//! from a file is faster still. A cache file is only trusted when the refs and the mailmap it was
+//! built from are exactly those the repository has now, so a new commit, branch, tag or deletion,
+//! or an edited `.mailmap`, makes it stale and the graph is built again.
 //!
 //! Each file starts with the git directory it belongs to, so `sweep` can drop the files of
 //! repositories that are gone by reading only the first bytes.
@@ -15,21 +15,26 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::git::commits::{CommitSummary, RefKind, RefLabel};
+use crate::git::mailmap::Mailmap;
 use crate::graph::lanes::GraphRow;
 
 /// Bump when the file layout or the lane algorithm changes: older files are then ignored (and
 /// removed by `sweep`).
-const FORMAT_VERSION: u32 = 2;
+const FORMAT_VERSION: u32 = 3;
 /// Smaller histories load instantly, so they are not worth a file.
 pub const MIN_CACHED_COMMITS: usize = 1_000;
 /// Files kept in the cache directory; the least recently written go first.
 const MAX_FILES: usize = 30;
 const EXTENSION: &str = "graph";
 
-/// What the graph was built from: every ref with the commit it pointed to, in a fixed order.
-/// Compared whole rather than hashed, so a stale file can never pass for a fresh one.
+/// What the graph was built from: every ref with the commit it pointed to, in a fixed order, and
+/// the mailmap that named the authors. Compared whole rather than hashed, so a stale file can
+/// never pass for a fresh one.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Fingerprint(Vec<(u8, String, String)>);
+pub struct Fingerprint {
+    refs: Vec<(u8, String, String)>,
+    mailmap: Vec<String>,
+}
 
 impl Fingerprint {
     pub fn of(labels: &[RefLabel]) -> Self {
@@ -44,7 +49,17 @@ impl Fingerprint {
             .map(|l| (kind(l.kind), l.name.clone(), l.commit.clone()))
             .collect();
         entries.sort();
-        Self(entries)
+        Self {
+            refs: entries,
+            mailmap: Vec::new(),
+        }
+    }
+
+    /// The same refs, with the authors named by `mailmap`.
+    #[must_use]
+    pub fn with_mailmap(mut self, mailmap: &Mailmap) -> Self {
+        self.mailmap = crate::git::mailmap::entries(mailmap);
+        self
     }
 }
 
@@ -319,6 +334,42 @@ mod tests {
         // The same name as another kind is not the same ref either.
         let retyped = [label("main", "c", RefKind::Branch), refs[1].clone()];
         assert!(load(&path, git_dir, &Fingerprint::of(&retyped)).is_none());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_new_mailmap_makes_the_cache_stale() {
+        let dir = scratch("mailmap");
+        let git_dir = Path::new("/repos/m/.git");
+        let path = path_for(&dir, git_dir);
+        let refs = [label("main", "c", RefKind::Head)];
+        let mapped = Mailmap::from_bytes(b"Ada Lovelace <ada@example.com>\n");
+        store(
+            &path,
+            git_dir,
+            &Fingerprint::of(&refs).with_mailmap(&mapped),
+            &graph(),
+        )
+        .unwrap();
+
+        assert!(
+            load(
+                &path,
+                git_dir,
+                &Fingerprint::of(&refs).with_mailmap(&mapped)
+            )
+            .is_some()
+        );
+        assert!(load(&path, git_dir, &Fingerprint::of(&refs)).is_none());
+        let edited = Mailmap::from_bytes(b"Ada King <ada@example.com>\n");
+        assert!(
+            load(
+                &path,
+                git_dir,
+                &Fingerprint::of(&refs).with_mailmap(&edited)
+            )
+            .is_none()
+        );
         let _ = fs::remove_dir_all(&dir);
     }
 

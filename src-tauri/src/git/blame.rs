@@ -9,6 +9,7 @@ use specta::Type;
 
 use crate::error::AppError;
 use crate::git::diff::{MAX_BLOB_BYTES, git, parse_id};
+use crate::git::mailmap::{self, Mailmap};
 
 /// A run of consecutive lines that came from the same commit.
 #[derive(Debug, Clone, Serialize, Type)]
@@ -97,10 +98,13 @@ pub fn blame_file(
         .blame_file(path.as_bytes().as_bstr(), id, options)
         .map_err(git)?;
 
+    let mailmap = mailmap::open(repo);
     let mut seen = HashSet::new();
     for entry in &outcome.entries {
         if seen.insert(entry.commit_id) {
-            result.commits.push(blame_commit(repo, entry.commit_id)?);
+            result
+                .commits
+                .push(blame_commit(repo, &mailmap, entry.commit_id)?);
         }
         result.hunks.push(BlameHunk {
             start: entry.start_in_blamed_file,
@@ -118,13 +122,18 @@ pub fn blame_file(
     Ok(result)
 }
 
-fn blame_commit(repo: &gix::Repository, id: gix::ObjectId) -> Result<BlameCommit, AppError> {
+fn blame_commit(
+    repo: &gix::Repository,
+    mailmap: &Mailmap,
+    id: gix::ObjectId,
+) -> Result<BlameCommit, AppError> {
     let commit = repo.find_commit(id).map_err(git)?;
     let author = commit.author().map_err(git)?;
+    let (name, _) = mailmap::resolve(mailmap, author);
     Ok(BlameCommit {
         id: id.to_string(),
         summary: commit.message().map_err(git)?.summary().to_string(),
-        author: author.name.to_string(),
+        author: name.to_string(),
         time: author.seconds(),
     })
 }

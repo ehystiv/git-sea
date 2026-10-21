@@ -13,6 +13,7 @@ use crate::git::blame::{self, FileBlame};
 use crate::git::commits::{self, LoadEvent, RefFilter};
 use crate::git::diff::{self, CommitDetails, FileDiff};
 use crate::git::fetch::{FetchState, Fetcher};
+use crate::git::mailmap;
 use crate::git::repo::{self, RepoInfo};
 use crate::git::search::{self, SearchField, SearchResult};
 use crate::git::stash::{self, StashEntry};
@@ -96,9 +97,18 @@ fn start_worktree_watcher(
     let workdir = repo.workdir()?;
     let app = app.clone();
     let id = session_id.to_owned();
-    let started = RepoWatcher::start_worktree(workdir, repo.git_dir(), move || {
-        let _ = app.emit(WORKTREE_CHANGED_EVENT, id.as_str());
-    });
+    let (mailmap_app, mailmap_id) = (app.clone(), id.clone());
+    let started = RepoWatcher::start_worktree(
+        workdir,
+        repo.git_dir(),
+        move || {
+            let _ = app.emit(WORKTREE_CHANGED_EVENT, id.as_str());
+        },
+        // Authors are named by `.mailmap`: the graph is loaded again, as after a new ref.
+        move || {
+            let _ = mailmap_app.emit(REPO_CHANGED_EVENT, mailmap_id.as_str());
+        },
+    );
     match started {
         Ok(watcher) => Some(watcher),
         Err(err) => {
@@ -134,7 +144,7 @@ pub async fn load_commits(
     tauri::async_runtime::spawn_blocking(move || {
         let repo = commits::repo_for_walk(&session.repo);
         let snapshot = commits::collect_refs(&repo)?;
-        let fingerprint = Fingerprint::of(&snapshot.labels);
+        let fingerprint = Fingerprint::of(&snapshot.labels).with_mailmap(&mailmap::open(&repo));
         let tips = snapshot.tips_for(only.as_deref());
         if on_event
             .send(LoadEvent::Refs {
