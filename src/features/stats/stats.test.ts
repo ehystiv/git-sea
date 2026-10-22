@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CommitSummary } from "../../lib/bindings";
 import { parseQuery, matchCommits } from "../search/query";
-import { calendar, calendarPeriod, dayKey, daySearch, level, repoStats, weekday } from "./stats";
+import { CALENDAR_MIN_STEP, PUNCH_MAX_ROW, PUNCH_MIN_STEP, calendar, calendarPeriod, calendarStep, dayKey, daySearch, level, punchSteps, repoStats, weekday } from "./stats";
 
 /** Unix seconds of a local date and time. */
 function at(year: number, month: number, day: number, hour = 12): number {
@@ -125,4 +125,23 @@ describe("daySearch", () => {
 it("numbers weekdays from Monday", () => {
   expect(weekday(new Date(2026, 9, 19))).toBe(0);
   expect(weekday(new Date(2026, 9, 25))).toBe(6);
+});
+
+describe("chart sizes", () => {
+  it("fills the width with square calendar cells", () => {
+    expect(calendarStep(32 + 53 * 30, 53, 32)).toBe(30);
+    expect(calendarStep(32 + 53 * 30 + 20, 53, 32)).toBe(30);
+  });
+
+  it("keeps a minimum calendar step and scrolls below it", () => {
+    expect(calendarStep(300, 53, 32)).toBe(CALENDAR_MIN_STEP);
+    expect(calendarStep(0, 53, 32)).toBe(CALENDAR_MIN_STEP);
+    expect(calendarStep(500, 0, 32)).toBe(CALENDAR_MIN_STEP);
+  });
+
+  it("spreads the punch card hours and caps its rows", () => {
+    expect(punchSteps(32 + 24 * 30, 32)).toEqual({ column: 30, row: 30 });
+    expect(punchSteps(32 + 24 * 75, 32)).toEqual({ column: 75, row: PUNCH_MAX_ROW });
+    expect(punchSteps(200, 32)).toEqual({ column: PUNCH_MIN_STEP, row: PUNCH_MIN_STEP });
+  });
 });

@@ -1,19 +1,16 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { dateFormatter, formatAgo, formatCount } from "../../lib/format";
 import { useT } from "../../lib/i18n";
+import { useElementWidth } from "../../lib/useElementWidth";
 import type { GraphIndex } from "../graph/GraphIndex";
-import { calendar, calendarPeriod, daySearch, level, repoStats, type AuthorStats, type CalendarDay, type RepoStats } from "./stats";
+import { calendar, calendarPeriod, calendarStep, daySearch, level, punchSteps, repoStats, type AuthorStats, type CalendarDay, type RepoStats } from "./stats";
 import styles from "./StatsView.module.css";
 
 /** Authors listed before "Show all". */
 const TOP_AUTHORS = 20;
-const CELL = 11;
-const GAP = 3;
-const STEP = CELL + GAP;
 /** Room on the left of the calendar and the punch card for the weekday names. */
 const LABELS_W = 32;
 const MONTHS_H = 16;
-const PUNCH_STEP = 26;
 const HOURS_H = 18;
 
 const dayDate = dateFormatter({ dateStyle: "medium" });
@@ -194,23 +191,27 @@ function Tiles({ stats, authors, focused }: { stats: RepoStats; authors: number;
 function CalendarChart({ weeks, months, onPick }: { weeks: CalendarDay[][]; months: Array<{ week: number; month: number }>; onPick: (day: CalendarDay) => void }) {
   const m = useT();
   const names = weekdayNames();
-  const width = LABELS_W + weeks.length * STEP;
-  const height = MONTHS_H + 7 * STEP;
+  const box = useRef<HTMLDivElement>(null);
+  const step = calendarStep(useElementWidth(box), weeks.length, LABELS_W);
+  const gap = Math.max(3, Math.round(step / 5));
+  const cell = step - gap;
+  const width = LABELS_W + weeks.length * step - gap;
+  const height = MONTHS_H + 7 * step - gap;
   return (
-    <div className={styles.scroll}>
+    <div ref={box} className={styles.scroll}>
       <svg className={styles.chart} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={m.stats.activity}>
         {months.map(({ week, month }, i) => {
           // A month starting in the last column of the previous label would overlap it.
           const nextWeek = months[i + 1]?.week ?? weeks.length;
           if (nextWeek - week < 2) return null;
           return (
-            <text key={`${week}-${month}`} className={styles.axis} x={LABELS_W + week * STEP} y={10}>
+            <text key={`${week}-${month}`} className={styles.axis} x={LABELS_W + week * step} y={10}>
               {monthName().format(new Date(2024, month, 1))}
             </text>
           );
         })}
         {[0, 2, 4].map((d) => (
-          <text key={d} className={styles.axis} x={0} y={MONTHS_H + d * STEP + CELL - 1}>
+          <text key={d} className={styles.axis} x={0} y={MONTHS_H + d * step + cell / 2 + 4}>
             {names[d]}
           </text>
         ))}
@@ -221,11 +222,11 @@ function CalendarChart({ weeks, months, onPick }: { weeks: CalendarDay[][]; mont
                 key={day.key}
                 className={styles.day}
                 data-level={day.level}
-                x={LABELS_W + w * STEP}
-                y={MONTHS_H + d * STEP}
-                width={CELL}
-                height={CELL}
-                rx={2}
+                x={LABELS_W + w * step}
+                y={MONTHS_H + d * step}
+                width={cell}
+                height={cell}
+                rx={Math.max(2, cell / 6)}
                 onClick={day.count > 0 ? () => onPick(day) : undefined}
                 style={day.count > 0 ? { cursor: "pointer" } : undefined}
               >
@@ -243,27 +244,29 @@ function PunchCard({ punch }: { punch: number[] }) {
   const m = useT();
   const names = weekdayNames();
   const max = Math.max(1, ...punch);
-  const width = LABELS_W + 24 * PUNCH_STEP;
-  const height = 7 * PUNCH_STEP + HOURS_H;
-  const radius = PUNCH_STEP / 2 - 2;
+  const box = useRef<HTMLDivElement>(null);
+  const { column, row } = punchSteps(useElementWidth(box), LABELS_W);
+  const width = LABELS_W + 24 * column;
+  const height = 7 * row + HOURS_H;
+  const radius = Math.min(column, row) / 2 - 2;
   return (
-    <div className={styles.scroll}>
+    <div ref={box} className={styles.scroll}>
       <svg className={styles.chart} width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={m.stats.punch}>
         {names.map((name, d) => (
-          <text key={name} className={styles.axis} x={0} y={d * PUNCH_STEP + PUNCH_STEP / 2 + 4}>
+          <text key={name} className={styles.axis} x={0} y={d * row + row / 2 + 4}>
             {name}
           </text>
         ))}
         {Array.from({ length: 8 }, (_, i) => i * 3).map((hour) => (
-          <text key={hour} className={styles.axis} x={LABELS_W + hour * PUNCH_STEP + PUNCH_STEP / 2} y={height - 4} textAnchor="middle">
+          <text key={hour} className={styles.axis} x={LABELS_W + hour * column + column / 2} y={height - 4} textAnchor="middle">
             {hourLabel(hour)}
           </text>
         ))}
         {punch.map((count, at) => {
           const d = Math.floor(at / 24);
           const hour = at % 24;
-          const cx = LABELS_W + hour * PUNCH_STEP + PUNCH_STEP / 2;
-          const cy = d * PUNCH_STEP + PUNCH_STEP / 2;
+          const cx = LABELS_W + hour * column + column / 2;
+          const cy = d * row + row / 2;
           return (
             <g key={at}>
               <circle className={styles.slotBase} cx={cx} cy={cy} r={1.5} />

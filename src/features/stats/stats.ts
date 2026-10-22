@@ -154,3 +154,22 @@ export function calendar(days: ReadonlyMap<string, number>, start: Date, end: Da
 export function daySearch(day: Pick<CalendarDay, "key" | "next">, author: string | null): string {
   return `${author === null ? "" : `author:${author} `}after:${day.key} before:${day.next}`;
 }
+
+/** Smallest step of the calendar: below it the chart scrolls instead of shrinking. */
+export const CALENDAR_MIN_STEP = 14;
+/** Smallest column of the punch card. */
+export const PUNCH_MIN_STEP = 26;
+/** Tallest row of the punch card: wider columns spread the hours, not the days. */
+export const PUNCH_MAX_ROW = 40;
+
+/** Step of the calendar's square cells so that `weeks` columns fill `width` after the labels. */
+export function calendarStep(width: number, weeks: number, labels: number): number {
+  if (weeks <= 0) return CALENDAR_MIN_STEP;
+  return Math.max(CALENDAR_MIN_STEP, Math.floor((width - labels) / weeks));
+}
+
+/** Column width and row height of the punch card so that its 24 hours fill `width` after the labels. */
+export function punchSteps(width: number, labels: number): { column: number; row: number } {
+  const column = Math.max(PUNCH_MIN_STEP, Math.floor((width - labels) / 24));
+  return { column, row: Math.min(column, PUNCH_MAX_ROW) };
+}
