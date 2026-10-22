@@ -108,6 +108,7 @@
 
   .iconButton { width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r-md); color: var(--text-2); }
   .iconButton:hover { background: var(--hover); }
+  .iconButton:disabled { opacity: 0.4; pointer-events: none; }
   .iconButton.active { background: var(--accent-soft); color: var(--accent-text); }
 
   .link { margin-left: var(--space-2); color: var(--accent-text); font-weight: 500; }

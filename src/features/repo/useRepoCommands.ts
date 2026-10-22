@@ -36,7 +36,8 @@ export interface RepoCommandState {
   /** Changes whenever `index` gets new data. */
   version: number;
   mode: ViewMode;
-  panelOpen: boolean;
+  /** Null where the view has no details panel. */
+  panelOpen: boolean | null;
   sidebarCollapsed: boolean;
   flow: boolean;
   sea: boolean;
@@ -116,7 +117,9 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
       if (view.mode === mode) continue;
       add({ id: `view:${view.mode}`, title: view.title, shortcut: view.shortcut, keywords: view.keywords, run: () => actions.setMode(view.mode) }, g.view);
     }
-    add({ id: "panel", title: panelOpen ? m.commands.hidePanel : m.commands.showPanel, shortcut: "↩", keywords: "details dettagli diff", run: actions.togglePanel }, g.view);
+    if (panelOpen !== null) {
+      add({ id: "panel", title: panelOpen ? m.commands.hidePanel : m.commands.showPanel, shortcut: "↩", keywords: "details dettagli diff", run: actions.togglePanel }, g.view);
+    }
     add({ id: "sidebar", title: sidebarCollapsed ? m.commands.showSidebar : m.commands.hideSidebar, shortcut: modShortcut("B"), keywords: "sidebar barra laterale branch rami collassa collapse", run: actions.toggleSidebar }, g.view);
     if (isCanvasMode(mode)) {
       add({ id: "flow", title: flow ? m.commands.stopFlow : m.commands.startFlow, keywords: "pallini animazione flow dots", run: actions.toggleFlow }, g.view);

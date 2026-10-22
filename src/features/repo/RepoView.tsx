@@ -126,6 +126,10 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
   /** The CI service whose token field is open in the sidebar. */
   const [tokenFor, setTokenFor] = useState<CiProvider | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
+  // The statistics have nothing to show in the panel: it stays closed there and comes back as it
+  // was when another view is picked.
+  const panelAllowed = mode !== "stats";
+  const panelShown = panelOpen && panelAllowed;
   const sidebarCollapsed = useSidebarWidth((s) => s.collapsed);
   const toggleSidebar = useSidebarWidth((s) => s.toggleCollapsed);
   // Set in the same render as the change, so the transition is in place when the columns change.
@@ -399,7 +403,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
       if (typing || event.metaKey || event.ctrlKey || event.altKey || usePalette.getState().open) return;
       if (event.key === "Enter" && !onButton) {
         event.preventDefault();
-        setPanelOpen((open) => !open);
+        if (panelAllowed) setPanelOpen((open) => !open);
       } else if (event.key === "1" || event.key === "2" || event.key === "3" || event.key === "4") {
         event.preventDefault();
         setMode(event.key === "1" ? "graph" : event.key === "2" ? "topology" : event.key === "3" ? "timeline" : "stats");
@@ -416,7 +420,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [active, openSearch, toggleBookmarkOf]);
+  }, [active, openSearch, toggleBookmarkOf, panelAllowed]);
 
   const selectById = useCallback(
     (id: string) => {
@@ -634,7 +638,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
         index,
         version: stream.version,
         mode,
-        panelOpen,
+        panelOpen: panelAllowed ? panelOpen : null,
         sidebarCollapsed,
         flow,
         sea,
@@ -679,8 +683,8 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
     return base && target ? { base, target } : null;
   }, [compare, index, stream.version]);
 
-  const insetRight = panelOpen ? panelWidth + PANEL_GAP * 2 : 0;
-  const drawer = useDrawer(panelOpen);
+  const insetRight = panelShown ? panelWidth + PANEL_GAP * 2 : 0;
+  const drawer = useDrawer(panelShown);
 
   // The sidebar is resized from its right edge; a double click there gives the default back.
   const sidebarWidth = useSidebarWidth((s) => s.width);
@@ -914,9 +918,10 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
         </button>
         <button
           type="button"
-          className={`${styles.iconButton} ${panelOpen ? styles.active : ""}`}
+          className={`${styles.iconButton} ${panelShown ? styles.active : ""}`}
           aria-label={m.repo.panel}
-          aria-pressed={panelOpen}
+          aria-pressed={panelShown}
+          disabled={!panelAllowed}
           title={m.repo.panelTitle}
           onClick={() => setPanelOpen((open) => !open)}
         >
