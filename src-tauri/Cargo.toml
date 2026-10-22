@@ -1,6 +1,6 @@
 [package]
 name = "git-sea"
-version = "0.4.3"
+version = "0.4.4"
 description = "A read-only Git history viewer"
 authors = ["Stefano Bichicchi (ehystiv)"]
 license = "MIT OR Apache-2.0"
