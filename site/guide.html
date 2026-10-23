@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>git-sea guide</title>
+  <meta name="description" content="How to use git-sea: every view, shortcut, gesture and menu, including the ones that are easy to miss.">
+  <meta property="og:title" content="git-sea guide">
+  <meta property="og:description" content="Every view, shortcut, gesture and menu of git-sea.">
+  <meta property="og:image" content="logo.png">
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* The same tokens as index.html. */
+    :root {
+      color-scheme: light;
+      --bg: #f7f7f9;
+      --surface: #ffffff;
+      --border: #e7e7ee;
+      --border-strong: #d9d9e3;
+      --text: #1a1a22;
+      --text-2: #5b5b6b;
+      --text-3: #8d8d9e;
+      --accent: #6d4aff;
+      --accent-soft: rgb(109 74 255 / 0.1);
+      --accent-text: #5a37f0;
+      --hero-a: #efeaff;
+      --hero-b: #f7f7f9;
+      --font-ui: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        color-scheme: dark;
+        --bg: #0c0c10;
+        --surface: #121217;
+        --border: #22222b;
+        --border-strong: #30303c;
+        --text: #ececf2;
+        --text-2: #a3a3b4;
+        --text-3: #6d6d7f;
+        --accent: #9b83ff;
+        --accent-soft: rgb(155 131 255 / 0.14);
+        --accent-text: #b5a2ff;
+        --hero-a: #17123a;
+        --hero-b: #0c0c10;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; scroll-padding-top: 80px; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 var(--font-ui); -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent-text); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, kbd { font-family: var(--font-mono); font-size: 0.88em; }
+    code { padding: 1px 5px; border-radius: 5px; background: var(--accent-soft); color: var(--accent-text); }
+    kbd {
+      display: inline-block; min-width: 22px; text-align: center; padding: 0 6px; margin: 0 1px;
+      border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 6px;
+      background: var(--surface); color: var(--text); font-size: 12.5px; line-height: 1.6;
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: saturate(1.6) blur(14px);
+      -webkit-backdrop-filter: saturate(1.6) blur(14px);
+      background: color-mix(in srgb, var(--bg) 72%, transparent);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+    .brand:hover { text-decoration: none; }
+    .brand img { width: 30px; height: 30px; }
+    nav .links { display: flex; gap: 20px; margin-left: auto; font-size: 14px; }
+    nav .links a { color: var(--text-2); }
+    nav .links a:hover { color: var(--text); text-decoration: none; }
+    nav .links a.on { color: var(--text); font-weight: 600; }
+
+    .intro { background: radial-gradient(1000px 360px at 50% -120px, var(--hero-a), var(--hero-b) 70%); padding: 56px 0 40px; }
+    .eyebrow { color: var(--accent-text); font-weight: 600; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { font-size: clamp(32px, 5vw, 48px); line-height: 1.1; letter-spacing: -0.035em; margin: 8px 0 14px; }
+    .lead { color: var(--text-2); max-width: 680px; font-size: 17px; margin: 0; }
+    .lead + .lead { margin-top: 10px; }
+
+    .layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; padding-top: 32px; padding-bottom: 96px; align-items: start; }
+    .toc { position: sticky; top: 84px; font-size: 14px; }
+    .toc b { display: block; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-3); }
+    .toc a { display: block; padding: 4px 10px; border-left: 2px solid var(--border); color: var(--text-2); }
+    .toc a:hover { color: var(--text); border-left-color: var(--accent); text-decoration: none; }
+
+    article section { padding: 8px 0 32px; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
+    article section:last-child { border-bottom: 0; }
+    h2 { font-size: clamp(24px, 3vw, 30px); letter-spacing: -0.025em; line-height: 1.2; margin: 0 0 10px; }
+    h3 { font-size: 16.5px; letter-spacing: -0.01em; margin: 24px 0 8px; }
+    p, li { color: var(--text-2); }
+    p { margin: 0 0 12px; }
+    ul { margin: 0 0 12px; padding-left: 20px; }
+    li { margin: 4px 0; }
+    li b, p b { color: var(--text); font-weight: 600; }
+
+    .tip { margin: 16px 0; padding: 12px 16px; border-radius: 10px; background: var(--accent-soft); color: var(--text); font-size: 15px; }
+    .tip b { color: var(--accent-text); }
+
+    table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 14.5px; }
+    th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3); font-weight: 600; }
+    td { color: var(--text-2); }
+    td:first-child { white-space: nowrap; color: var(--text); }
+
+    footer { border-top: 1px solid var(--border); padding: 32px 0 48px; color: var(--text-3); font-size: 14px; }
+    footer .wrap { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+      .toc { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
+      .toc b { width: 100%; }
+      .toc a { border: 1px solid var(--border); border-radius: 999px; padding: 3px 12px; }
+    }
+    @media (max-width: 640px) {
+      .wrap { padding: 0 16px; }
+      nav .links a:not(.gh):not(.on) { display: none; }
+      td:first-child { white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <a class="brand" href="./"><img src="logo.svg" alt="">git-sea</a>
+      <div class="links">
+        <a href="./#features">Features</a>
+        <a href="./#views">Views</a>
+        <a href="./#install">Install</a>
+        <a class="on" href="guide.html">Guide</a>
+        <a class="gh" href="https://github.com/ehystiv/git-sea">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="intro">
+    <div class="wrap">
+      <div class="eyebrow">Guide</div>
+      <h1>How to use git-sea.</h1>
+      <p class="lead">Every view, shortcut, gesture and menu, including the ones that are easy to miss: many things happen on a right-click, a ⇧-click or a key.</p>
+      <p class="lead">On Linux and Windows, <kbd>Ctrl</kbd> takes the place of <kbd>⌘</kbd> everywhere below.</p>
+    </div>
+  </header>
+
+  <div class="wrap layout">
+    <aside class="toc" aria-label="Contents">
+      <b>Contents</b>
+      <a href="#palette">The command palette</a>
+      <a href="#open">Opening repositories</a>
+      <a href="#move">Moving around</a>
+      <a href="#search">Searching</a>
+      <a href="#details">Commit details</a>
+      <a href="#files">Browsing the files</a>
+      <a href="#compare">Comparing</a>
+      <a href="#views">The views</a>
+      <a href="#stats">Statistics</a>
+      <a href="#sidebar">The sidebar</a>
+      <a href="#menus">Right-click menus</a>
+      <a href="#export">Images and replays</a>
+      <a href="#settings">Settings</a>
+      <a href="#keys">All the shortcuts</a>
+    </aside>
+
+    <article>
+      <section id="palette">
+        <h2>The command palette</h2>
+        <p>Press <kbd>⌘</kbd><kbd>K</kbd> anywhere. Almost everything git-sea can do is in it, so when you don't remember where something is, type a word: <i>compare</i>, <i>replay</i>, <i>files</i>, <i>bookmark</i>, <i>theme</i>.</p>
+        <ul>
+          <li>Type a <b>branch or tag name</b> to jump to it, compare it with the selected commit, see what it brings over HEAD, or show only that branch.</li>
+          <li>Type two or more letters of a <b>commit message, author or hash</b> to jump to a commit.</li>
+          <li>It also switches views, tabs and themes, opens recent repositories, saves CI tokens and finds the commits of a type (<i>Find the feat commits</i>).</li>
+        </ul>
+        <p class="tip"><b>Tip:</b> the palette lists the shortcut of each command next to it, which is the quickest way to learn them.</p>
+      </section>
+
+      <section id="open">
+        <h2>Opening repositories</h2>
+        <ul>
+          <li><kbd>⌘</kbd><kbd>O</kbd> opens a folder; you can also <b>drop a folder</b> on the window.</li>
+          <li>From a terminal, <code>git-sea</code> opens the repository of the current folder and <code>git-sea &lt;path&gt;</code> the one at that path, in a new tab of the window already open. On macOS, install the command from the app menu, <b>Install the git-sea Command…</b>.</li>
+          <li>Each repository is a <b>tab</b>. <kbd>⌘</kbd><kbd>1</kbd>–<kbd>9</kbd> switch tabs (<kbd>9</kbd> is the last one), <kbd>⌘</kbd><kbd>W</kbd> closes one, and you can <b>drag tabs</b> to reorder them. The open tabs come back the next time you start git-sea.</li>
+          <li>Recent repositories are in the palette: type their name.</li>
+        </ul>
+        <h3>Two repositories side by side</h3>
+        <p>The <b>split view</b> button in the toolbar (a square cut in two), or a <b>right-click on a tab</b>, shows another repository below the current one. The palette can swap or close the two halves. Shortcuts act on the half you clicked last.</p>
+      </section>
+
+      <section id="move">
+        <h2>Moving around</h2>
+        <table>
+          <tr><th>To</th><th>Do</th></tr>
+          <tr><td>Pan</td><td>Drag the canvas, or scroll (<kbd>⇧</kbd> + scroll goes sideways with a mouse wheel)</td></tr>
+          <tr><td>Zoom</td><td>Pinch on a trackpad, <kbd>⌘</kbd> + scroll, or <kbd>⌘</kbd><kbd>+</kbd> / <kbd>⌘</kbd><kbd>−</kbd></td></tr>
+          <tr><td>Fit everything</td><td><kbd>⌘</kbd><kbd>0</kbd>, or the button next to the zoom</td></tr>
+          <tr><td>Older / newer commit</td><td><kbd>j</kbd> / <kbd>k</kbd></td></tr>
+          <tr><td>First parent / child</td><td><kbd>h</kbd> / <kbd>l</kbd></td></tr>
+          <tr><td>Back to HEAD</td><td><kbd>g</kbd> then <kbd>h</kbd></td></tr>
+          <tr><td>Deselect</td><td><kbd>Esc</kbd></td></tr>
+          <tr><td>Back / forward through what you selected</td><td><kbd>⌘</kbd><kbd>[</kbd> / <kbd>⌘</kbd><kbd>]</kbd>, or the mouse's back and forward buttons</td></tr>
+        </table>
+        <ul>
+          <li>The <b>minimap</b> in the corner shows the whole history: click or drag in it to move there.</li>
+          <li>The <b>follow</b> button in the zoom controls keeps HEAD and the commits that arrive in view.</li>
+          <li>The zoom controls and the minimap have a <b>grip</b>: drag it to move them to another corner. They stay there in every view and tab.</li>
+          <li>The graph has levels of detail: <b>cards</b> with icons and messages up close, <b>tiles</b> further out, <b>dots</b> far away.</li>
+          <li>When a fetch brings commits you can't see, a pill like <b>“3 new commits →”</b> appears; click it to go to them.</li>
+          <li><kbd>b</kbd> bookmarks the selected commit: it gets a ribbon, and its bookmark sits at the top of the sidebar and in the palette.</li>
+          <li><kbd>a</kbd> lights up the ancestors of the selected commit (also the button with three dots in the toolbar).</li>
+        </ul>
+      </section>
+
+      <section id="search">
+        <h2>Searching</h2>
+        <p>Press <kbd>/</kbd>. Plain words look in the subject, the author and the start of the hash. Terms with a prefix narrow the search, and can be combined: <code>login author:Anna after:2024-05 path:src</code>.</p>
+        <table>
+          <tr><th>Prefix</th><th>Finds</th></tr>
+          <tr><td><code>author:</code></td><td>commits by that author or co-author (names after <code>.mailmap</code>)</td></tr>
+          <tr><td><code>hash:</code></td><td>commits whose hash starts so</td></tr>
+          <tr><td><code>msg:</code></td><td>words anywhere in the whole message, not only the subject</td></tr>
+          <tr><td><code>path:</code></td><td>commits that changed a file or folder, following renames</td></tr>
+          <tr><td><code>diff:</code></td><td>commits that added or removed a text, like <code>git log -S</code></td></tr>
+          <tr><td><code>after:</code> <code>before:</code></td><td>dates: <code>2024</code>, <code>2024-05</code>, <code>2024-05-17</code>, <code>today</code>, or a time ago such as <code>2w</code>, <code>6m</code></td></tr>
+          <tr><td><code>re:</code></td><td>a regular expression on subject and author</td></tr>
+          <tr><td><code>type:</code> <code>scope:</code></td><td>Conventional Commits: <code>type:feat</code>, <code>type:fix,docs</code>, <code>scope:ui</code></td></tr>
+        </table>
+        <ul>
+          <li><kbd>↵</kbd> or <kbd>↓</kbd> goes to the next match, <kbd>⇧</kbd><kbd>↵</kbd> or <kbd>↑</kbd> to the previous one. The other commits fade.</li>
+          <li>With the ancestors lit (<kbd>a</kbd>), the search looks only in the history of the selected commit.</li>
+          <li>Only one of <code>msg:</code>, <code>path:</code> and <code>diff:</code> per search: those read the repository, the others are instant.</li>
+        </ul>
+      </section>
+
+      <section id="details">
+        <h2>Commit details</h2>
+        <p><kbd>↵</kbd> shows or hides the details panel; drag its left edge to resize it. Besides message, author, co-authors and parents, it tells you:</p>
+        <ul>
+          <li><b>Release</b>: the oldest tag that holds the commit, and <b>In</b>: the branches that hold it.</li>
+          <li>The <b>pull or merge request</b> it belongs to, when the remote is on GitHub or GitLab.</li>
+          <li>For a merge, which parent the files are compared with: pick another one in <b>Compared with</b>.</li>
+        </ul>
+        <h3>Files and diffs</h3>
+        <ul>
+          <li>Click a changed file to see its diff, <b>Unified</b> or <b>Split</b>; changed words are marked inside the lines.</li>
+          <li><b>Blame</b> shows, for each line, the commit that last changed it; click one to go there.</li>
+          <li>Hover a file to find the <b>history</b> button (a clock): it searches <code>path:</code> that file, renames included.</li>
+        </ul>
+        <h3>Local changes and CI</h3>
+        <ul>
+          <li>When the working copy has changes, HEAD's node gets a <b>badge</b> with their count: click it for the staged and unstaged diffs.</li>
+          <li>CI runs appear on the links of the graph. Click a marker for the runs of that commit; click a workflow in the sidebar to show only its markers.</li>
+        </ul>
+      </section>
+
+      <section id="files">
+        <h2>Browsing the files</h2>
+        <p><b>Browse the files</b>, next to the changed files of a commit (or in the commit's right-click menu, or the palette), shows the whole tree of the repository as it was at that commit.</p>
+        <ul>
+          <li>Type in the field to find a file by name, like an editor's “go to file”: the letters only need to be in order. <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>↵</kbd> pick one.</li>
+          <li>A file shows with syntax colours, or as <b>Blame</b>; the clock button lists the commits that changed it.</li>
+          <li>The panel follows the selection: press <kbd>j</kbd> or <kbd>k</kbd> and you read the same file commit after commit.</li>
+        </ul>
+      </section>
+
+      <section id="compare">
+        <h2>Comparing</h2>
+        <ul>
+          <li><b><kbd>⇧</kbd>-click</b> another commit (in any view) to compare it with the selected one. The older side is the base.</li>
+          <li>From the palette: compare the selected commit with HEAD, or with any branch or tag you type.</li>
+          <li><b>Right-click a branch in the sidebar</b> for <b>What it brings over HEAD</b>: only the changes the branch made since it left, like <code>git diff main...feature</code>.</li>
+        </ul>
+        <p>In the comparison panel, choose between <b>The two trees</b> (every difference) and <b>From the common base</b> (only what the newer side brings), and <b>Swap</b> the sides. The commits found on one side only are lit on the graph.</p>
+        <p>Next to a local branch with an upstream, the sidebar shows <b>4↑ 2↓</b>: click it to light the commits ahead and behind.</p>
+      </section>
+
+      <section id="views">
+        <h2>The views</h2>
+        <table>
+          <tr><th>Key</th><th>View</th></tr>
+          <tr><td><kbd>1</kbd></td><td><b>Graph</b>: every commit as a node, branches as lanes</td></tr>
+          <tr><td><kbd>2</kbd></td><td><b>Topology</b>: runs of commits folded into one node. Click a folded node to open it, click its selected commit again to fold it back</td></tr>
+          <tr><td><kbd>3</kbd></td><td><b>Timeline</b>: commits placed on real time, to see when the work happened</td></tr>
+          <tr><td></td><td><b>List</b>: a plain table, which also shows the search results</td></tr>
+          <tr><td><kbd>4</kbd></td><td><b>Statistics</b>, see below</td></tr>
+        </table>
+        <h3>The toolbar buttons</h3>
+        <ul>
+          <li><b>Colours by commit type</b> (a tag icon) outlines the nodes by their Conventional Commits type, feat, fix, docs…, instead of by branch.</li>
+          <li><b>Flow</b> sends dots along the links; the <b>fish</b> swim behind the graph. Both are only decoration and can be turned off.</li>
+          <li>The <b>funnel</b> chip shows the branch filter, and its × removes it.</li>
+          <li><kbd>⌘</kbd><kbd>B</kbd> hides the sidebar.</li>
+        </ul>
+      </section>
+
+      <section id="stats">
+        <h2>Statistics</h2>
+        <p>Press <kbd>4</kbd>. Everything counts the loaded history, so it follows the branch filter.</p>
+        <ul>
+          <li><b>Click an author</b> to see only their activity in every card; the list button next to them shows their commits.</li>
+          <li><b>Click a day</b> of the calendar for its commits.</li>
+          <li><b>Releases</b>: each commit counts for the oldest tag that holds it. Click a release to compare it with the one before; click <b>Not released</b> to see what HEAD has that no tag holds.</li>
+          <li><b>Commit types</b>: click a type or a scope for its commits.</li>
+          <li><b>Most changed files</b>: click a folder to open it, a file for its commits. Rank by <b>Commits</b> or by <b>Lines</b> (counting lines reads every change, so the first time takes longer).</li>
+          <li><b>Changes over time</b>: the same entries month by month; click a cell for the commits of that month.</li>
+        </ul>
+      </section>
+
+      <section id="sidebar">
+        <h2>The sidebar</h2>
+        <ul>
+          <li>Click a branch, tag, stash, bookmark or pull request to go to its commit. The field at the top filters the list.</li>
+          <li>The <b>funnel</b> on a branch (on hover) shows only that branch's history; others can be added to the filter.</li>
+          <li><b>Right-click a branch</b> for what it brings over HEAD, comparisons and “show only this”.</li>
+          <li><b>Cleanup</b> lists branches gone from the remote, branches whose upstream is gone or that have none, and branches already in HEAD. git-sea never deletes them: each group has a <b>Copy the command</b> button to run it yourself. It asks the remotes only while the group is open.</li>
+          <li>Drag the sidebar's edge to resize it; double-click the edge to get the default width back.</li>
+        </ul>
+      </section>
+
+      <section id="menus">
+        <h2>Right-click menus</h2>
+        <h3>On a commit, in any view</h3>
+        <ul>
+          <li>Copy the hash, the short hash or the whole message.</li>
+          <li>Compare with the selected commit; add or remove a bookmark.</li>
+          <li>Browse the files of the commit.</li>
+          <li>Replay the history from here, or up to here (graph and topology).</li>
+          <li>Open the commit on GitHub, GitLab, Bitbucket or Azure DevOps.</li>
+        </ul>
+        <h3>On a branch or a tag in the sidebar</h3>
+        <ul>
+          <li>What it brings over HEAD or over the selected commit, from the common base.</li>
+          <li>Compare it with HEAD; show only this branch.</li>
+        </ul>
+        <h3>On a tab</h3>
+        <ul><li>Show another repository alongside, in the split view.</li></ul>
+      </section>
+
+      <section id="export">
+        <h2>Images and replays</h2>
+        <p>The last button of the zoom controls, in the graph, topology and timeline:</p>
+        <ul>
+          <li><b>Save as PNG</b> or <b>Copy as image</b>: the view as it is on screen, sharper than the screen.</li>
+          <li><b>Replay the history</b> (graph and topology): the history grows commit by commit. Pick where it starts and ends and the speed, then save it as a <b>GIF</b> or a <b>video</b>. <kbd>Space</kbd> plays and pauses, <kbd>Esc</kbd> closes.</li>
+        </ul>
+      </section>
+
+      <section id="settings">
+        <h2>Settings</h2>
+        <p><kbd>⌘</kbd><kbd>,</kbd> opens them:</p>
+        <ul>
+          <li><b>Language</b> (English or Italian) and <b>theme</b> (system, light, dark).</li>
+          <li>Pause the animations while the window is in the background.</li>
+          <li>The <b>graph cache</b> on disk, which makes large repositories reopen at once, and a button to clear it.</li>
+          <li>The <b>terminal command</b> on macOS.</li>
+        </ul>
+        <p>CI and pull requests use the <code>gh</code> and <code>glab</code> logins when they're there; otherwise save a token from the palette (<i>token</i>), and it goes to the Keychain, the Secret Service or the Credential Manager. Remote branches are fetched in the background every few minutes; the status bar says when, and has a button to fetch now.</p>
+      </section>
+
+      <section id="keys">
+        <h2>All the shortcuts</h2>
+        <table>
+          <tr><th>Keys</th><th>Action</th></tr>
+          <tr><td><kbd>⌘</kbd><kbd>K</kbd></td><td>Command palette</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>O</kbd> · <kbd>⌘</kbd><kbd>W</kbd></td><td>Open a repository · close the tab</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>1</kbd>–<kbd>9</kbd></td><td>Switch tab</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>,</kbd></td><td>Settings</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>B</kbd></td><td>Show or hide the sidebar</td></tr>
+          <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></td><td>Graph, topology, timeline, statistics</td></tr>
+          <tr><td><kbd>j</kbd> <kbd>k</kbd></td><td>Older, newer commit</td></tr>
+          <tr><td><kbd>h</kbd> <kbd>l</kbd></td><td>First parent, child</td></tr>
+          <tr><td><kbd>g</kbd> <kbd>h</kbd></td><td>Go to HEAD</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>[</kbd> <kbd>⌘</kbd><kbd>]</kbd></td><td>Back, forward through the selection</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Deselect, close the search</td></tr>
+          <tr><td><kbd>↵</kbd></td><td>Show or hide the details</td></tr>
+          <tr><td><kbd>/</kbd></td><td>Search</td></tr>
+          <tr><td><kbd>a</kbd></td><td>Light the ancestors</td></tr>
+          <tr><td><kbd>b</kbd></td><td>Bookmark the selected commit</td></tr>
+          <tr><td><kbd>⇧</kbd>-click</td><td>Compare with the selected commit</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>+</kbd> <kbd>⌘</kbd><kbd>−</kbd> <kbd>⌘</kbd><kbd>0</kbd></td><td>Zoom in, zoom out, fit</td></tr>
+        </table>
+      </section>
+    </article>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <span>git-sea · a personal project by <a href="https://github.com/ehystiv">ehystiv</a></span>
+      <span><a href="./">Home</a> · <a href="https://github.com/ehystiv/git-sea">Source</a> · <a href="https://github.com/ehystiv/git-sea/releases">Releases</a> · <a href="https://github.com/ehystiv/git-sea/issues">Issues</a></span>
+    </div>
+  </footer>
+</body>
+</html>
