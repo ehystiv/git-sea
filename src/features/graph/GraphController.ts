@@ -114,6 +114,7 @@ export class GraphController {
   private emphasis: Emphasis | null = null;
   private worktree: WorktreeMarker | null = null;
   private bookmarks: ReadonlySet<string> = new Set();
+  private colorByType = false;
   private pulls: ReadonlyMap<string, readonly PullBadge[]> = new Map();
   /** The node clicked last, bobbing like a float, and when it was clicked. */
   private bobbing: { id: string; start: number } | null = null;
@@ -478,6 +479,7 @@ export class GraphController {
       bookmarks: this.bookmarks,
       pulls: this.pulls,
       bob: this.bobScene(time),
+      colorByType: this.colorByType,
     });
     this.flowFrame = flow;
     const moving = flow !== null && (this.flowOverlay !== null || drawFlow(this.ctx, flow.links, { ...flow.style, time }) > 0);
@@ -520,6 +522,7 @@ export class GraphController {
       bookmarks: this.bookmarks,
       pulls: this.pulls,
       bob: null,
+      colorByType: this.colorByType,
     });
     // On screen the background is another layer, under the transparent graph.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -552,6 +555,12 @@ export class GraphController {
   /** Marks these commits with a bookmark ribbon. */
   setBookmarks(bookmarks: ReadonlySet<string>): void {
     this.bookmarks = bookmarks;
+    this.requestDraw();
+  }
+
+  /** Outlines the nodes by their Conventional Commits type instead of by branch. */
+  setColorByType(on: boolean): void {
+    this.colorByType = on;
     this.requestDraw();
   }
 

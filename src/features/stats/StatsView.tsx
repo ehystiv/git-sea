@@ -5,6 +5,7 @@ import { useElementWidth } from "../../lib/useElementWidth";
 import type { GraphIndex } from "../graph/GraphIndex";
 import { authorsOf } from "../commits/authors";
 import { HotspotsCard } from "./HotspotsCard";
+import { TypesCard } from "./TypesCard";
 import { useFileActivity } from "./useFileActivity";
 import { calendar, calendarPeriod, calendarStep, daySearch, level, punchSteps, repoStats, type AuthorStats, type CalendarDay, type RepoStats } from "./stats";
 import styles from "./StatsView.module.css";
@@ -132,6 +133,8 @@ export function StatsView({ sessionId, index, version, loading, filter, onSearch
           </div>
           <PunchCard punch={stats.punch} />
         </section>
+
+        <TypesCard index={index} version={version} author={focused} onSearch={onSearch} />
 
         <HotspotsCard index={index} version={version} activity={activity} author={focused} onSearch={onSearch} />
 

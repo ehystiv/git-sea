@@ -72,6 +72,18 @@
   .share { text-align: right; }
   .showCommits { flex: none; width: 28px; height: 28px; display: grid; place-items: center; margin-right: var(--space-1); border-radius: var(--r-sm); color: var(--text-3); }
   .showCommits:hover { background: var(--subtle); color: var(--text); }
+  /* Commit types: name, bar, count, share. */
+  .typeMain { grid-template-columns: minmax(90px, 160px) minmax(60px, 1fr) 64px 48px; }
+  .typeName { font: 500 12px var(--font-mono); color: var(--text-2); }
+  .typeName.feat { color: var(--b1); }
+  .typeName.fix { color: var(--b2); }
+  .typeName.refactor { color: var(--b4); }
+  .typeName.docs { color: var(--b7); }
+  .subhead { margin: var(--space-3) 0 var(--space-2); font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .scopes { display: flex; flex-wrap: wrap; gap: 6px; }
+  .scope { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 999px; background: var(--subtle); font: 500 12px var(--font-mono); }
+  .scope span { color: var(--text-3); font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
+  .scope:hover { background: var(--accent-soft); color: var(--accent-text); }
   /* Hotspots: the share column holds an author's name too. */
   .spotMain { grid-template-columns: 28px minmax(140px, 260px) minmax(60px, 1fr) 64px 150px 190px; }
   .dirName { font-weight: 600; }

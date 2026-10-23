@@ -6,7 +6,6 @@ Le proposte ancora da fare. L'app resta di sola lettura sui repository. Quelle r
 - **Vista del reflog:** dove stava HEAD prima di un rebase o reset, con i commit "fantasma" non più nel grafo.
 - **Firme GPG/SSH** come badge nel pannello dettagli.
 - **Issue e ticket nei messaggi:** `#123`, `!45` e chiavi come `ABC-123` cliccabili, con un modello configurabile per repo e l'URL costruito da `repo_web`.
-- **Conventional Commits nel grafo:** colori o badge per `feat`/`fix`/`chore`, filtro per tipo e scope.
 - **Diff tra due tag come pagina di release:** commit raggruppati per tipo, autori, PR unite, partendo dal pannello del confronto.
 - **Storia di un intervallo di righe** come `git log -L`: dal blame si scelgono le righe e si vede come sono cambiate.
 - **Vista first-parent:** solo i merge su `main`, che si aprono al clic sui commit che portano.

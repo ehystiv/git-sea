@@ -1,6 +1,7 @@
 import type { CommitSummary } from "../../lib/bindings";
 import { t, type Messages } from "../../lib/i18n";
 import { authorsOf } from "../commits/authors";
+import { hasScope, hasType } from "../commits/conventional";
 
 /**
  * A condition the frontend checks on the commits it has. `text` (no prefix) matches the subject,
@@ -12,7 +13,10 @@ export type LocalTerm =
   | { kind: "hash"; text: string }
   | { kind: "regex"; source: string; re: RegExp }
   | { kind: "after"; time: number }
-  | { kind: "before"; time: number };
+  | { kind: "before"; time: number }
+  /** Conventional Commits types or scopes, lower case: any of them matches. */
+  | { kind: "type"; values: string[] }
+  | { kind: "scope"; values: string[] };
 
 /** A condition only the backend can check: it reads the whole message, the trees or the blobs. */
 export interface BackendTerm {
@@ -30,7 +34,7 @@ export interface SearchQuery {
 
 export type QueryError = { kind: "date"; value: string } | { kind: "regex"; value: string } | { kind: "twoBackend" };
 
-type Key = "author" | "hash" | "message" | "path" | "diff" | "regex" | "after" | "before";
+type Key = "author" | "hash" | "message" | "path" | "diff" | "regex" | "after" | "before" | "type" | "scope";
 
 const PREFIXES: Record<string, Key> = {
   author: "author",
@@ -50,6 +54,10 @@ const PREFIXES: Record<string, Key> = {
   before: "before",
   until: "before",
   prima: "before",
+  type: "type",
+  tipo: "type",
+  scope: "scope",
+  ambito: "scope",
 };
 
 /** A known prefix at the start or after a space: everything up to the next one is its value. */
@@ -66,6 +74,8 @@ export function searchHelp(m: Messages = t()): Array<{ prefix: string; meaning: 
     { prefix: "diff:", meaning: m.search.help.diff },
     { prefix: "after: before:", meaning: m.search.help.dates },
     { prefix: "re:", meaning: m.search.help.regex },
+    { prefix: "type:", meaning: m.search.help.type },
+    { prefix: "scope:", meaning: m.search.help.scope },
   ];
 }
 
@@ -134,6 +144,15 @@ export function parseQuery(raw: string, now: number = Date.now()): SearchQuery |
         local.push({ kind: mark.key, time });
         break;
       }
+      case "type":
+      case "scope": {
+        const values = value
+          .split(/[,\s]+/)
+          .map((v) => v.trim().toLowerCase())
+          .filter(Boolean);
+        if (values.length > 0) local.push({ kind: mark.key, values });
+        break;
+      }
       case "regex":
         try {
           local.push({ kind: "regex", source: value, re: new RegExp(value, "i") });
@@ -181,6 +200,10 @@ function termMatcher(term: LocalTerm): (commit: CommitSummary) => boolean {
       return (c) => c.time !== null && c.time >= term.time;
     case "before":
       return (c) => c.time !== null && c.time < term.time;
+    case "type":
+      return (c) => hasType(c, term.values);
+    case "scope":
+      return (c) => hasScope(c, term.values);
   }
 }
 

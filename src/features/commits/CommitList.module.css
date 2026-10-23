@@ -27,6 +27,12 @@
   .summary, .author { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .author { color: var(--text-2); }
   .more { color: var(--text-3); }
+  /* The Conventional Commits prefix, in the colours the graph gives each type. */
+  .type { margin-right: 6px; font: 500 11.5px var(--font-mono); color: var(--text-2); }
+  .feat { color: var(--b1); }
+  .fix, .perf { color: var(--b2); }
+  .refactor { color: var(--b4); }
+  .docs { color: var(--b7); }
   .date { color: var(--text-3); font-variant-numeric: tabular-nums; }
   .hash { font: 12px var(--font-mono); color: var(--text-3); }
 }

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { describeCommit } from "../graph/describe";
 import { authorsOf } from "./authors";
 import type { CommitSummary } from "../../lib/bindings";
 import { formatRelative, shortHash } from "../../lib/format";
@@ -45,6 +46,7 @@ export function CommitList({ commits, selectedId, onSelect, onCompare, onContext
             const commit = commits[item.index];
             if (!commit) return null;
             const people = authorsOf(commit);
+            const described = describeCommit(commit.summary, commit.parents.length);
             return (
               <div
                 key={commit.id}
@@ -60,7 +62,17 @@ export function CommitList({ commits, selectedId, onSelect, onCompare, onContext
                 }}
                 style={{ height: ROW_HEIGHT, transform: `translateY(${item.start}px)` }}
               >
-                <span className={styles.summary}>{commit.summary}</span>
+                <span className={styles.summary} title={commit.summary}>
+                  {described.prefix ? (
+                    <>
+                      <span className={`${styles.type} ${styles[described.kind] ?? ""}`}>{described.prefix}</span>
+                      {described.emoji ? `${described.emoji} ` : ""}
+                      {described.label}
+                    </>
+                  ) : (
+                    commit.summary
+                  )}
+                </span>
                 <span className={styles.author} title={people.join(", ")}>
                   {commit.author}
                   {people.length > 1 && <span className={styles.more}> +{people.length - 1}</span>}

@@ -1,3 +1,4 @@
+import { parseConventional, prefixOf } from "../commits/conventional";
 import { leadingEmoji } from "./emoji";
 
 export type CommitKind =
@@ -17,12 +18,13 @@ export interface Described {
   label: string;
   /** Emoji the message starts with (gitmoji style), shown in the node instead of the kind icon. */
   emoji?: string;
+  /** The Conventional Commits prefix, as `feat(stats)!`, for a conventional subject. */
+  prefix?: string;
 }
 
 const KNOWN: ReadonlySet<string> = new Set(["feat", "fix", "refactor", "docs", "chore", "perf"]);
 /** Other Conventional Commits types, shown with the maintenance icon. */
 const MAINTENANCE: ReadonlySet<string> = new Set(["build", "ci", "style", "test", "revert"]);
-const CONVENTIONAL = /^(\w+)(?:\([^)]*\))?!?: (.*)$/;
 
 /**
  * Classifies a commit by its Conventional Commits prefix, merge-ness and root-ness, and picks up
@@ -43,9 +45,8 @@ function classify(summary: string, parentCount: number): Described {
     return { kind: "merge", label: summary.replace(/^Merge (branches|branch|pull request|tag) /, "").replace(/'/g, "") };
   }
   if (parentCount === 0) return { kind: "init", label: summary };
-  const match = CONVENTIONAL.exec(summary);
-  if (!match) return { kind: "commit", label: summary };
-  const [, type = "", description] = match;
-  if (KNOWN.has(type)) return { kind: type as CommitKind, label: description ?? summary };
-  return { kind: MAINTENANCE.has(type) ? "chore" : "commit", label: description ?? summary };
+  const parts = parseConventional(summary);
+  if (!parts) return { kind: "commit", label: summary };
+  const kind: CommitKind = KNOWN.has(parts.type) ? (parts.type as CommitKind) : MAINTENANCE.has(parts.type) ? "chore" : "commit";
+  return { kind, label: parts.description, prefix: prefixOf(parts) };
 }

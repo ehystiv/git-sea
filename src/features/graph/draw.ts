@@ -75,6 +75,8 @@ export interface Scene {
   bob: { column: number; ms: number } | null;
   /** Replay: the columns before this one (the newer commits) are not drawn at all. */
   revealFrom?: number;
+  /** Nodes are outlined in the colour of their Conventional Commits type instead of their branch's. */
+  colorByType?: boolean;
 }
 
 /** How many files have local changes, and the commit they sit on. */
@@ -505,13 +507,13 @@ function drawNode(ctx: Ctx, scene: Scene, r: number, cx: number, cy: number): vo
   const card = z >= LOD_CARD;
   const radius = 12 * z;
 
-  const color = palette.branch[row.color % BRANCH_COLORS] ?? palette.text3;
+  const group = index.groups.get(r);
+  const color = scene.colorByType && !group ? kindColor(palette, describe(scene, r).kind) : (palette.branch[row.color % BRANCH_COLORS] ?? palette.text3);
   const hasChildren = row.edges.some((e) => e.kind === "In" || e.kind === "MergeIn");
   const left = cx - size / 2;
   const top = cy - size / 2;
 
   ctx.globalAlpha = (nodes && !nodes[r] ? DIM_ALPHA : 1) * morphAlpha(scene, r);
-  const group = index.groups.get(r);
   const leftRadius = hasChildren ? radius : size / 2;
   if (group && z >= LOD_TILE) drawStack(ctx, palette, color, left, top, size, z, radius);
   ctx.beginPath();
@@ -774,11 +776,20 @@ function drawLabel(
   const commit = index.commits[r];
   if (!commit) return;
   ctx.font = `${10.5 * z}px ${palette.fontMono}`;
-  const sub = `${described.kind} · ${shortHash(commit.id)}`;
+  // The Conventional Commits prefix (`feat(stats)!`) in the type's colour, then the hash.
+  const head = described.prefix ?? described.kind;
+  const tail = ` · ${shortHash(commit.id)}`;
   const subY = top + lines.length * lineHeight + 1 * z;
+  const headWidth = Math.min(ctx.measureText(head).width, maxWidth * 0.7);
+  const x = cx - (headWidth + ctx.measureText(tail).width) / 2;
+  ctx.textAlign = "left";
+  ctx.fillStyle = described.prefix ? kindColor(palette, described.kind) : palette.text3;
+  ctx.strokeText(head, x, subY, headWidth);
+  ctx.fillText(head, x, subY, headWidth);
   ctx.fillStyle = palette.text3;
-  ctx.strokeText(sub, cx, subY);
-  ctx.fillText(sub, cx, subY);
+  ctx.strokeText(tail, x + headWidth, subY);
+  ctx.fillText(tail, x + headWidth, subY);
+  ctx.textAlign = "center";
 }
 
 /** Greedy word wrap into at most two lines; the second one is ellipsised when too long. */

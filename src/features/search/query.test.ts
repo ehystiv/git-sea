@@ -108,6 +108,14 @@ describe("matchCommits", () => {
     expect(matchCommits(commits, q("hash:0bad"))).toEqual(["0badcafe00"]);
   });
 
+  it("filters by Conventional Commits type and scope", () => {
+    const typed = [commit("a1", "feat(stats): x", "A"), commit("b2", "fix(UI): y", "A"), commit("c3", "docs: z", "A"), commit("d4", "plain", "A")];
+    expect(matchCommits(typed, q("type:feat"))).toEqual(["a1"]);
+    expect(matchCommits(typed, q("tipo:fix,docs"))).toEqual(["b2", "c3"]);
+    expect(matchCommits(typed, q("scope:ui"))).toEqual(["b2"]);
+    expect(matchCommits(typed, q("type:feat scope:ui"))).toEqual([]);
+  });
+
   it("counts co-authors as authors", () => {
     const shared = [{ ...commit("c0ffee0000", "pair work", "Bruno"), coAuthors: ["Anna Rossi"] }, commit("deadbeef00", "solo", "Bruno")];
     expect(matchCommits(shared, q("author:anna"))).toEqual(["c0ffee0000"]);

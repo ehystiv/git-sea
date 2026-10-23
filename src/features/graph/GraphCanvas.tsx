@@ -50,6 +50,8 @@ interface GraphCanvasProps {
   worktree: WorktreeMarker | null;
   /** Ids of the bookmarked commits. */
   bookmarks: ReadonlySet<string>;
+  /** Nodes outlined by their Conventional Commits type instead of by branch. */
+  colorByType?: boolean;
   /** Pull or merge requests to draw, by commit id. */
   pulls: ReadonlyMap<string, readonly PullBadge[]>;
   /** The badge of local changes was clicked. */
@@ -82,7 +84,7 @@ export interface GraphCanvasHandle {
 }
 
 export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(function GraphCanvas(
-  { index, version, initialSelectedId, active, keyboard, minimap: showMinimap, flow, emphasis, onSelect, onClickCommit, onCompare, onContextMenu, onExpandGroup, onCollapseGroup, worktree, bookmarks, pulls, onOpenWorktree, ci, onOpenCi, insetRight, sea, onExport },
+  { index, version, initialSelectedId, active, keyboard, minimap: showMinimap, flow, emphasis, onSelect, onClickCommit, onCompare, onContextMenu, onExpandGroup, onCollapseGroup, worktree, bookmarks, colorByType = false, pulls, onOpenWorktree, ci, onOpenCi, insetRight, sea, onExport },
   ref,
 ) {
   const m = useT();
@@ -113,6 +115,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
   const onCollapseRef = useRef(onCollapseGroup);
   const worktreeRef = useRef(worktree);
   const bookmarksRef = useRef(bookmarks);
+  const colorByTypeRef = useRef(colorByType);
   const pullsRef = useRef(pulls);
   const insetRef = useRef(insetRight);
   const onOpenWorktreeRef = useRef(onOpenWorktree);
@@ -195,6 +198,7 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     controller.setEmphasis(emphasisRef.current);
     controller.setWorktree(worktreeRef.current);
     controller.setBookmarks(bookmarksRef.current);
+    controller.setColorByType(colorByTypeRef.current);
     controller.setPulls(pullsRef.current);
     controller.setCi(ciRef.current);
     controller.setInsetRight(insetRef.current);
@@ -295,6 +299,11 @@ export const GraphCanvas = forwardRef<GraphCanvasHandle, GraphCanvasProps>(funct
     bookmarksRef.current = bookmarks;
     controllerRef.current?.setBookmarks(bookmarks);
   }, [bookmarks]);
+
+  useEffect(() => {
+    colorByTypeRef.current = colorByType;
+    controllerRef.current?.setColorByType(colorByType);
+  }, [colorByType]);
 
   useEffect(() => {
     pullsRef.current = pulls;

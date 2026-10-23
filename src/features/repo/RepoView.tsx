@@ -39,6 +39,7 @@ import { useSidebarWidth } from "../sidebar/sidebarWidth";
 import { branchDivergences, useUpstreams, type BranchDivergence } from "../sidebar/upstream";
 import { useFlow } from "../../lib/flow";
 import { useSea } from "../../lib/sea";
+import { useTypeColors } from "../../lib/typeColors";
 import { formatCount, shortHash, splitPath } from "../../lib/format";
 import { blobToBase64 } from "../graph/snapshot";
 import { commands } from "../../lib/bindings";
@@ -157,6 +158,8 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
   const toggleFlow = useFlow((s) => s.toggle);
   const sea = useSea((s) => s.enabled);
   const toggleSea = useSea((s) => s.toggle);
+  const typeColors = useTypeColors((s) => s.enabled);
+  const toggleTypeColors = useTypeColors((s) => s.toggle);
   const compressed = useCompressedIndex(index, stream.version, mode === "topology");
   const canvasIndex = mode === "topology" ? compressed.index : index;
   const canvasVersion = mode === "topology" ? compressed.version : stream.version;
@@ -619,6 +622,11 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
     toggleSidebar,
     toggleFlow,
     toggleSea,
+    toggleTypeColors,
+    searchFor: (text) => {
+      setSearchText(text);
+      openSearch();
+    },
     toggleAncestors: () => setAncestors((on) => !on),
     compareWith: (id) => startCompare(id),
     swapCompare,
@@ -673,6 +681,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
         sidebarCollapsed,
         flow,
         sea,
+        typeColors,
         ancestors,
         hasSelection: selected !== null,
         comparing: compare !== null,
@@ -932,6 +941,21 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
             </svg>
           </button>
         )}
+        {(mode === "graph" || mode === "topology") && (
+          <button
+            type="button"
+            className={`${styles.iconButton} ${typeColors ? styles.active : ""}`}
+            aria-label={m.repo.typeColors}
+            aria-pressed={typeColors}
+            title={typeColors ? m.repo.typeColorsOff : m.repo.typeColorsOn}
+            onClick={toggleTypeColors}
+          >
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
+              <circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" />
+            </svg>
+          </button>
+        )}
         <button
           type="button"
           className={`${styles.iconButton} ${split ? styles.active : ""}`}
@@ -1019,6 +1043,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
               onCollapseGroup={mode === "topology" ? compressed.collapse : undefined}
               worktree={worktreeMarker}
               bookmarks={bookmarkSet}
+              colorByType={typeColors}
               pulls={pullMarks}
               onOpenWorktree={openWorktree}
               ci={ciScene}

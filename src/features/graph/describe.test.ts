@@ -3,8 +3,8 @@ import { describeCommit } from "./describe";
 
 describe("describeCommit", () => {
   it("reads the Conventional Commits type and drops the prefix from the label", () => {
-    expect(describeCommit("feat(auth): add login form", 1)).toEqual({ kind: "feat", label: "add login form" });
-    expect(describeCommit("fix!: crash on empty repo", 1)).toEqual({ kind: "fix", label: "crash on empty repo" });
+    expect(describeCommit("feat(auth): add login form", 1)).toEqual({ kind: "feat", label: "add login form", prefix: "feat(auth)" });
+    expect(describeCommit("fix!: crash on empty repo", 1)).toEqual({ kind: "fix", label: "crash on empty repo", prefix: "fix!" });
     expect(describeCommit("docs(readme): setup steps", 1).kind).toBe("docs");
     expect(describeCommit("perf: cache objects", 1).kind).toBe("perf");
   });
@@ -34,15 +34,15 @@ describe("describeCommit", () => {
   });
 
   it("takes a leading emoji out of the label, before or after the prefix", () => {
-    expect(describeCommit("✨ feat(auth): add login", 1)).toEqual({ kind: "feat", label: "add login", emoji: "✨" });
-    expect(describeCommit("fix: 🐛 crash on start", 1)).toEqual({ kind: "fix", label: "crash on start", emoji: "🐛" });
+    expect(describeCommit("✨ feat(auth): add login", 1)).toEqual({ kind: "feat", label: "add login", emoji: "✨", prefix: "feat(auth)" });
+    expect(describeCommit("fix: 🐛 crash on start", 1)).toEqual({ kind: "fix", label: "crash on start", emoji: "🐛", prefix: "fix" });
     expect(describeCommit("🎉 Initial commit", 0)).toEqual({ kind: "init", label: "Initial commit", emoji: "🎉" });
     expect(describeCommit("♻️ simplify the walk", 1)).toEqual({ kind: "commit", label: "simplify the walk", emoji: "♻️" });
   });
 
   it("reads gitmoji shortcodes and ignores unknown ones", () => {
     expect(describeCommit(":sparkles: add search", 1)).toEqual({ kind: "commit", label: "add search", emoji: "✨" });
-    expect(describeCommit(":bug: fix: typo", 1)).toEqual({ kind: "fix", label: "typo", emoji: "🐛" });
+    expect(describeCommit(":bug: fix: typo", 1)).toEqual({ kind: "fix", label: "typo", emoji: "🐛", prefix: "fix" });
     expect(describeCommit(":nope: hello", 1)).toEqual({ kind: "commit", label: ":nope: hello" });
   });
 

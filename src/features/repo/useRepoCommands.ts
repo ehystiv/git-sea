@@ -30,6 +30,8 @@ const kindLabel = (m: Messages, kind: RefLabel["kind"]): string => m.commands.ki
 const MAX_REFS = 10;
 const MAX_FILTER_REFS = 5;
 const MAX_COMMITS = 8;
+/** Conventional Commits types offered in the palette; any other one can be typed as `type:`. */
+const COMMON_TYPES = ["feat", "fix", "docs", "refactor", "perf", "test", "build", "ci", "chore"] as const;
 
 export interface RepoCommandState {
   index: GraphIndex;
@@ -41,6 +43,7 @@ export interface RepoCommandState {
   sidebarCollapsed: boolean;
   flow: boolean;
   sea: boolean;
+  typeColors: boolean;
   ancestors: boolean;
   hasSelection: boolean;
   /** The panel compares two commits. */
@@ -75,6 +78,9 @@ export interface RepoCommandActions {
   toggleSidebar: () => void;
   toggleFlow: () => void;
   toggleSea: () => void;
+  toggleTypeColors: () => void;
+  /** Opens the search with this text, in the current view. */
+  searchFor: (text: string) => void;
   toggleAncestors: () => void;
   /** Compares the selected commit with this one. */
   compareWith: (id: string) => void;
@@ -110,7 +116,7 @@ export interface RepoCommandActions {
 
 /** What the active repository offers to the command palette. Null for a tab in the background. */
 export function useRepoCommands(active: boolean, state: RepoCommandState, actions: RepoCommandActions): PaletteSource | null {
-  const { index, version, mode, panelOpen, sidebarCollapsed, flow, sea, ancestors, hasSelection, comparing, browsing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci } = state;
+  const { index, version, mode, panelOpen, sidebarCollapsed, flow, sea, typeColors, ancestors, hasSelection, comparing, browsing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci } = state;
   const m = useT();
 
   return useMemo(() => {
@@ -132,6 +138,9 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
       if (mode !== "timeline") {
         add({ id: "sea", title: sea ? m.commands.hideSea : m.commands.showSea, keywords: "pesci mare sfondo fish sea acquario", run: actions.toggleSea }, g.view);
       }
+      if (mode !== "timeline") {
+        add({ id: "type-colors", title: typeColors ? m.commands.colorByBranch : m.commands.colorByType, keywords: "colori colors tipo type conventional commits feat fix nodi nodes", run: actions.toggleTypeColors }, g.view);
+      }
       add({ id: "export:png", title: m.commands.exportPng, keywords: "esporta export png immagine image salva save screenshot", run: actions.exportPng }, g.view);
       add({ id: "export:copy", title: m.commands.copyImage, keywords: "copia copy immagine image appunti clipboard screenshot", run: actions.copyImage }, g.view);
       if (mode === "graph" || mode === "topology") {
@@ -143,6 +152,9 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
     }
     if (canCollapse) add({ id: "collapse", title: m.commands.collapseChains, keywords: "comprimi topologia collapse topology", run: actions.collapseAll }, g.view);
 
+    for (const type of COMMON_TYPES) {
+      add({ id: `type:${type}`, title: m.commands.onlyType(type), detail: `type:${type}`, keywords: "tipo type conventional commits filtro filter", run: () => actions.searchFor(`type:${type}`) }, g.navigation);
+    }
     add({ id: "search", title: m.commands.search, shortcut: "/", keywords: "trova find search messaggio message autore author hash percorso path file", run: actions.openSearch }, g.navigation);
     if (canGoBack) add({ id: "back", title: m.commands.back, shortcut: modShortcut("["), keywords: "indietro back history cronologia precedente", run: actions.goBack }, g.navigation);
     if (canGoForward) add({ id: "forward", title: m.commands.forward, shortcut: modShortcut("]"), keywords: "avanti forward history cronologia successivo", run: actions.goForward }, g.navigation);
@@ -240,5 +252,5 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
 
     return { commands, search };
     // `version` is what tells us the (mutable) index changed.
-  }, [m, active, index, version, mode, panelOpen, sidebarCollapsed, flow, sea, ancestors, hasSelection, comparing, browsing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci, actions]);
+  }, [m, active, index, version, mode, panelOpen, sidebarCollapsed, flow, sea, typeColors, ancestors, hasSelection, comparing, browsing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci, actions]);
 }
