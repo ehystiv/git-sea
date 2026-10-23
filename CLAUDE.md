@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 git-sea is a Git history viewer for macOS, Linux and Windows built with Tauri 2: a Rust backend (`src-tauri/`, using `gix`) and a React 19 + TypeScript + Vite frontend (`src/`). It never writes to repositories, with one exception: a background `git fetch --all` (`src-tauri/src/git/fetch.rs`) that updates remote refs.
 
-`PROPOSTE.md` (in Italian) lists the proposed features and improvements, and which ones are done.
+`PROPOSTE.md` (in Italian) lists the proposed features and improvements still to do, and the discarded ones; done ones are removed from it.
 
 ## Commands
 
