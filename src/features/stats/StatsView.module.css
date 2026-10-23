@@ -72,6 +72,14 @@
   .share { text-align: right; }
   .showCommits { flex: none; width: 28px; height: 28px; display: grid; place-items: center; margin-right: var(--space-1); border-radius: var(--r-sm); color: var(--text-3); }
   .showCommits:hover { background: var(--subtle); color: var(--text); }
+  /* Hotspots: the share column holds an author's name too. */
+  .spotMain { grid-template-columns: 28px minmax(140px, 260px) minmax(60px, 1fr) 64px 150px 190px; }
+  .dirName { font-weight: 600; }
+  .trail { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-bottom: var(--space-2); font-size: 12px; }
+  .trail button { padding: 2px 6px; border-radius: var(--r-sm); color: var(--accent-text); font-weight: 500; }
+  .trail button:not(:disabled):hover { background: var(--accent-soft); }
+  .trail button:disabled { color: var(--text); }
+  .sep { color: var(--text-3); }
   .more { margin-top: var(--space-2); padding: 4px var(--space-2); border-radius: var(--r-sm); color: var(--accent-text); font-weight: 500; }
   .more:hover { background: var(--accent-soft); }
 }

@@ -9,6 +9,7 @@ use crate::ci::remote::RepoWeb;
 use crate::ci::runs::CiRunsReport;
 use crate::ci::{self, CiOverview, CiProvider};
 use crate::error::AppError;
+use crate::git::activity::{self, ActivityEvent};
 use crate::git::blame::{self, FileBlame};
 use crate::git::commits::{self, LoadEvent, RefFilter};
 use crate::git::diff::{self, CommitDetails, FileDiff};
@@ -367,6 +368,41 @@ pub async fn file_content(
         let repo = session.repo.to_thread_local();
         tree::file_content(&repo, &commit_id, &path)
             .map_err(|err| repo::in_partial_clone(&repo, err))
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// Which files every commit changed (merges left out), for the hotspots of the statistics, with
+/// progress on the way. Every ref is read, as in a search; the frontend keeps the commits it has.
+/// Commits read before on this session are not read again. A new request stops the previous one.
+#[tauri::command]
+#[specta::specta]
+pub async fn file_activity(
+    state: State<'_, AppState>,
+    session_id: String,
+    on_event: Channel<ActivityEvent>,
+) -> Result<(), AppError> {
+    let session = state.get(&session_id)?;
+    let generation = session.begin_activity();
+    tauri::async_runtime::spawn_blocking(move || {
+        let tips = commits::collect_refs(&session.repo.to_thread_local())?.tips;
+        let cancelled = || !session.is_current_activity(generation);
+        let progress = |done, total| {
+            let _ = on_event.send(ActivityEvent::Progress { done, total });
+        };
+        let result = activity::file_activity(
+            &session.repo,
+            tips,
+            &session.activity,
+            &cancelled,
+            &progress,
+        )
+        .map_err(|err| repo::in_partial_clone(&session.repo.to_thread_local(), err))?;
+        if let Some(result) = result {
+            let _ = on_event.send(ActivityEvent::Done(result));
+        }
+        Ok(())
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?

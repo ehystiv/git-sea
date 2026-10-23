@@ -4,6 +4,8 @@ import { useT } from "../../lib/i18n";
 import { useElementWidth } from "../../lib/useElementWidth";
 import type { GraphIndex } from "../graph/GraphIndex";
 import { authorsOf } from "../commits/authors";
+import { HotspotsCard } from "./HotspotsCard";
+import { useFileActivity } from "./useFileActivity";
 import { calendar, calendarPeriod, calendarStep, daySearch, level, punchSteps, repoStats, type AuthorStats, type CalendarDay, type RepoStats } from "./stats";
 import styles from "./StatsView.module.css";
 
@@ -30,6 +32,7 @@ function hourLabel(hour: number): string {
 }
 
 interface StatsViewProps {
+  sessionId: string;
   index: GraphIndex;
   /** Changes whenever `index` gets new data. */
   version: number;
@@ -40,8 +43,10 @@ interface StatsViewProps {
   onSearch: (text: string) => void;
 }
 
-export function StatsView({ index, version, loading, filter, onSearch }: StatsViewProps) {
+export function StatsView({ sessionId, index, version, loading, filter, onSearch }: StatsViewProps) {
   const m = useT();
+  // Asked for again when the history is loaded again (the refs map is replaced then).
+  const activity = useFileActivity(sessionId, !loading, index.refs);
   const [focus, setFocus] = useState<string | null>(null);
   const [year, setYear] = useState<number | "last">("last");
   const [allAuthors, setAllAuthors] = useState(false);
@@ -127,6 +132,8 @@ export function StatsView({ index, version, loading, filter, onSearch }: StatsVi
           </div>
           <PunchCard punch={stats.punch} />
         </section>
+
+        <HotspotsCard index={index} version={version} activity={activity} author={focused} onSearch={onSearch} />
 
         <section className={styles.card}>
           <div className={styles.cardHead}>

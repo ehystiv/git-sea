@@ -30,6 +30,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::list_files,
         commands::file_content,
         commands::list_stashes,
+        commands::file_activity,
         commands::list_upstreams,
         commands::cache_usage,
         commands::clear_cache,

@@ -40,6 +40,12 @@ export const commands = {
 	fileContent: (sessionId: string, commitId: string, path: string) => typedError<FileContent, AppError>(__TAURI_INVOKE("file_content", { sessionId, commitId, path })),
 	/**  Stashes of the repository, newest first. */
 	listStashes: (sessionId: string) => typedError<StashEntry[], AppError>(__TAURI_INVOKE("list_stashes", { sessionId })),
+	/**
+	 *  Which files every commit changed (merges left out), for the hotspots of the statistics, with
+	 *  progress on the way. Every ref is read, as in a search; the frontend keeps the commits it has.
+	 *  Commits read before on this session are not read again. A new request stops the previous one.
+	 */
+	fileActivity: (sessionId: string, onEvent: Channel<ActivityEvent>) => typedError<null, AppError>(__TAURI_INVOKE("file_activity", { sessionId, onEvent })),
 	/**  The upstream of every local branch that has one. */
 	listUpstreams: (sessionId: string) => typedError<Upstream[], AppError>(__TAURI_INVOKE("list_upstreams", { sessionId })),
 	/**  How many graph files the cache holds and their size. */
@@ -105,6 +111,13 @@ export const commands = {
 };
 
 /* Types */
+export type ActivityEvent = 
+/**  `done` of the `total` commits not seen before have been read. */
+{ event: "progress"; data: {
+	done: number,
+	total: number,
+} } | { event: "done"; data: FileActivity };
+
 /**
  *  Error returned by every Tauri command. The frontend switches on `kind`
  *  to pick a user-facing message; `message` is for logs and debugging.
@@ -270,6 +283,12 @@ export type CommitDetails = {
 	statsTruncated: boolean,
 };
 
+/**  One commit and the indices (in `FileActivity::paths`) of the files it changed. */
+export type CommitFiles = {
+	id: string,
+	files: number[],
+};
+
 export type CommitSummary = {
 	/**  Full hex object id. */
 	id: string,
@@ -333,6 +352,12 @@ export type FetchState = {
 	lastSuccessMs: number | null,
 	/**  Why the last fetch failed; cleared by the next one that works. */
 	lastError: string | null,
+};
+
+export type FileActivity = {
+	paths: string[],
+	/**  Commits that changed at least one file; merges are left out. */
+	commits: CommitFiles[],
 };
 
 export type FileBlame = {

@@ -192,6 +192,21 @@ let shellInstalled = false;
         const coAuthors = (commit?.coAuthors ?? []).map((name) => ({ name, email: "dev@example.com" }));
         return { id: args.commitId, summary: commit?.summary ?? "", body: "", author: person, committer: person, coAuthors, parents: commit?.parents ?? [], comparedWith: null, files, statsTruncated: false };
       }
+      case "file_activity": {
+        // Made-up files: each commit touches two or three of a dozen, picked from its hash.
+        const send = callbacks.get((args.onEvent as { id: number }).id);
+        const paths = ["README.md", "package.json", "src/app.ts", "src/lib/format.ts", "src/lib/i18n/en.ts", "src/lib/i18n/it.ts", "src/features/graph/draw.ts", "src/features/graph/GraphIndex.ts", "src/features/stats/stats.ts", "src-tauri/src/lib.rs", "src-tauri/src/git/commits.rs", "docs/guide.md"];
+        const commits = dump.commits
+          .filter((c) => c.parents.length < 2)
+          .map((c) => {
+            const n = parseInt(c.id.slice(0, 6), 16);
+            return { id: c.id, files: [...new Set([n % 12, (n >> 4) % 12, (n >> 9) % 7])] };
+          });
+        const total = commits.length;
+        [0, Math.floor(total / 2)].forEach((done, index) => setTimeout(() => send?.({ index, message: { event: "progress", data: { done, total } } }), 200 * index));
+        setTimeout(() => send?.({ index: 2, message: { event: "done", data: { paths, commits } } }), 600);
+        return null;
+      }
       case "list_files": {
         // A small tree whose contents change a little from commit to commit.
         await new Promise((resolve) => setTimeout(resolve, 150));

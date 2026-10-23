@@ -614,6 +614,18 @@ export const en = {
     coAuthorsNote: "A co-authored commit counts for each of its authors.",
     coAuthored: (n: string) => `${n} with co-authors`,
     asCoAuthor: (n: number) => (n === 1 ? "1 as a co-author" : `${n} as a co-author`),
+    hotspots: "Most changed files",
+    hotspotsNote: "Commits that changed each file or directory; merges are left out.",
+    reading: (done: string, total: string) => `Reading the changed files… ${done} of ${total}`,
+    root: "All",
+    allTime: "All the history",
+    noChanges: "No changed files in this period.",
+    authorsCount: (n: number) => (n === 1 ? "1 author" : `${n} authors`),
+    mainAuthor: (name: string, percent: string) => `${name} ${percent}%`,
+    mainAuthorTitle: (name: string, n: number, total: number) => `${name} made ${n} of the ${total} commits`,
+    changed: (ago: string) => `changed ${ago}`,
+    openDir: "Show what is inside",
+    showChanges: "Show the commits that changed it",
   },
 };
 

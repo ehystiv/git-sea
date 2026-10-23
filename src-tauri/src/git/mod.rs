@@ -1,3 +1,4 @@
+pub mod activity;
 pub mod blame;
 pub mod commits;
 pub mod diff;

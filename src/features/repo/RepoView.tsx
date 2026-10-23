@@ -993,6 +993,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
             />
           ) : mode === "stats" ? (
             <StatsView
+              sessionId={repo.sessionId}
               index={index}
               version={stream.version}
               loading={stream.status === "loading"}

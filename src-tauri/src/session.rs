@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::error::AppError;
+use crate::git::activity::ActivityCache;
 use crate::git::fetch::Fetcher;
 use crate::watcher::RepoWatcher;
 
@@ -15,6 +16,10 @@ pub struct RepoSession {
     load_generation: AtomicU64,
     /// Same as `load_generation`, for searches: a new search stops the one still running.
     search_generation: AtomicU64,
+    /// Same as `load_generation`, for reading which files the commits changed.
+    activity_generation: AtomicU64,
+    /// The files changed by every commit read so far; commits never change, so it only grows.
+    pub activity: Mutex<ActivityCache>,
     /// Keep watching the repository's refs and working copy for as long as the session lives.
     _watchers: Vec<RepoWatcher>,
     /// Keeps the remote branches up to date for as long as the session lives.
@@ -27,6 +32,8 @@ impl RepoSession {
             repo,
             load_generation: AtomicU64::new(0),
             search_generation: AtomicU64::new(0),
+            activity_generation: AtomicU64::new(0),
+            activity: Mutex::new(ActivityCache::default()),
             _watchers: watchers,
             fetcher,
         }
@@ -50,9 +57,19 @@ impl RepoSession {
         self.search_generation.load(Ordering::SeqCst) == generation
     }
 
+    /// Starts reading the changed files, stopping a read already running on this session.
+    pub fn begin_activity(&self) -> u64 {
+        self.activity_generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    pub fn is_current_activity(&self, generation: u64) -> bool {
+        self.activity_generation.load(Ordering::SeqCst) == generation
+    }
+
     fn cancel_loads(&self) {
         self.load_generation.fetch_add(1, Ordering::SeqCst);
         self.search_generation.fetch_add(1, Ordering::SeqCst);
+        self.activity_generation.fetch_add(1, Ordering::SeqCst);
     }
 }
 
