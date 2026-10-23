@@ -1023,6 +1023,14 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
               loading={stream.status === "loading"}
               filter={branchFilter ? describeFilter(branchFilter, m) : null}
               onSearch={showSearch}
+              onCompare={(base, target) => {
+                setMode("graph");
+                compareRefs(base, target, true);
+              }}
+              onShowCommit={(id) => {
+                setMode("graph");
+                selectById(id);
+              }}
             />
           ) : mode !== "list" ? (
             <GraphCanvas

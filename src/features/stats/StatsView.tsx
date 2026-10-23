@@ -6,6 +6,7 @@ import type { GraphIndex } from "../graph/GraphIndex";
 import { authorsOf } from "../commits/authors";
 import { HeatmapCard } from "./HeatmapCard";
 import { HotspotsCard, type HotspotPeriod } from "./HotspotsCard";
+import { ReleasesCard } from "./ReleasesCard";
 import { TypesCard } from "./TypesCard";
 import { useFileActivity } from "./useFileActivity";
 import { calendar, calendarPeriod, calendarStep, daySearch, level, punchSteps, repoStats, type AuthorStats, type CalendarDay, type RepoStats } from "./stats";
@@ -43,9 +44,12 @@ interface StatsViewProps {
   filter: string | null;
   /** Shows the commits a search finds. */
   onSearch: (text: string) => void;
+  /** Shows what `target` brings since `base`, in the comparison panel. */
+  onCompare: (base: string, target: string) => void;
+  onShowCommit: (id: string) => void;
 }
 
-export function StatsView({ sessionId, index, version, loading, filter, onSearch }: StatsViewProps) {
+export function StatsView({ sessionId, index, version, loading, filter, onSearch, onCompare, onShowCommit }: StatsViewProps) {
   const m = useT();
   // Asked for again when the history is loaded again (the refs map is replaced then).
   const activity = useFileActivity(sessionId, !loading, index.refs);
@@ -137,6 +141,8 @@ export function StatsView({ sessionId, index, version, loading, filter, onSearch
           </div>
           <PunchCard punch={stats.punch} />
         </section>
+
+        <ReleasesCard index={index} version={version} onCompare={onCompare} onShowCommit={onShowCommit} />
 
         <TypesCard index={index} version={version} author={focused} onSearch={onSearch} />
 

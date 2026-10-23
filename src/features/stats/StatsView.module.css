@@ -72,6 +72,11 @@
   .share { text-align: right; }
   .showCommits { flex: none; width: 28px; height: 28px; display: grid; place-items: center; margin-right: var(--space-1); border-radius: var(--r-sm); color: var(--text-3); }
   .showCommits:hover { background: var(--subtle); color: var(--text); }
+  .releaseList { margin-top: var(--space-3); }
+  .releaseMain { grid-template-columns: minmax(100px, 200px) 110px minmax(60px, 1fr) 96px 200px; }
+  .alias { color: var(--text-3); font-size: 11px; }
+  .tileButton { text-align: left; font: inherit; color: inherit; background: none; }
+  .tileButton:not(:disabled):hover { background: var(--hover); }
   .heatLabel { font-size: 11.5px; fill: var(--text-2); }
   .heatDir { font-weight: 600; cursor: pointer; }
   .heatDir:hover { fill: var(--accent-text); }
