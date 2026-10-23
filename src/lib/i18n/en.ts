@@ -261,6 +261,29 @@ export const en = {
     showOnly: "Show only this",
   },
 
+  cleanup: {
+    title: "Cleanup",
+    hint: "Only listed: git-sea never deletes. Copy a command to run it yourself.",
+    checking: "Asking the remotes…",
+    nothing: "Nothing to clean up.",
+    recheck: "Check again",
+    groups: {
+      goneRemote: "Gone from the remote",
+      goneUpstream: "Upstream gone",
+      merged: "Already in HEAD",
+      noUpstream: "No upstream",
+    },
+    groupTitles: {
+      goneRemote: "Remote branches deleted on their remote: a fetch with --prune would remove them",
+      goneUpstream: "Local branches whose upstream branch no longer exists",
+      merged: "Local branches whose commits HEAD already holds",
+      noUpstream: "Local branches that track no remote branch",
+    },
+    copy: "Copy the command",
+    copied: "Copied",
+    notLoaded: "Not in the loaded history",
+  },
+
   sidebar: {
     label: "References",
     filter: "Filter…",

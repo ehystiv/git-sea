@@ -48,6 +48,12 @@ export const commands = {
 	fileActivity: (sessionId: string, onEvent: Channel<ActivityEvent>) => typedError<null, AppError>(__TAURI_INVOKE("file_activity", { sessionId, onEvent })),
 	/**  The upstream of every local branch that has one. */
 	listUpstreams: (sessionId: string) => typedError<Upstream[], AppError>(__TAURI_INVOKE("list_upstreams", { sessionId })),
+	/**
+	 *  Refs worth cleaning up: remote branches gone from their remote, local branches whose upstream
+	 *  is gone or that have none, and local branches HEAD already holds. Asks each remote for its
+	 *  branches (`git ls-remote`); a remote that cannot be reached is listed in `errors`.
+	 */
+	cleanupReport: (sessionId: string) => typedError<CleanupReport, AppError>(__TAURI_INVOKE("cleanup_report", { sessionId })),
 	/**  How many graph files the cache holds and their size. */
 	cacheUsage: () => __TAURI_INVOKE<CacheUsage>("cache_usage"),
 	/**  Deletes every graph file of the cache; graphs are built again on the next load. */
@@ -255,6 +261,26 @@ export type CiWorkflow = {
 	approximate: boolean,
 	/**  Page of the workflow on the CI service, when the remote tells where it is. */
 	webUrl: string | null,
+};
+
+/**  A branch and the commit it points to. */
+export type CleanupRef = {
+	/**  Short name: `origin/old-feature` for a remote branch, `old-feature` for a local one. */
+	name: string,
+	commit: string,
+};
+
+export type CleanupReport = {
+	/**  Remote branches whose branch on the remote no longer exists, by remote then name. */
+	goneRemote: CleanupRef[],
+	/**  Local branches whose configured upstream no longer exists (here, or on the remote). */
+	goneUpstream: CleanupRef[],
+	/**  Local branches with no upstream configured. */
+	noUpstream: CleanupRef[],
+	/**  Local branches, other than HEAD's, whose tip HEAD already holds. */
+	merged: CleanupRef[],
+	/**  Remotes that could not be asked, with what git said. */
+	errors: string[],
 };
 
 /**  Someone named in a `Co-authored-by:` trailer. */

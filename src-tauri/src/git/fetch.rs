@@ -158,7 +158,7 @@ pub fn fetch(dir: &Path) -> Result<(), String> {
 
 /// The `git` to run. On macOS `/usr/bin/git` is only a stub until the developer tools are
 /// installed, and running it then opens an installation dialog: it is used only when they are.
-fn find_git() -> Option<PathBuf> {
+pub(crate) fn find_git() -> Option<PathBuf> {
     crate::process::candidates("git").find(|git| {
         !(cfg!(target_os = "macos") && git == Path::new("/usr/bin/git") && !developer_tools())
     })

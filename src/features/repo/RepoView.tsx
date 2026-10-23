@@ -176,6 +176,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
       void queryClient.invalidateQueries({ queryKey: ["search", repo.sessionId] });
       void queryClient.invalidateQueries({ queryKey: ["worktree", repo.sessionId] });
       void queryClient.invalidateQueries({ queryKey: ["upstreams", repo.sessionId] });
+      void queryClient.invalidateQueries({ queryKey: ["cleanup", repo.sessionId] });
     }, [reload, queryClient, repo.sessionId]),
   );
 

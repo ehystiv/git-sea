@@ -258,6 +258,29 @@ export const it: Messages = {
     showOnly: "Mostra solo questo",
   },
 
+  cleanup: {
+    title: "Pulizia",
+    hint: "Solo un elenco: git-sea non cancella niente. Copia un comando per eseguirlo tu.",
+    checking: "Chiedo ai remoti…",
+    nothing: "Niente da pulire.",
+    recheck: "Controlla di nuovo",
+    groups: {
+      goneRemote: "Spariti dal remoto",
+      goneUpstream: "Upstream sparito",
+      merged: "Già in HEAD",
+      noUpstream: "Senza upstream",
+    },
+    groupTitles: {
+      goneRemote: "Branch remoti cancellati sul loro remoto: un fetch con --prune li toglierebbe",
+      goneUpstream: "Branch locali il cui branch upstream non esiste più",
+      merged: "Branch locali i cui commit sono già in HEAD",
+      noUpstream: "Branch locali che non seguono nessun branch remoto",
+    },
+    copy: "Copia il comando",
+    copied: "Copiato",
+    notLoaded: "Non nella storia caricata",
+  },
+
   sidebar: {
     label: "Riferimenti",
     filter: "Filtra…",

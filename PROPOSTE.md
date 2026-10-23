@@ -12,7 +12,6 @@ Le proposte ancora da fare. L'app resta di sola lettura sui repository. Quelle r
 - **Righe spostate nel diff:** codice spostato da un punto o da un file all'altro segnato come tale, non come tolto e aggiunto.
 
 ## Viste
-- **Ref spariti dal remoto:** branch remoti cancellati dall'ultimo fetch e branch locali senza upstream, per fare pulizia (l'app resta di sola lettura).
 - **Righe nei file più modificati:** oggi contano i commit; aggiunte e tolte per file richiederebbero un diff dei blob per ogni commit, da tenere in cache.
 
 ## Repo complessi

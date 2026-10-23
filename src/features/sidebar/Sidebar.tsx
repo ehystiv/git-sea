@@ -5,6 +5,7 @@ import { CiSection } from "../ci/CiSection";
 import type { CiState } from "../ci/useCi";
 import type { GraphIndex } from "../graph/GraphIndex";
 import { useT } from "../../lib/i18n";
+import { CleanupSection } from "./CleanupSection";
 import { inFilter } from "./refFilter";
 import { bookmarkSection, buildSections, type SidebarItem } from "./sections";
 import type { BranchDivergence } from "./upstream";
@@ -198,6 +199,8 @@ export function Sidebar({
           </section>
         );
       })}
+
+      <CleanupSection sessionId={sessionId} index={index} selectedId={selectedId} onSelectCommit={onSelectCommit} />
 
       <CiSection
         ci={ci}

@@ -207,6 +207,13 @@ let shellInstalled = false;
         setTimeout(() => send?.({ index: 2, message: { event: "done", data: { paths, commits } } }), 600);
         return null;
       }
+      case "cleanup_report": {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        const remote = dump.refs.filter((r) => r.kind === "Remote").slice(0, 2);
+        const local = dump.refs.filter((r) => r.kind === "Branch").slice(0, 2);
+        const ref = (r: RefLabel) => ({ name: r.name, commit: r.commit });
+        return { goneRemote: remote.map(ref), goneUpstream: [], noUpstream: local.map(ref), merged: local.slice(0, 1).map(ref), errors: [] };
+      }
       case "list_files": {
         // A small tree whose contents change a little from commit to commit.
         await new Promise((resolve) => setTimeout(resolve, 150));

@@ -11,6 +11,7 @@ use crate::ci::{self, CiOverview, CiProvider};
 use crate::error::AppError;
 use crate::git::activity::{self, ActivityEvent};
 use crate::git::blame::{self, FileBlame};
+use crate::git::cleanup::{self, CleanupReport};
 use crate::git::commits::{self, LoadEvent, RefFilter};
 use crate::git::diff::{self, CommitDetails, FileDiff};
 use crate::git::fetch::{FetchState, Fetcher};
@@ -447,6 +448,28 @@ pub async fn list_upstreams(
     let session = state.get(&session_id)?;
     tauri::async_runtime::spawn_blocking(move || {
         upstream::list_upstreams(&session.repo.to_thread_local())
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// Refs worth cleaning up: remote branches gone from their remote, local branches whose upstream
+/// is gone or that have none, and local branches HEAD already holds. Asks each remote for its
+/// branches (`git ls-remote`); a remote that cannot be reached is listed in `errors`.
+#[tauri::command]
+#[specta::specta]
+pub async fn cleanup_report(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<CleanupReport, AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = commits::repo_for_walk(&session.repo);
+        let dir = repo
+            .workdir()
+            .unwrap_or_else(|| repo.git_dir())
+            .to_path_buf();
+        cleanup::cleanup_report(&repo, &|remote| cleanup::ls_remote_heads(&dir, remote))
     })
     .await
     .map_err(|err| AppError::Internal(err.to_string()))?

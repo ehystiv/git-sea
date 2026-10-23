@@ -1,5 +1,6 @@
 pub mod activity;
 pub mod blame;
+pub mod cleanup;
 pub mod commits;
 pub mod diff;
 pub mod fetch;
