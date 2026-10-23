@@ -46,6 +46,21 @@ fn authors_are_named_as_the_mailmap_says() {
 }
 
 #[test]
+fn co_authors_are_named_as_the_mailmap_says() {
+    let dir = fixture("mailmap_co_authors");
+    let repo = gix::open(&dir).unwrap();
+    let all = commits(&repo);
+    let co: Vec<Option<Vec<String>>> = all.iter().map(|c| c.co_authors.clone()).collect();
+    assert_eq!(co, [Some(vec!["Anna Rossi".to_owned()]), None, None]);
+
+    let details = commit_details(&repo, &all[0].id, None).unwrap();
+    assert_eq!(details.co_authors.len(), 1);
+    assert_eq!(details.co_authors[0].name, "Anna Rossi");
+    assert_eq!(details.co_authors[0].email, "anna@example.com");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn details_and_blame_use_the_mailmap() {
     let dir = fixture("mailmap_details");
     let repo = gix::open(&dir).unwrap();

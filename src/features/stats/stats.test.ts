@@ -47,6 +47,22 @@ describe("repoStats", () => {
     expect(stats.punch.reduce((a, b) => a + b, 0)).toBe(3);
   });
 
+  it("credits co-authors, once each", () => {
+    const shared = [
+      { ...commit("b", "Bruno", at(2026, 3, 3), ["a"]), coAuthors: ["Anna", "Bruno"] },
+      commit("a", "Anna", at(2026, 3, 1)),
+    ];
+    const stats = repoStats(shared);
+    expect(stats.commits).toBe(2);
+    expect(stats.coAuthored).toBe(1);
+    expect(stats.authors.map((a) => [a.name, a.commits, a.coAuthored])).toEqual([
+      ["Anna", 2, 1],
+      ["Bruno", 1, 0],
+    ]);
+    expect(stats.authors[0]).toMatchObject({ first: at(2026, 3, 1), last: at(2026, 3, 3) });
+    expect(stats.days.get("2026-03-03")).toBe(1);
+  });
+
   it("keeps only the commits asked for", () => {
     const stats = repoStats(commits, (c) => c.author === "Anna");
     expect(stats.commits).toBe(2);

@@ -108,6 +108,13 @@ describe("matchCommits", () => {
     expect(matchCommits(commits, q("hash:0bad"))).toEqual(["0badcafe00"]);
   });
 
+  it("counts co-authors as authors", () => {
+    const shared = [{ ...commit("c0ffee0000", "pair work", "Bruno"), coAuthors: ["Anna Rossi"] }, commit("deadbeef00", "solo", "Bruno")];
+    expect(matchCommits(shared, q("author:anna"))).toEqual(["c0ffee0000"]);
+    expect(matchCommits(shared, textQuery("rossi"))).toEqual(["c0ffee0000"]);
+    expect(matchCommits(shared, q("re:^anna"))).toEqual(["c0ffee0000"]);
+  });
+
   it("restricts to the author with the prefix, and stops at the limit", () => {
     expect(matchCommits(commits, q("author:marco"))).toEqual(["ffee001122"]);
     expect(matchCommits(commits, q("author:fix"))).toEqual([]);

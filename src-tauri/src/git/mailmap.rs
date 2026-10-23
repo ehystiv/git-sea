@@ -23,6 +23,41 @@ pub fn resolve<'a>(
     (resolved.name, resolved.email)
 }
 
+/// The `Co-authored-by:` trailers of a commit message, as (name, email) once the mailmap is
+/// applied, in the order they are written and each person once. Values that are not
+/// `Name <email>` are skipped.
+pub fn co_authors(
+    mailmap: &Mailmap,
+    message: &gix::objs::commit::MessageRef<'_>,
+) -> Vec<(String, String)> {
+    let Some(body) = message.body() else {
+        return Vec::new();
+    };
+    let mut found: Vec<(String, String)> = Vec::new();
+    for trailer in body.trailers() {
+        if !trailer.token.eq_ignore_ascii_case(b"co-authored-by") {
+            continue;
+        }
+        let Ok(identity) = gix::actor::IdentityRef::from_bytes(trailer.value.as_ref()) else {
+            continue;
+        };
+        if identity.name.is_empty() && identity.email.is_empty() {
+            continue;
+        }
+        let signature = gix::actor::SignatureRef {
+            name: identity.name,
+            email: identity.email,
+            time: "0 +0000",
+        };
+        let (name, email) = resolve(mailmap, signature);
+        let person = (name.to_string(), email.to_string());
+        if !found.contains(&person) {
+            found.push(person);
+        }
+    }
+    found
+}
+
 /// Every entry of the mailmap, one line each in a fixed order, to tell whether it changed.
 pub fn entries(mailmap: &Mailmap) -> Vec<String> {
     let show = |s: Option<&BStr>| s.map(ToString::to_string).unwrap_or_default();
@@ -69,6 +104,31 @@ mod tests {
         );
         let (name, _) = resolve(&mailmap, signature("Bruno", "bruno@example.com"));
         assert_eq!(name.as_ref(), BStr::new("Bruno"));
+    }
+
+    fn message(text: &str) -> gix::objs::commit::MessageRef<'_> {
+        gix::objs::commit::MessageRef::from_bytes(text.as_bytes())
+    }
+
+    #[test]
+    fn reads_co_authors_from_the_trailers() {
+        let mailmap = Mailmap::from_bytes(b"Anna Rossi <anna@example.com> <anna@old.example>\n");
+        let text = "Fix the login\n\nLonger text.\n\nSigned-off-by: Bruno <bruno@example.com>\nCo-authored-by: A. Rossi <anna@old.example>\nco-authored-by: Carla <carla@example.com>\nCo-Authored-By: Carla <carla@example.com>\nCo-authored-by: nobody\n";
+        assert_eq!(
+            co_authors(&mailmap, &message(text)),
+            [
+                ("Anna Rossi".to_owned(), "anna@example.com".to_owned()),
+                ("Carla".to_owned(), "carla@example.com".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_trailer_in_the_middle_of_the_body_is_not_one() {
+        let mailmap = Mailmap::default();
+        assert!(co_authors(&mailmap, &message("Fix\n")).is_empty());
+        let text = "Fix\n\nCo-authored-by: Anna <anna@example.com>\n\nMore text after it.\n";
+        assert!(co_authors(&mailmap, &message(text)).is_empty());
     }
 
     #[test]

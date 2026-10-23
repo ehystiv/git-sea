@@ -351,6 +351,8 @@ export const en = {
     unified: "Unified",
     split: "Split",
     loadingDiff: "Loading the differences…",
+    withCoAuthors: (names: string) => `with ${names}`,
+    coAuthorsTitle: "Co-authors, from the Co-authored-by lines of the message",
   },
 
   worktree: {
@@ -564,6 +566,9 @@ export const en = {
     showAll: (n: string) => `Show all ${n}`,
     showFewer: "Show fewer",
     mailmap: "Names and emails are merged as .mailmap says.",
+    coAuthorsNote: "A co-authored commit counts for each of its authors.",
+    coAuthored: (n: string) => `${n} with co-authors`,
+    asCoAuthor: (n: number) => (n === 1 ? "1 as a co-author" : `${n} as a co-author`),
   },
 };
 

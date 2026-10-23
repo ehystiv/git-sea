@@ -3,6 +3,7 @@ import { dateFormatter, formatAgo, formatCount } from "../../lib/format";
 import { useT } from "../../lib/i18n";
 import { useElementWidth } from "../../lib/useElementWidth";
 import type { GraphIndex } from "../graph/GraphIndex";
+import { authorsOf } from "../commits/authors";
 import { calendar, calendarPeriod, calendarStep, daySearch, level, punchSteps, repoStats, type AuthorStats, type CalendarDay, type RepoStats } from "./stats";
 import styles from "./StatsView.module.css";
 
@@ -46,7 +47,7 @@ export function StatsView({ index, version, loading, filter, onSearch }: StatsVi
   const [allAuthors, setAllAuthors] = useState(false);
 
   const all = useMemo(() => repoStats(index.commits), [index, version]);
-  const shown = useMemo(() => (focus === null ? all : repoStats(index.commits, (c) => c.author === focus)), [all, index, version, focus]);
+  const shown = useMemo(() => (focus === null ? all : repoStats(index.commits, (c) => authorsOf(c).includes(focus))), [all, index, version, focus]);
   // An author gone after a reload (a new .mailmap, another filter) cannot stay focused.
   const focused = focus !== null && all.authors.some((a) => a.name === focus) ? focus : null;
   const stats = focused === null ? all : shown;
@@ -130,7 +131,10 @@ export function StatsView({ index, version, loading, filter, onSearch }: StatsVi
         <section className={styles.card}>
           <div className={styles.cardHead}>
             <h2>{m.stats.byAuthor}</h2>
-            <span className={styles.note}>{m.stats.mailmap}</span>
+            <span className={styles.note}>
+              {m.stats.mailmap}
+              {all.coAuthored > 0 && ` ${m.stats.coAuthorsNote}`}
+            </span>
           </div>
           <ol className={styles.authors}>
             {authors.map((author, i) => (
@@ -169,6 +173,7 @@ function Tiles({ stats, authors, focused }: { stats: RepoStats; authors: number;
         <span className={styles.tileLabel}>{m.stats.commits}</span>
         <span className={styles.tileValue}>{formatCount(stats.commits)}</span>
         {stats.merges > 0 && <span className={styles.note}>{m.stats.merges(formatCount(stats.merges))}</span>}
+        {stats.coAuthored > 0 && <span className={styles.note}>{m.stats.coAuthored(formatCount(stats.coAuthored))}</span>}
       </div>
       {!focused && (
         <div className={styles.tile}>
@@ -299,7 +304,13 @@ function AuthorRow({ rank, author, total, top, focused, onFocus, onShowCommits }
   const percent = (author.commits / total) * 100;
   return (
     <li className={`${styles.author} ${focused ? styles.focused : ""}`}>
-      <button type="button" className={styles.authorMain} aria-pressed={focused} title={m.stats.focus} onClick={onFocus}>
+      <button
+        type="button"
+        className={styles.authorMain}
+        aria-pressed={focused}
+        title={author.coAuthored > 0 ? `${m.stats.focus}\n${m.stats.asCoAuthor(author.coAuthored)}` : m.stats.focus}
+        onClick={onFocus}
+      >
         <span className={styles.rank}>{rank}</span>
         <span className={styles.name}>{author.name}</span>
         <span className={styles.bar}>

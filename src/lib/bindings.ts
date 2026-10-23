@@ -238,6 +238,12 @@ export type CiWorkflow = {
 	webUrl: string | null,
 };
 
+/**  Someone named in a `Co-authored-by:` trailer. */
+export type CoAuthor = {
+	name: string,
+	email: string,
+};
+
 export type CommitDetails = {
 	id: string,
 	summary: string,
@@ -245,6 +251,8 @@ export type CommitDetails = {
 	body: string,
 	author: Person,
 	committer: Person,
+	/**  From the message's `Co-authored-by:` trailers, after the mailmap. */
+	coAuthors: CoAuthor[],
 	parents: string[],
 	/**
 	 *  The commit the files below were compared with (the first parent unless a base was given);
@@ -266,6 +274,11 @@ export type CommitSummary = {
 	time: number | null,
 	/**  Full hex ids of the parents, first parent first. */
 	parents: string[],
+	/**
+	 *  Names from the message's `Co-authored-by:` trailers, after the mailmap; `None` when there
+	 *  are none, which is most commits.
+	 */
+	coAuthors?: string[] | null,
 };
 
 export type DiffLine = {

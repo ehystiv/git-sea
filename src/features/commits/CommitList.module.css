@@ -26,6 +26,7 @@
 
   .summary, .author { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .author { color: var(--text-2); }
+  .more { color: var(--text-3); }
   .date { color: var(--text-3); font-variant-numeric: tabular-nums; }
   .hash { font: 12px var(--font-mono); color: var(--text-3); }
 }

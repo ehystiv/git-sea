@@ -1,9 +1,12 @@
 import type { CommitSummary } from "../../lib/bindings";
+import { authorsOf } from "../commits/authors";
 
-/** Commits of one author (as named after the mailmap). */
+/** Commits of one author (as named after the mailmap), co-authored ones included. */
 export interface AuthorStats {
   name: string;
   commits: number;
+  /** How many of `commits` name them as a co-author only. */
+  coAuthored: number;
   /** Unix seconds of the oldest and newest commit, or null when none has a date. */
   first: number | null;
   last: number | null;
@@ -13,8 +16,10 @@ export interface AuthorStats {
 export interface RepoStats {
   commits: number;
   merges: number;
-  /** Most commits first, then by name. */
+  /** Most commits first, then by name. A co-authored commit counts for each of its authors. */
   authors: AuthorStats[];
+  /** Commits naming at least one co-author. */
+  coAuthored: number;
   /** Local day (`dayKey`) -> commits on it. */
   days: Map<string, number>;
   /** Commits by weekday and hour: index `weekday * 24 + hour`, Monday being 0. */
@@ -44,6 +49,7 @@ export function repoStats(commits: readonly CommitSummary[], include: (commit: C
   const years = new Set<number>();
   let count = 0;
   let merges = 0;
+  let coAuthored = 0;
   let first: number | null = null;
   let last: number | null = null;
 
@@ -51,16 +57,22 @@ export function repoStats(commits: readonly CommitSummary[], include: (commit: C
     if (!include(commit)) continue;
     count++;
     if (commit.parents.length > 1) merges++;
-    let author = byAuthor.get(commit.author);
-    if (!author) {
-      author = { name: commit.author, commits: 0, first: null, last: null };
-      byAuthor.set(commit.author, author);
-    }
-    author.commits++;
+    if (authorsOf(commit).length > 1) coAuthored++;
     const time = commit.time;
-    if (time === null || !Number.isFinite(time)) continue;
-    if (author.first === null || time < author.first) author.first = time;
-    if (author.last === null || time > author.last) author.last = time;
+    const dated = time !== null && Number.isFinite(time);
+    for (const name of authorsOf(commit)) {
+      let author = byAuthor.get(name);
+      if (!author) {
+        author = { name, commits: 0, coAuthored: 0, first: null, last: null };
+        byAuthor.set(name, author);
+      }
+      author.commits++;
+      if (name !== commit.author) author.coAuthored++;
+      if (!dated) continue;
+      if (author.first === null || time < author.first) author.first = time;
+      if (author.last === null || time > author.last) author.last = time;
+    }
+    if (!dated) continue;
     if (first === null || time < first) first = time;
     if (last === null || time > last) last = time;
     const date = new Date(time * 1000);
@@ -72,7 +84,7 @@ export function repoStats(commits: readonly CommitSummary[], include: (commit: C
   }
 
   const authors = [...byAuthor.values()].sort((a, b) => b.commits - a.commits || a.name.localeCompare(b.name));
-  return { commits: count, merges, authors, days, punch, first, last, years: [...years].sort((a, b) => b - a) };
+  return { commits: count, merges, coAuthored, authors, days, punch, first, last, years: [...years].sort((a, b) => b - a) };
 }
 
 /** Shade of a count from 0 (none) to 4 (the most). The square root keeps one busy day from fading all the others. */

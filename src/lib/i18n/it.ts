@@ -348,6 +348,8 @@ export const it: Messages = {
     unified: "Unificato",
     split: "Affiancato",
     loadingDiff: "Carico le differenze…",
+    withCoAuthors: (names) => `con ${names}`,
+    coAuthorsTitle: "Co-autori, dalle righe Co-authored-by del messaggio",
   },
 
   worktree: {
@@ -561,5 +563,8 @@ export const it: Messages = {
     showAll: (n) => `Mostra tutti e ${n}`,
     showFewer: "Mostra meno",
     mailmap: "Nomi ed email sono uniti come dice .mailmap.",
+    coAuthorsNote: "Un commit con co-autori conta per ciascuno di loro.",
+    coAuthored: (n) => `${n} con co-autori`,
+    asCoAuthor: (n) => (n === 1 ? "1 da co-autore" : `${n} da co-autore`),
   },
 };

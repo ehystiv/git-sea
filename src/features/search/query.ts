@@ -1,5 +1,6 @@
 import type { CommitSummary } from "../../lib/bindings";
 import { t, type Messages } from "../../lib/i18n";
+import { authorsOf } from "../commits/authors";
 
 /**
  * A condition the frontend checks on the commits it has. `text` (no prefix) matches the subject,
@@ -163,18 +164,19 @@ function termMatcher(term: LocalTerm): (commit: CommitSummary) => boolean {
     case "text": {
       const needle = term.text.toLowerCase();
       const hash = HEX.test(needle) ? needle : null;
-      return (c) => c.summary.toLowerCase().includes(needle) || c.author.toLowerCase().includes(needle) || (hash !== null && c.id.startsWith(hash));
+      return (c) => c.summary.toLowerCase().includes(needle) || authorsOf(c).some((a) => a.toLowerCase().includes(needle)) || (hash !== null && c.id.startsWith(hash));
     }
     case "author": {
+      // Co-authors count too: the statistics credit them, and a search from there must agree.
       const needle = term.text.toLowerCase();
-      return (c) => c.author.toLowerCase().includes(needle);
+      return (c) => authorsOf(c).some((a) => a.toLowerCase().includes(needle));
     }
     case "hash": {
       const needle = term.text.toLowerCase();
       return (c) => c.id.startsWith(needle);
     }
     case "regex":
-      return (c) => term.re.test(c.summary) || term.re.test(c.author);
+      return (c) => term.re.test(c.summary) || authorsOf(c).some((a) => term.re.test(a));
     case "after":
       return (c) => c.time !== null && c.time >= term.time;
     case "before":

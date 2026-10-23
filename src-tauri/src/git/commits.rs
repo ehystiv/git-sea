@@ -37,6 +37,10 @@ pub struct CommitSummary {
     pub time: i64,
     /// Full hex ids of the parents, first parent first.
     pub parents: Vec<String>,
+    /// Names from the message's `Co-authored-by:` trailers, after the mailmap; `None` when there
+    /// are none, which is most commits.
+    #[specta(optional)]
+    pub co_authors: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Type)]
@@ -215,7 +219,8 @@ impl RefSnapshot {
 }
 
 /// Walks the commits reachable from `tips` in topological order (children before parents) and
-/// hands them to `send` in chunks. Authors are named as the repository's mailmap says. `send` returns `false` to stop (e.g. the frontend went away);
+/// hands them to `send` in chunks. Authors and co-authors are named as the repository's mailmap
+/// says. `send` returns `false` to stop (e.g. the frontend went away);
 /// `cancelled` is polled between commits.
 pub fn stream_commits(
     repo: &gix::Repository,
@@ -327,6 +332,10 @@ fn summarize(
     let message = commit.message().map_err(|e| git(&e))?;
     let author = commit.author().map_err(|e| git(&e))?;
     let (name, _) = mailmap::resolve(mailmap, author);
+    let co_authors: Vec<String> = mailmap::co_authors(mailmap, &message)
+        .into_iter()
+        .map(|(name, _)| name)
+        .collect();
 
     Ok(CommitSummary {
         id: info.id.to_string(),
@@ -334,6 +343,7 @@ fn summarize(
         author: name.to_string(),
         time: author.seconds(),
         parents: info.parent_ids.iter().map(ToString::to_string).collect(),
+        co_authors: (!co_authors.is_empty()).then_some(co_authors),
     })
 }
 

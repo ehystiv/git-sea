@@ -46,6 +46,10 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 
 - **Apertura da terminale** ✅. `git-sea` apre il repo della cartella corrente, `git-sea <percorso>…` quelli indicati (risalendo alla radice del repo), ciascuno in una tab. Con `tauri-plugin-single-instance` un secondo avvio passa gli argomenti all'app aperta ed esce; su macOS anche l'evento "apri" del sistema (`open -a git-sea .`, una cartella trascinata sull'icona nel Dock; `Info.plist` dichiara le cartelle senza diventarne l'app predefinita). I percorsi aspettano nel backend (`launch.rs`) finché il frontend, dopo aver ripristinato le tab, li prende. Il comando: su macOS "Installa il comando git-sea…" (menu dell'app, palette, impostazioni) scrive in `/usr/local/bin` uno script che usa `open -a`, chiedendo la password se serve (`shell_command.rs`); con i pacchetti `.deb` e `.rpm` c'è già `/usr/bin/git-sea`. Niente plugin `cli`: basta leggere i percorsi.
 
+## Quarta tornata (23 ottobre 2026)
+
+- **Co-autori** ✅. Le righe `Co-authored-by:` del messaggio (`mailmap::co_authors`, con i trailer di `gix` e la mailmap applicata) arrivano con ogni commit (`coAuthors`, assente se non ce ne sono; cache al formato 4) e nei dettagli, con l'email. Pannello dettagli: "con Anna, Bruno" sotto l'autore; elenco: "+1" accanto all'autore. La ricerca (`author:`, parole semplici, `re:`) guarda anche i co-autori; nelle statistiche un commit conta per ciascuno dei suoi autori (una persona una volta sola, anche se la mailmap fa coincidere autore e co-autore), con quanti commit hanno co-autori.
+
 ## Da valutare dopo
 
 ### Capire la storia

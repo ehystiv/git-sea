@@ -20,7 +20,7 @@ use crate::graph::lanes::GraphRow;
 
 /// Bump when the file layout or the lane algorithm changes: older files are then ignored (and
 /// removed by `sweep`).
-const FORMAT_VERSION: u32 = 3;
+const FORMAT_VERSION: u32 = 4;
 /// Smaller histories load instantly, so they are not worth a file.
 pub const MIN_CACHED_COMMITS: usize = 1_000;
 /// Files kept in the cache directory; the least recently written go first.
@@ -269,6 +269,7 @@ mod tests {
             author: "Ada".to_owned(),
             time: 1_700_000_000,
             parents: parents.iter().map(|p| (*p).to_owned()).collect(),
+            co_authors: (id == "b").then(|| vec!["Grace".to_owned()]),
         };
         let commits = vec![
             commit("c", &["a", "b"]),

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { authorsOf } from "./authors";
 import type { CommitSummary } from "../../lib/bindings";
 import { formatRelative, shortHash } from "../../lib/format";
 import { useT } from "../../lib/i18n";
@@ -43,6 +44,7 @@ export function CommitList({ commits, selectedId, onSelect, onCompare, onContext
           {virtualizer.getVirtualItems().map((item) => {
             const commit = commits[item.index];
             if (!commit) return null;
+            const people = authorsOf(commit);
             return (
               <div
                 key={commit.id}
@@ -59,7 +61,10 @@ export function CommitList({ commits, selectedId, onSelect, onCompare, onContext
                 style={{ height: ROW_HEIGHT, transform: `translateY(${item.start}px)` }}
               >
                 <span className={styles.summary}>{commit.summary}</span>
-                <span className={styles.author}>{commit.author}</span>
+                <span className={styles.author} title={people.join(", ")}>
+                  {commit.author}
+                  {people.length > 1 && <span className={styles.more}> +{people.length - 1}</span>}
+                </span>
                 <span className={styles.date}>{formatRelative(commit.time ?? 0, now)}</span>
                 <span className={styles.hash}>{shortHash(commit.id)}</span>
               </div>

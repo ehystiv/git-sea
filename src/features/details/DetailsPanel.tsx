@@ -64,6 +64,8 @@ export function DetailsPanel({ sessionId, commit, index, version, pulls = null, 
   const isMerge = commit.parents.length > 1;
   const refs = index.refs.get(commit.id) ?? [];
   const requests = pullsOfCommit(pulls, commit.id);
+  // The names come with the commit; the emails, for the tooltip, with its details.
+  const coAuthors = data && data.id === commit.id ? data.coAuthors.map((p) => ({ name: p.name, title: `${p.name} <${p.email}>` })) : (commit.coAuthors ?? []).map((name) => ({ name, title: name }));
 
   async function copyHash() {
     try {
@@ -86,6 +88,11 @@ export function DetailsPanel({ sessionId, commit, index, version, pulls = null, 
           <span className={styles.avatar}>{commit.author.slice(0, 1).toUpperCase()}</span>
           <div>
             <div className={styles.who}>{commit.author}</div>
+            {coAuthors.length > 0 && (
+              <div className={styles.coAuthors} title={`${m.details.coAuthorsTitle}\n${coAuthors.map((p) => p.title).join("\n")}`}>
+                {m.details.withCoAuthors(coAuthors.map((p) => p.name).join(", "))}
+              </div>
+            )}
             <div className={styles.when}>
               {formatDateTime(commit.time ?? 0)} · {formatAgo(commit.time ?? 0, Date.now(), m)}
             </div>

@@ -13,6 +13,7 @@
   .avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--b1); background: color-mix(in srgb, var(--b1) 16%, transparent); flex: none; }
   .who { font-weight: 500; }
   .when { color: var(--text-3); font-size: 12px; }
+  .coAuthors { color: var(--text-2); font-size: 12px; overflow-wrap: anywhere; }
 
   /* minmax(0, …): long values are cut or wrapped inside the column, never widen the panel. */
   .grid { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: var(--space-2); align-items: start; }

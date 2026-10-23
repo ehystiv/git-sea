@@ -29,6 +29,13 @@ pub struct Person {
     pub time: i64,
 }
 
+/// Someone named in a `Co-authored-by:` trailer.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
+pub struct CoAuthor {
+    pub name: String,
+    pub email: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
 pub enum ChangeStatus {
     Added,
@@ -61,6 +68,8 @@ pub struct CommitDetails {
     pub body: String,
     pub author: Person,
     pub committer: Person,
+    /// From the message's `Co-authored-by:` trailers, after the mailmap.
+    pub co_authors: Vec<CoAuthor>,
     pub parents: Vec<String>,
     /// The commit the files below were compared with (the first parent unless a base was given);
     /// `None` for a root commit.
@@ -200,6 +209,10 @@ pub fn commit_details(
         body,
         author: person(&mailmap, commit.author().map_err(git)?),
         committer: person(&mailmap, commit.committer().map_err(git)?),
+        co_authors: mailmap::co_authors(&mailmap, &message)
+            .into_iter()
+            .map(|(name, email)| CoAuthor { name, email })
+            .collect(),
         parents: commit.parent_ids().map(|id| id.to_string()).collect(),
         compared_with: parent.map(|(id, _)| id.to_string()),
         files,
