@@ -192,6 +192,8 @@ export const it: Messages = {
     viewTimeline: "Vista timeline",
     viewList: "Vista elenco",
     viewStats: "Vista statistiche",
+    browseFiles: "Sfoglia i file del commit selezionato",
+    closeFiles: "Chiudi il browser dei file",
     hidePanel: "Nascondi il pannello dettagli",
     showPanel: "Mostra il pannello dettagli",
     hideSidebar: "Nascondi la sidebar",
@@ -418,6 +420,30 @@ export const it: Messages = {
     goTo: (name: string) => `Seleziona il commit a cui punta ${name}`,
   },
 
+  files: {
+    title: "File",
+    label: "File di un commit",
+    browse: "Sfoglia i file",
+    browseTitle: "Tutti i file del repository come sono in questo commit",
+    close: "Torna ai dettagli del commit",
+    filter: "Trova un file",
+    filterPlaceholder: "Trova un file…",
+    noMatch: "Nessun file corrisponde.",
+    more: (n) => `Altri ${n}: scrivi di più del nome.`,
+    loading: "Leggo i file…",
+    reading: "Leggo il file…",
+    content: "Contenuto",
+    contentTitle: "Il file com'è in questo commit",
+    missing: "Questo file non c'è in questo commit.",
+    pick: "Scegli un file per vederlo.",
+    binary: (size) => `File binario, ${size}.`,
+    tooLarge: (size) => `File troppo grande da mostrare (${size}).`,
+    empty: "Il file è vuoto.",
+    submodule: (hash) => `Sottomodulo, al commit ${hash}.`,
+    symlink: "Collegamento simbolico a",
+    kinds: { Executable: "eseguibile", Symlink: "collegamento", Submodule: "sottomodulo" },
+  },
+
   blame: {
     tab: "Blame",
     title: "Mostra il commit che ha cambiato per ultimo ogni riga",
@@ -449,6 +475,7 @@ export const it: Messages = {
     openOn: (service) => `Apri su ${service}`,
     replayFrom: "Replay da qui",
     replayTo: "Replay fino a qui",
+    browseFiles: "Sfoglia i file",
   },
 
   compare: {

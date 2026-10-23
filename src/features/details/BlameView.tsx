@@ -92,7 +92,8 @@ export function BlameView({ blame, commitId, onSelectCommit }: BlameViewProps) {
   );
 }
 
-function Code({ text, tokens }: { text: string; tokens?: ThemedToken[] }) {
+/** A line of code, with syntax colours when there are tokens. */
+export function Code({ text, tokens }: { text: string; tokens?: ThemedToken[] }) {
   if (text === "" || tokens?.length === 0) return <> </>;
   if (!tokens) return <>{text}</>;
   return (

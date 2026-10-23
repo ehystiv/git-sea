@@ -13,6 +13,7 @@ import { copyText } from "../../lib/clipboard";
 import { ComparePanel } from "../details/ComparePanel";
 import { commitDetailsQuery } from "../details/useCommitDetails";
 import { DetailsPanel } from "../details/DetailsPanel";
+import { FilesPanel } from "../files/FilesPanel";
 import { useWorktreeStatus } from "../details/useWorktree";
 import { WorktreePanel } from "../details/WorktreePanel";
 import { ancestorEmphasis, ancestorMask, matchEmphasis, type Emphasis } from "../graph/emphasis";
@@ -119,6 +120,11 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
   const [divergenceOf, setDivergenceOf] = useState<string | null>(null);
   /** The details panel shows the local changes instead of the selected commit. */
   const [showWorktree, setShowWorktree] = useState(false);
+  /**
+   * The details panel shows every file of the selected commit, and keeps doing so as the selection
+   * moves. `opened` counts the openings, so each one starts at its own file.
+   */
+  const [browse, setBrowse] = useState<{ path: string | null; opened: number } | null>(null);
   /** The details panel shows the CI of this commit instead of its details. */
   const [ciCommit, setCiCommit] = useState<string | null>(null);
   /** The only workflow whose markers are shown, or null for all. */
@@ -211,6 +217,13 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
   const showCommitDetails = useCallback(() => {
     setShowWorktree(false);
     setCiCommit(null);
+  }, []);
+  const openFiles = useCallback((path: string | null = null) => {
+    setBrowse((b) => ({ path, opened: (b?.opened ?? 0) + 1 }));
+    setShowWorktree(false);
+    setCiCommit(null);
+    setCompare(null);
+    setPanelOpen(true);
   }, []);
   const openCi = useCallback((id: string) => {
     setShowWorktree(false);
@@ -595,6 +608,8 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
     compareWith: (id) => startCompare(id),
     swapCompare,
     stopCompare: () => setCompare(null),
+    browseFiles: () => openFiles(),
+    closeFiles: () => setBrowse(null),
     showDivergence: (branch) => setDivergenceOf(branch),
     stopDivergence: () => setDivergenceOf(null),
     toggleBookmark: () => {
@@ -645,6 +660,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
         ancestors,
         hasSelection: selected !== null,
         comparing: compare !== null,
+        browsing: browse !== null && compare === null,
         divergences,
         divergenceOf: focusedDivergence?.branch ?? null,
         bookmarks,
@@ -1065,8 +1081,27 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
                 onClose={() => setCompare(null)}
                 onFileHistory={showFileHistory}
               />
+            ) : browse ? (
+              <FilesPanel
+                key={browse.opened}
+                sessionId={repo.sessionId}
+                commit={selected}
+                initialPath={browse.path}
+                onSelectCommit={selectById}
+                onFileHistory={showFileHistory}
+                onClose={() => setBrowse(null)}
+              />
             ) : (
-              <DetailsPanel sessionId={repo.sessionId} commit={selected} index={index} version={stream.version} pulls={pulls.data ?? null} onSelectCommit={selectById} onFileHistory={showFileHistory} />
+              <DetailsPanel
+                sessionId={repo.sessionId}
+                commit={selected}
+                index={index}
+                version={stream.version}
+                pulls={pulls.data ?? null}
+                onSelectCommit={selectById}
+                onFileHistory={showFileHistory}
+                onBrowseFiles={openFiles}
+              />
             )}
           </div>
         )}
@@ -1099,6 +1134,14 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
             compare: compareWithCommit,
             toggleBookmark: (commit) => toggleBookmarkOf(commit.id),
             openUrl,
+            ...(panelAllowed
+              ? {
+                  browseFiles: (commit: CommitSummary) => {
+                    selectById(commit.id);
+                    openFiles();
+                  },
+                }
+              : {}),
             ...(mode === "graph" || mode === "topology"
               ? { replayFrom: (commit: CommitSummary) => openReplay({ start: commit.id }), replayTo: (commit: CommitSummary) => openReplay({ end: commit.id }) }
               : {}),

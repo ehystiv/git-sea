@@ -17,6 +17,13 @@ describe("commitMenuItems", () => {
     expect(commitMenuItems(commit, "other", null, false, actions(), en).some((i) => i.id === "compare")).toBe(true);
   });
 
+  it("browses the commit's files when the view can", () => {
+    expect(commitMenuItems(commit, null, null, false, actions(), en).some((i) => i.id === "browse-files")).toBe(false);
+    const a = { ...actions(), browseFiles: vi.fn() };
+    commitMenuItems(commit, null, null, false, a, en).find((i) => i.id === "browse-files")?.run();
+    expect(a.browseFiles).toHaveBeenCalledWith(commit);
+  });
+
   it("opens the commit's page on the hosting service", () => {
     const a = actions();
     const items = commitMenuItems(commit, null, { name: "GitHub", commitUrl: "https://github.com/o/r/commit/" }, false, a, en);

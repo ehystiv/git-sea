@@ -28,12 +28,14 @@ interface DetailsPanelProps {
   onSelectCommit: (id: string) => void;
   /** Shows the commits that changed a file. */
   onFileHistory?: (path: string) => void;
+  /** Opens the commit's files, at this one when given. */
+  onBrowseFiles?: (path: string | null) => void;
 }
 
 /** Branches shown before "and N more". */
 const BRANCHES_SHOWN = 6;
 
-export function DetailsPanel({ sessionId, commit, index, version, pulls = null, onSelectCommit, onFileHistory }: DetailsPanelProps) {
+export function DetailsPanel({ sessionId, commit, index, version, pulls = null, onSelectCommit, onFileHistory, onBrowseFiles }: DetailsPanelProps) {
   // Holding j or k moves through commits fast; only ask the backend once it settles.
   const commitId = useDebouncedValue(commit?.id ?? null, 80);
   const m = useT();
@@ -222,6 +224,7 @@ export function DetailsPanel({ sessionId, commit, index, version, pulls = null, 
         details={details}
         onFileHistory={onFileHistory}
         onSelectCommit={onSelectCommit}
+        onBrowse={onBrowseFiles}
         hint={
           isMerge && (
             <div className={styles.hint}>
@@ -263,6 +266,8 @@ interface FileChangesProps {
   onFileHistory?: (path: string) => void;
   /** Picks a commit named by the blame. */
   onSelectCommit: (id: string) => void;
+  /** Opens all the files of the commit, at the shown one when it still exists. */
+  onBrowse?: (path: string | null) => void;
 }
 
 /** How the picked file is shown: its differences, or who last changed each line. */
@@ -270,7 +275,7 @@ type FileView = DiffMode | "blame";
 const FILE_VIEWS: readonly FileView[] = ["unified", "split", "blame"];
 
 /** The changed files of a commit (against its parent or another commit) and the diff of one of them. */
-export function FileChanges({ sessionId, commitId, base, details, hint, onFileHistory, onSelectCommit }: FileChangesProps) {
+export function FileChanges({ sessionId, commitId, base, details, hint, onFileHistory, onSelectCommit, onBrowse }: FileChangesProps) {
   const m = useT();
   const [picked, setPicked] = useState<FileChange | null>(null);
   const [view, setView] = useState<FileView>("unified");
@@ -299,6 +304,11 @@ export function FileChanges({ sessionId, commitId, base, details, hint, onFileHi
             <i className={styles.add}>+{additions}</i>
             <i className={styles.del}>−{deletions}</i>
           </span>
+          {onBrowse && (
+            <button type="button" className={`${styles.link} ${styles.browse}`} title={m.files.browseTitle} onClick={() => onBrowse(file && file.status !== "Deleted" ? file.path : null)}>
+              {m.files.browse}
+            </button>
+          )}
         </h3>
         {hint}
         {details.data?.statsTruncated && <p className={styles.hint}>{m.details.statsTruncated}</p>}

@@ -45,6 +45,8 @@ export interface RepoCommandState {
   hasSelection: boolean;
   /** The panel compares two commits. */
   comparing: boolean;
+  /** The panel shows the files of the selected commit. */
+  browsing: boolean;
   /** Local branches and how far they are from their upstream, by branch name. */
   divergences: Map<string, BranchDivergence>;
   /** The branch whose divergence is highlighted. */
@@ -78,6 +80,8 @@ export interface RepoCommandActions {
   compareWith: (id: string) => void;
   swapCompare: () => void;
   stopCompare: () => void;
+  browseFiles: () => void;
+  closeFiles: () => void;
   showDivergence: (branch: string) => void;
   stopDivergence: () => void;
   toggleBookmark: () => void;
@@ -104,7 +108,7 @@ export interface RepoCommandActions {
 
 /** What the active repository offers to the command palette. Null for a tab in the background. */
 export function useRepoCommands(active: boolean, state: RepoCommandState, actions: RepoCommandActions): PaletteSource | null {
-  const { index, version, mode, panelOpen, sidebarCollapsed, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci } = state;
+  const { index, version, mode, panelOpen, sidebarCollapsed, flow, sea, ancestors, hasSelection, comparing, browsing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci } = state;
   const m = useT();
 
   return useMemo(() => {
@@ -165,6 +169,10 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
     const head = labels.find((l) => l.kind === "Head");
     if (hasSelection && head && index.indexOf(head.commit) !== null) {
       add({ id: "compare:head", title: m.commands.compareWithHead, keywords: "compare confronta diff differenze head", run: () => actions.compareWith(head.commit) }, g.navigation);
+    }
+    if (browsing) add({ id: "files:close", title: m.commands.closeFiles, keywords: "file files albero tree chiudi close", run: actions.closeFiles }, g.navigation);
+    else if (hasSelection && panelOpen !== null) {
+      add({ id: "files:browse", title: m.commands.browseFiles, keywords: "file files albero tree sfoglia browse sorgente source contenuto content cartelle folders", run: actions.browseFiles }, g.navigation);
     }
     if (comparing) {
       add({ id: "compare:swap", title: m.commands.swapCompare, keywords: "compare confronta inverti swap", run: actions.swapCompare }, g.navigation);
@@ -227,5 +235,5 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
 
     return { commands, search };
     // `version` is what tells us the (mutable) index changed.
-  }, [m, active, index, version, mode, panelOpen, sidebarCollapsed, flow, sea, ancestors, hasSelection, comparing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci, actions]);
+  }, [m, active, index, version, mode, panelOpen, sidebarCollapsed, flow, sea, ancestors, hasSelection, comparing, browsing, divergences, divergenceOf, bookmarks, selectionBookmarked, canGoBack, canGoForward, canCollapse, branchFilter, ci, actions]);
 }

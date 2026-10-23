@@ -17,6 +17,7 @@ use crate::git::mailmap;
 use crate::git::repo::{self, RepoInfo};
 use crate::git::search::{self, SearchField, SearchResult};
 use crate::git::stash::{self, StashEntry};
+use crate::git::tree::{self, FileContent, TreeFile};
 use crate::git::upstream::{self, Upstream};
 use crate::git::worktree::{self, WorktreeStatus};
 use crate::launch::LaunchPaths;
@@ -311,6 +312,42 @@ pub async fn blame_file(
     tauri::async_runtime::spawn_blocking(move || {
         let repo = commits::repo_for_walk(&session.repo);
         blame::blame_file(&repo, &commit_id, &path)
+            .map_err(|err| repo::in_partial_clone(&repo, err))
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// Every file of the tree of a commit, sorted by path, to browse the repository as it was then.
+#[tauri::command]
+#[specta::specta]
+pub async fn list_files(
+    state: State<'_, AppState>,
+    session_id: String,
+    commit_id: String,
+) -> Result<Vec<TreeFile>, AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = session.repo.to_thread_local();
+        tree::list_files(&repo, &commit_id).map_err(|err| repo::in_partial_clone(&repo, err))
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
+/// The content of one file as it is in a commit.
+#[tauri::command]
+#[specta::specta]
+pub async fn file_content(
+    state: State<'_, AppState>,
+    session_id: String,
+    commit_id: String,
+    path: String,
+) -> Result<FileContent, AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = session.repo.to_thread_local();
+        tree::file_content(&repo, &commit_id, &path)
             .map_err(|err| repo::in_partial_clone(&repo, err))
     })
     .await

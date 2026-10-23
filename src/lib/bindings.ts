@@ -32,6 +32,10 @@ export const commands = {
 	fileDiff: (sessionId: string, commitId: string, path: string, oldPath: string | null, base: string | null) => typedError<FileDiff, AppError>(__TAURI_INVOKE("file_diff", { sessionId, commitId, path, oldPath, base })),
 	/**  For every line of a file as it is in a commit, the commit that last changed it. */
 	blameFile: (sessionId: string, commitId: string, path: string) => typedError<FileBlame, AppError>(__TAURI_INVOKE("blame_file", { sessionId, commitId, path })),
+	/**  Every file of the tree of a commit, sorted by path, to browse the repository as it was then. */
+	listFiles: (sessionId: string, commitId: string) => typedError<TreeFile[], AppError>(__TAURI_INVOKE("list_files", { sessionId, commitId })),
+	/**  The content of one file as it is in a commit. */
+	fileContent: (sessionId: string, commitId: string, path: string) => typedError<FileContent, AppError>(__TAURI_INVOKE("file_content", { sessionId, commitId, path })),
 	/**  Stashes of the repository, newest first. */
 	listStashes: (sessionId: string) => typedError<StashEntry[], AppError>(__TAURI_INVOKE("list_stashes", { sessionId })),
 	/**  The upstream of every local branch that has one. */
@@ -310,6 +314,12 @@ export type EdgeKind =
 /**  The commit's lane (`from_lane`) reaching the lane (`to_lane`) of a non-first parent. */
 "ForkOut";
 
+export type EntryKind = "File" | 
+/**  A file with the executable bit. */
+"Executable" | "Symlink" | 
+/**  A pointer to a commit of another repository. */
+"Submodule";
+
 /**  Kinds of file the views can be exported as. */
 export type ExportFormat = "Png" | "Gif" | "Webm" | "Mp4";
 
@@ -345,6 +355,21 @@ export type FileChange = {
 	additions: number | null,
 	deletions: number | null,
 	binary: boolean,
+};
+
+export type FileContent = {
+	path: string,
+	kind: EntryKind,
+	/**  Size in bytes; for a submodule, 0. */
+	size: number | null,
+	binary: boolean,
+	/**  The file is too big to show. */
+	tooLarge: boolean,
+	/**
+	 *  The file's lines, without their line endings; a symlink's single line is its target; a
+	 *  submodule's is the commit it points to.
+	 */
+	lines: string[],
 };
 
 export type FileDiff = {
@@ -527,6 +552,12 @@ export type StashEntry = {
 	commit: string,
 	/**  The commit the stash was made on, which is in the graph. */
 	base: string | null,
+};
+
+export type TreeFile = {
+	/**  Full path from the root of the repository, with `/` between directories. */
+	path: string,
+	kind: EntryKind,
 };
 
 export type Upstream = {

@@ -195,6 +195,8 @@ export const en = {
     viewTimeline: "Timeline view",
     viewList: "List view",
     viewStats: "Statistics view",
+    browseFiles: "Browse the files of the selected commit",
+    closeFiles: "Close the file browser",
     hidePanel: "Hide the details panel",
     showPanel: "Show the details panel",
     hideSidebar: "Hide the sidebar",
@@ -421,6 +423,30 @@ export const en = {
     goTo: (name: string) => `Select the commit ${name} points to`,
   },
 
+  files: {
+    title: "Files",
+    label: "Files of a commit",
+    browse: "Browse the files",
+    browseTitle: "Every file of the repository as it is in this commit",
+    close: "Back to the commit details",
+    filter: "Find a file",
+    filterPlaceholder: "Find a file…",
+    noMatch: "No file matches.",
+    more: (n: string) => `${n} more: type more of the name.`,
+    loading: "Reading the files…",
+    reading: "Reading the file…",
+    content: "Content",
+    contentTitle: "The file as it is in this commit",
+    missing: "This file is not in this commit.",
+    pick: "Pick a file to see it.",
+    binary: (size: string) => `Binary file, ${size}.`,
+    tooLarge: (size: string) => `File too large to show (${size}).`,
+    empty: "The file is empty.",
+    submodule: (hash: string) => `Submodule, at commit ${hash}.`,
+    symlink: "Symbolic link to",
+    kinds: { Executable: "executable", Symlink: "link", Submodule: "submodule" },
+  },
+
   blame: {
     tab: "Blame",
     title: "Show the commit that last changed each line",
@@ -452,6 +478,7 @@ export const en = {
     openOn: (service: string) => `Open on ${service}`,
     replayFrom: "Replay from here",
     replayTo: "Replay up to here",
+    browseFiles: "Browse the files",
   },
 
   compare: {

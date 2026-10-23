@@ -45,6 +45,7 @@
   .count { color: var(--text-3); font-weight: 500; }
   .totals { margin-left: var(--space-2); display: flex; gap: 6px; font: 500 11px var(--font-mono); }
   .totals i { font-style: normal; }
+  .browse { margin-left: auto; font-weight: 500; }
   .add { color: var(--add); }
   .del { color: var(--danger); }
   .hint { padding: 0 var(--space-4) var(--space-2); color: var(--text-3); font-size: 12px; }

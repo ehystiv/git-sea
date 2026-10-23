@@ -49,6 +49,7 @@ Raccolte il 17 ottobre 2026 dall'analisi del codice e delle voci "Non fatto" del
 ## Quarta tornata (23 ottobre 2026)
 
 - **Co-autori** ✅. Le righe `Co-authored-by:` del messaggio (`mailmap::co_authors`, con i trailer di `gix` e la mailmap applicata) arrivano con ogni commit (`coAuthors`, assente se non ce ne sono; cache al formato 4) e nei dettagli, con l'email. Pannello dettagli: "con Anna, Bruno" sotto l'autore; elenco: "+1" accanto all'autore. La ricerca (`author:`, parole semplici, `re:`) guarda anche i co-autori; nelle statistiche un commit conta per ciascuno dei suoi autori (una persona una volta sola, anche se la mailmap fa coincidere autore e co-autore), con quanti commit hanno co-autori.
+- **File di un commit** ✅. "Sfoglia i file" (accanto ai file cambiati, nel menu del commit, nella palette) apre nel pannello l'albero completo del commit selezionato (`list_files`, `git/tree.rs`): cartelle apribili, eseguibili, collegamenti e sottomoduli segnati, e un campo che trova i file per nome come il "vai al file" degli editor (`tree.ts`: lettere in ordine, premiate se consecutive, a inizio parola o nel nome del file; frecce e Invio). Il file scelto si vede col colore della sintassi (`file_content`) o col blame, con il pulsante della sua storia. Il pannello segue la selezione: con j/k si vede lo stesso file commit dopo commit, o "non c'è in questo commit". Righe virtualizzate per le cartelle grandi.
 
 ## Da valutare dopo
 

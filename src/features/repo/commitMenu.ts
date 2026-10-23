@@ -13,6 +13,8 @@ export interface CommitMenuActions {
   /** Opens the replay starting or ending at the commit; without them there are no such items. */
   replayFrom?: (commit: CommitSummary) => void;
   replayTo?: (commit: CommitSummary) => void;
+  /** Shows every file of the commit; without it there is no such item. */
+  browseFiles?: (commit: CommitSummary) => void;
 }
 
 /** The items of the right-click menu of a commit. */
@@ -39,7 +41,8 @@ export function commitMenuItems(
     run: () => actions.toggleBookmark(commit),
     separated: !items.some((i) => i.id === "compare"),
   });
-  const { replayFrom, replayTo } = actions;
+  const { replayFrom, replayTo, browseFiles } = actions;
+  if (browseFiles) items.push({ id: "browse-files", label: m.menu.browseFiles, run: () => browseFiles(commit), separated: true });
   if (replayFrom && replayTo) {
     items.push({ id: "replay-from", label: m.menu.replayFrom, run: () => replayFrom(commit), separated: true });
     items.push({ id: "replay-to", label: m.menu.replayTo, run: () => replayTo(commit) });

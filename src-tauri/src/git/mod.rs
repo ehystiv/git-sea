@@ -6,5 +6,6 @@ pub mod mailmap;
 pub mod repo;
 pub mod search;
 pub mod stash;
+pub mod tree;
 pub mod upstream;
 pub mod worktree;

@@ -189,7 +189,24 @@ let shellInstalled = false;
           { path: "src/app.ts", oldPath: null, status: "Modified", additions: 2, deletions: 1, binary: false },
           { path: "src/gone.ts", oldPath: null, status: "Deleted", additions: 0, deletions: 3, binary: false },
         ];
-        return { id: args.commitId, summary: commit?.summary ?? "", body: "", author: person, committer: person, parents: commit?.parents ?? [], comparedWith: null, files, statsTruncated: false };
+        const coAuthors = (commit?.coAuthors ?? []).map((name) => ({ name, email: "dev@example.com" }));
+        return { id: args.commitId, summary: commit?.summary ?? "", body: "", author: person, committer: person, coAuthors, parents: commit?.parents ?? [], comparedWith: null, files, statsTruncated: false };
+      }
+      case "list_files": {
+        // A small tree whose contents change a little from commit to commit.
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        const odd = String(args.commitId).charCodeAt(0) % 2 === 1;
+        const paths = ["README.md", "package.json", "src/app.ts", "src/lib/format.ts", "src/lib/format.test.ts", "src/features/graph/draw.ts", "src/features/graph/GraphIndex.ts", "docs/guide.md", ...(odd ? ["src/gone.ts"] : [])];
+        const files: Array<{ path: string; kind: string }> = paths.map((path) => ({ path, kind: "File" }));
+        files.push({ path: "scripts/release.sh", kind: "Executable" }, { path: "vendor/lib", kind: "Submodule" }, { path: "LICENSE", kind: "Symlink" });
+        return files.sort((a, b) => (a.path < b.path ? -1 : 1));
+      }
+      case "file_content": {
+        const path = String(args.path);
+        if (path === "vendor/lib") return { path, kind: "Submodule", size: 0, binary: false, tooLarge: false, lines: [String(args.commitId)] };
+        if (path === "LICENSE") return { path, kind: "Symlink", size: 11, binary: false, tooLarge: false, lines: ["LICENSE-MIT"] };
+        const lines = Array.from({ length: 40 }, (_, i) => (i % 8 === 0 ? `// ${path}, part ${i / 8 + 1}` : `export const value${i} = ${i} * 2;`));
+        return { path, kind: path.endsWith(".sh") ? "Executable" : "File", size: lines.join("\n").length, binary: false, tooLarge: false, lines };
       }
       case "file_diff":
         return {
