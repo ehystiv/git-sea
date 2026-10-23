@@ -50,3 +50,17 @@ export function useBlame(sessionId: string, commitId: string | null, path: strin
     },
   });
 }
+
+/** The best common ancestor of two commits (`git merge-base`), or null when there is none. */
+export function useMergeBase(sessionId: string, a: string | null, b: string | null) {
+  return useQuery<string | null, CommandError>({
+    queryKey: ["merge-base", sessionId, a, b],
+    enabled: a !== null && b !== null,
+    ...IMMUTABLE,
+    queryFn: async () => {
+      const result = await commands.mergeBase(sessionId, a ?? "", b ?? "");
+      if (result.status === "error") throw new CommandError(result.error);
+      return result.data;
+    },
+  });
+}

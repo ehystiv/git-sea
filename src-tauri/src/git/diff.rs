@@ -340,6 +340,15 @@ fn is_binary(data: &[u8]) -> bool {
     data.iter().take(8_000).any(|&b| b == 0)
 }
 
+/// The best common ancestor of two commits, as `git merge-base`: what a branch is compared from to
+/// show only what it brings (`git diff a...b`). `None` when the histories never meet.
+pub fn merge_base(repo: &gix::Repository, a: &str, b: &str) -> Result<Option<String>, AppError> {
+    Ok(repo
+        .merge_base(parse_id(a)?, parse_id(b)?)
+        .map_err(git)?
+        .map(|id| id.to_string()))
+}
+
 /// Diff of one file of a commit against its first parent, or against `base` when given.
 /// `old_path` is the file's previous path when it was renamed.
 pub fn file_diff(

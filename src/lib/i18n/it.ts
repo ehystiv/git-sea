@@ -232,6 +232,7 @@ export const it: Messages = {
     kind: { Head: "branch (HEAD)", Branch: "branch", Remote: "remote", Tag: "tag" },
     compareWithHead: "Confronta il commit selezionato con HEAD",
     compareWith: (name) => `Confronta il commit selezionato con ${name}`,
+    whatBrings: (name, other) => `Cosa porta ${name} rispetto a ${other}`,
     stopCompare: "Chiudi il confronto",
     swapCompare: "Inverti i due lati del confronto",
     highlightDivergence: (branch, upstream) => `Evidenzia dove ${branch} e ${upstream} divergono`,
@@ -240,6 +241,15 @@ export const it: Messages = {
 
   filter: {
     andMore: (first, more) => `${first} e altri ${more}`,
+  },
+
+  refMenu: {
+    label: (name) => `Azioni di ${name}`,
+    whatBrings: (other) => `Cosa porta rispetto a ${other}`,
+    whatBringsHint: "dalla base comune",
+    compareWith: (other) => `Confronta con ${other}`,
+    selected: "il commit selezionato",
+    showOnly: "Mostra solo questo",
   },
 
   sidebar: {
@@ -487,6 +497,14 @@ export const it: Messages = {
     close: "Chiudi il confronto",
     onlyIn: (n, side) => `${n} commit solo in ${side}`,
     sameHistory: "I due lati hanno gli stessi commit.",
+    mode: "Cosa confrontare",
+    direct: "I due alberi",
+    directTitle: "Tutte le differenze tra i due alberi, come git diff da a",
+    fromBase: "Dalla base comune",
+    fromBaseTitle: "Solo quello che porta A da quando si è staccato da Da, come git diff da...a",
+    base: "Base",
+    findingBase: "Cerco la base comune…",
+    noBase: "Le due storie non hanno commit in comune: si confrontano i due alberi.",
     hint: "⇧-clic su un altro commit per confrontarlo con quello selezionato.",
   },
 

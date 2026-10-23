@@ -25,6 +25,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
         commands::replay_commits,
         commands::commit_details,
         commands::file_diff,
+        commands::merge_base,
         commands::blame_file,
         commands::list_files,
         commands::file_content,

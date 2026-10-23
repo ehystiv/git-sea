@@ -30,6 +30,8 @@ export const commands = {
 	 *  previous path of a renamed file.
 	 */
 	fileDiff: (sessionId: string, commitId: string, path: string, oldPath: string | null, base: string | null) => typedError<FileDiff, AppError>(__TAURI_INVOKE("file_diff", { sessionId, commitId, path, oldPath, base })),
+	/**  The best common ancestor of two commits (`git merge-base`), or `None` when there is none. */
+	mergeBase: (sessionId: string, a: string, b: string) => typedError<string | null, AppError>(__TAURI_INVOKE("merge_base", { sessionId, a, b })),
 	/**  For every line of a file as it is in a commit, the commit that last changed it. */
 	blameFile: (sessionId: string, commitId: string, path: string) => typedError<FileBlame, AppError>(__TAURI_INVOKE("blame_file", { sessionId, commitId, path })),
 	/**  Every file of the tree of a commit, sorted by path, to browse the repository as it was then. */

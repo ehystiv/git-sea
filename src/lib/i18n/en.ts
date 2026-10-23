@@ -234,6 +234,7 @@ export const en = {
     noMessage: "(no message)",
     compareWithHead: "Compare the selected commit with HEAD",
     compareWith: (name: string) => `Compare the selected commit with ${name}`,
+    whatBrings: (name: string, other: string) => `What ${name} brings over ${other}`,
     stopCompare: "Close the comparison",
     swapCompare: "Swap the two sides of the comparison",
     highlightDivergence: (branch: string, upstream: string) => `Highlight where ${branch} and ${upstream} diverge`,
@@ -243,6 +244,15 @@ export const en = {
 
   filter: {
     andMore: (first: string, more: number) => `${first} and ${more} more`,
+  },
+
+  refMenu: {
+    label: (name: string) => `Actions of ${name}`,
+    whatBrings: (other: string) => `What it brings over ${other}`,
+    whatBringsHint: "from the common base",
+    compareWith: (other: string) => `Compare with ${other}`,
+    selected: "the selected commit",
+    showOnly: "Show only this",
   },
 
   sidebar: {
@@ -490,6 +500,14 @@ export const en = {
     close: "Close the comparison",
     onlyIn: (n: number, side: string) => `${n} ${n === 1 ? "commit" : "commits"} only in ${side}`,
     sameHistory: "Both sides have the same commits.",
+    mode: "What to compare",
+    direct: "The two trees",
+    directTitle: "Every difference between the two trees, as git diff from to",
+    fromBase: "From the common base",
+    fromBaseTitle: "Only what To brings since it left From, as git diff from...to",
+    base: "Base",
+    findingBase: "Looking for the common base…",
+    noBase: "The two histories have no commit in common: the two trees are compared.",
     hint: "⇧-click on another commit to compare it with the selected one.",
   },
 

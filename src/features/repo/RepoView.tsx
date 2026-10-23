@@ -33,6 +33,7 @@ import { SearchBar } from "../search/SearchBar";
 import { useSearch } from "../search/useSearch";
 import { TimelineCanvas } from "../timeline/TimelineCanvas";
 import { describeFilter, pruneFilter, toggleRef } from "../sidebar/refFilter";
+import { refMenuItems } from "../sidebar/refMenu";
 import { Sidebar } from "../sidebar/Sidebar";
 import { useSidebarWidth } from "../sidebar/sidebarWidth";
 import { branchDivergences, useUpstreams, type BranchDivergence } from "../sidebar/upstream";
@@ -54,7 +55,7 @@ import { useFetchStatus } from "./useFetchStatus";
 import { useRepoChanges } from "./useRepoChanges";
 import { isCanvasMode, useRepoCommands, type RepoCommandActions, type ViewMode } from "./useRepoCommands";
 import { StatsView } from "../stats/StatsView";
-import type { CiProvider, CommitSummary, HeadInfo, RefFilter, RepoInfo } from "../../lib/bindings";
+import type { CiProvider, CommitSummary, HeadInfo, RefFilter, RefLabel, RepoInfo } from "../../lib/bindings";
 import styles from "./RepoView.module.css";
 
 const NO_BOOKMARKS: readonly string[] = [];
@@ -114,8 +115,11 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
   const [searchFocus, setSearchFocus] = useState(0);
   const [ancestors, setAncestors] = useState(false);
   const [selected, setSelected] = useState<CommitSummary | null>(null);
-  /** Two commits whose trees the panel compares; `base` is the older side. */
-  const [compare, setCompare] = useState<{ base: string; target: string } | null>(null);
+  /**
+   * Two commits whose trees the panel compares; `base` is the older side. With `fromBase`, only
+   * what `target` brings since it left `base` (from their common ancestor).
+   */
+  const [compare, setCompare] = useState<{ base: string; target: string; fromBase: boolean } | null>(null);
   /** A local branch whose divergence from its upstream is highlighted. */
   const [divergenceOf, setDivergenceOf] = useState<string | null>(null);
   /** The details panel shows the local changes instead of the selected commit. */
@@ -248,7 +252,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
       const timeA = index.commits[a]?.time ?? 0;
       const timeB = index.commits[b]?.time ?? 0;
       const otherIsBase = ahead === 0 ? true : behind === 0 ? false : timeA !== timeB ? timeA < timeB : a > b;
-      setCompare(otherIsBase ? { base: otherId, target: withId } : { base: withId, target: otherId });
+      setCompare(otherIsBase ? { base: otherId, target: withId, fromBase: false } : { base: withId, target: otherId, fromBase: false });
       setShowWorktree(false);
       setCiCommit(null);
       setPanelOpen(true);
@@ -256,6 +260,13 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
     [index],
   );
   const compareWithCommit = useCallback((commit: CommitSummary) => startCompare(commit.id), [startCompare]);
+  // From a branch's menu or the palette: the sides are as asked, not ordered by age.
+  const compareRefs = useCallback((base: string, target: string, fromBase: boolean) => {
+    setCompare({ base, target, fromBase });
+    setShowWorktree(false);
+    setCiCommit(null);
+    setPanelOpen(true);
+  }, []);
 
   // Export of the visible view as an image, with a short notice of how it went.
   const [exportAt, setExportAt] = useState<{ x: number; y: number } | null>(null);
@@ -321,7 +332,11 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
     },
     [queryClient, repo.sessionId],
   );
-  const swapCompare = useCallback(() => setCompare((c) => (c ? { base: c.target, target: c.base } : null)), []);
+  const swapCompare = useCallback(() => setCompare((c) => (c ? { ...c, base: c.target, target: c.base } : null)), []);
+  const setFromBase = useCallback((fromBase: boolean) => setCompare((c) => (c ? { ...c, fromBase } : null)), []);
+  // Right-click on a ref in the sidebar.
+  const [refMenu, setRefMenu] = useState<{ ref: RefLabel; x: number; y: number } | null>(null);
+  const openRefMenu = useCallback((ref: RefLabel, x: number, y: number) => setRefMenu({ ref, x, y }), []);
 
   // Picking another commit brings its details back. Views report their selection again when they
   // are created, so only a different commit counts.
@@ -608,6 +623,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
     compareWith: (id) => startCompare(id),
     swapCompare,
     stopCompare: () => setCompare(null),
+    compareFromBase: (base, target) => compareRefs(base, target, true),
     browseFiles: () => openFiles(),
     closeFiles: () => setBrowse(null),
     showDivergence: (branch) => setDivergenceOf(branch),
@@ -777,6 +793,7 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
         bookmarks={bookmarks}
         onRemoveBookmark={toggleBookmarkOf}
         pulls={pulls.data ?? null}
+        onRefMenu={openRefMenu}
         hidden={sidebarCollapsed}
       />
 
@@ -1080,6 +1097,9 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
                 onSwap={swapCompare}
                 onClose={() => setCompare(null)}
                 onFileHistory={showFileHistory}
+                fromBase={compare?.fromBase ?? false}
+                onFromBase={setFromBase}
+                lookup={(id) => index.commits[index.indexOf(id) ?? -1] ?? null}
               />
             ) : browse ? (
               <FilesPanel
@@ -1119,6 +1139,19 @@ export function RepoView({ repo, visible, active, split, onSplit, onClose }: Rep
             { id: "copy", label: m.export.copy, run: () => void copyImage() },
             ...(mode === "graph" || mode === "topology" ? [{ id: "replay", label: m.replay.open, run: () => openReplay() }] : []),
           ]}
+        />
+      )}
+
+      {refMenu && (
+        <ContextMenu
+          x={refMenu.x}
+          y={refMenu.y}
+          label={m.refMenu.label(refMenu.ref.name)}
+          onClose={() => setRefMenu(null)}
+          items={refMenuItems(refMenu.ref, [...index.refs.values()].flat().find((l) => l.kind === "Head") ?? null, selected?.id ?? null, {
+            compare: compareRefs,
+            showOnly: () => setBranchFilter([{ kind: refMenu.ref.kind, name: refMenu.ref.name }]),
+          })}
         />
       )}
 

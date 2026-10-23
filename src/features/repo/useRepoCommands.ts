@@ -80,6 +80,8 @@ export interface RepoCommandActions {
   compareWith: (id: string) => void;
   swapCompare: () => void;
   stopCompare: () => void;
+  /** Shows what `target` brings since it left `base`. */
+  compareFromBase: (base: string, target: string) => void;
   browseFiles: () => void;
   closeFiles: () => void;
   showDivergence: (branch: string) => void;
@@ -215,6 +217,9 @@ export function useRepoCommands(active: boolean, state: RepoCommandState, action
         if (!loaded) continue;
         out.push({ id: `ref:${ref.kind}:${ref.name}`, group: g.refs, title: m.commands.goTo(ref.name), detail: kindLabel(m, ref.kind), run: () => actions.selectCommit(ref.commit) });
         if (hasSelection) out.push({ id: `compare:${ref.kind}:${ref.name}`, group: g.refs, title: m.commands.compareWith(ref.name), detail: kindLabel(m, ref.kind), run: () => actions.compareWith(ref.commit) });
+        if (head && head.commit !== ref.commit && index.indexOf(head.commit) !== null) {
+          out.push({ id: `brings:${ref.kind}:${ref.name}`, group: g.refs, title: m.commands.whatBrings(ref.name, head.name), detail: kindLabel(m, ref.kind), run: () => actions.compareFromBase(head.commit, ref.commit) });
+        }
       }
       for (const ref of refs.filter((r) => r.name !== "HEAD").slice(0, MAX_FILTER_REFS)) {
         const filtered = inFilter(branchFilter, ref);

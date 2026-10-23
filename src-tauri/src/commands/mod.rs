@@ -271,6 +271,24 @@ pub async fn commit_details(
     .map_err(|err| AppError::Internal(err.to_string()))?
 }
 
+/// The best common ancestor of two commits (`git merge-base`), or `None` when there is none.
+#[tauri::command]
+#[specta::specta]
+pub async fn merge_base(
+    state: State<'_, AppState>,
+    session_id: String,
+    a: String,
+    b: String,
+) -> Result<Option<String>, AppError> {
+    let session = state.get(&session_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let repo = commits::repo_for_walk(&session.repo);
+        diff::merge_base(&repo, &a, &b).map_err(|err| repo::in_partial_clone(&repo, err))
+    })
+    .await
+    .map_err(|err| AppError::Internal(err.to_string()))?
+}
+
 /// Line diff of one file of a commit, against its first parent or `base`. `old_path` is the
 /// previous path of a renamed file.
 #[tauri::command]

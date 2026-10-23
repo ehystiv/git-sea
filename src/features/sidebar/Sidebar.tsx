@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { CiProvider, PullRequestsReport, RefFilter } from "../../lib/bindings";
+import type { CiProvider, PullRequestsReport, RefFilter, RefLabel } from "../../lib/bindings";
 import { pullSection } from "../pulls/pulls";
 import { CiSection } from "../ci/CiSection";
 import type { CiState } from "../ci/useCi";
@@ -37,6 +37,8 @@ interface SidebarProps {
   onRemoveBookmark: (id: string) => void;
   /** Pull or merge requests of the remote's project; the open ones get a section. */
   pulls: PullRequestsReport | null;
+  /** Right-click on a branch, remote branch or tag, at that point of the window. */
+  onRefMenu?: (ref: RefLabel, x: number, y: number) => void;
   /** Collapsed: kept mounted (its filter and open sections stay) but out of sight and out of reach. */
   hidden?: boolean;
 }
@@ -67,6 +69,7 @@ export function Sidebar({
   bookmarks,
   onRemoveBookmark,
   pulls,
+  onRefMenu,
   hidden = false,
 }: SidebarProps) {
   const stashes = useStashes(sessionId);
@@ -136,6 +139,11 @@ export function Sidebar({
                         disabled={at === null}
                         title={item.title ?? (at === null ? missing : item.label)}
                         onClick={() => item.commit !== null && onSelectCommit(item.commit)}
+                        onContextMenu={(event) => {
+                          if (!onRefMenu || !ref || item.commit === null) return;
+                          event.preventDefault();
+                          onRefMenu({ ...ref, commit: item.commit }, event.clientX, event.clientY);
+                        }}
                       >
                         {section.id === "tags" || section.id === "stashes" || section.id === "bookmarks" || section.id === "pulls" ? (
                           <svg viewBox="0 0 24 24" width="12" height="12" {...icon} className={styles.glyph}>

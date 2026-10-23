@@ -3,7 +3,7 @@ import { describeError } from "../../lib/errors";
 import { shortHash } from "../../lib/format";
 import { useT } from "../../lib/i18n";
 import { FileChanges } from "./DetailsPanel";
-import { useCommitDetails } from "./useCommitDetails";
+import { useCommitDetails, useMergeBase } from "./useCommitDetails";
 import styles from "./DetailsPanel.module.css";
 
 interface ComparePanelProps {
@@ -17,12 +17,27 @@ interface ComparePanelProps {
   onSwap: () => void;
   onClose: () => void;
   onFileHistory?: (path: string) => void;
+  /** Only what `target` brings since it left `base`: compared with their common ancestor. */
+  fromBase: boolean;
+  onFromBase: (on: boolean) => void;
+  /** A loaded commit, to name the common base. */
+  lookup: (id: string) => CommitSummary | null;
 }
 
-/** The differences between the trees of two commits, like `git diff base target`. */
-export function ComparePanel({ sessionId, base, target, counts, onSelectCommit, onSwap, onClose, onFileHistory }: ComparePanelProps) {
+/**
+ * The differences between the trees of two commits, like `git diff base target`, or only what
+ * `target` brings since the two sides parted, like `git diff base...target`.
+ */
+export function ComparePanel({ sessionId, base, target, counts, onSelectCommit, onSwap, onClose, onFileHistory, fromBase, onFromBase, lookup }: ComparePanelProps) {
   const m = useT();
-  const details = useCommitDetails(sessionId, target.id, base.id);
+  // When `base` is an ancestor of `target` it is the common base too: there is nothing to choose.
+  const canChoose = counts === null || counts.onlyBase > 0;
+  const threeDot = fromBase && canChoose;
+  const mergeBase = useMergeBase(sessionId, threeDot ? base.id : null, threeDot ? target.id : null);
+  // Unrelated histories have no common base: the trees are compared as they are.
+  const diffBase = !threeDot ? base.id : mergeBase.isSuccess ? (mergeBase.data ?? base.id) : null;
+  const details = useCommitDetails(sessionId, diffBase === null ? null : target.id, diffBase);
+  const baseCommit = threeDot && mergeBase.data ? lookup(mergeBase.data) : null;
   const side = (label: string, commit: CommitSummary) => (
     <>
       <dt>{label}</dt>
@@ -52,7 +67,32 @@ export function ComparePanel({ sessionId, base, target, counts, onSelectCommit, 
         <dl className={styles.grid}>
           {side(m.compare.from, base)}
           {side(m.compare.to, target)}
+          {threeDot && mergeBase.data && (
+            <>
+              <dt>{m.compare.base}</dt>
+              <dd>
+                <button type="button" className={styles.chip} disabled={!baseCommit} onClick={() => mergeBase.data && onSelectCommit(mergeBase.data)}>
+                  <code>{shortHash(mergeBase.data)}</code>
+                  <span>{baseCommit?.summary ?? m.details.notLoaded}</span>
+                </button>
+              </dd>
+            </>
+          )}
         </dl>
+        {canChoose && (
+          <div className={styles.compareMode}>
+            <span className={styles.seg} role="tablist" aria-label={m.compare.mode}>
+              <button type="button" role="tab" aria-selected={!fromBase} className={!fromBase ? styles.on : undefined} title={m.compare.directTitle} onClick={() => onFromBase(false)}>
+                {m.compare.direct}
+              </button>
+              <button type="button" role="tab" aria-selected={fromBase} className={fromBase ? styles.on : undefined} title={m.compare.fromBaseTitle} onClick={() => onFromBase(true)}>
+                {m.compare.fromBase}
+              </button>
+            </span>
+          </div>
+        )}
+        {threeDot && mergeBase.isPending && <p className={styles.compareCounts}>{m.compare.findingBase}</p>}
+        {threeDot && mergeBase.isSuccess && mergeBase.data === null && <p className={styles.compareCounts}>{m.compare.noBase}</p>}
         {counts && (
           <p className={styles.compareCounts}>
             {counts.onlyBase === 0 && counts.onlyTarget === 0 ? (
@@ -67,9 +107,10 @@ export function ComparePanel({ sessionId, base, target, counts, onSelectCommit, 
         )}
       </header>
 
+      {mergeBase.isError && <p className={styles.error}>{describeError(mergeBase.error, m)}</p>}
       {details.isError && <p className={styles.error}>{describeError(details.error, m)}</p>}
-      {details.isPending && <p className={styles.empty}>{m.details.loading}</p>}
-      <FileChanges sessionId={sessionId} commitId={target.id} base={base.id} details={details} onFileHistory={onFileHistory} onSelectCommit={onSelectCommit} />
+      {details.isPending && diffBase !== null && <p className={styles.empty}>{m.details.loading}</p>}
+      {diffBase !== null && <FileChanges sessionId={sessionId} commitId={target.id} base={diffBase} details={details} onFileHistory={onFileHistory} onSelectCommit={onSelectCommit} />}
     </aside>
   );
 }
