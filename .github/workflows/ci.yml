@@ -1,12 +1,19 @@
 name: CI
 
-# Lints and tests on macOS, Linux and Windows before anything reaches main.
+# Lints and tests on macOS, Linux and Windows before anything reaches main. Changes to the project
+# site alone have nothing to check.
 
 on:
   push:
     branches: [develop]
+    paths-ignore:
+      - site/**
+      - .github/workflows/pages.yml
   pull_request:
     branches: [main]
+    paths-ignore:
+      - site/**
+      - .github/workflows/pages.yml
   workflow_dispatch:
 
 concurrency:

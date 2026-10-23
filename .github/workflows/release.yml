@@ -4,10 +4,14 @@ name: Release
 # A GitHub release is published only when the version in src-tauri/tauri.conf.json has no
 # `v<version>` tag yet, so bumping the version is what cuts a new release. The release is
 # created as a draft, every build uploads to it, and it is published only if all of them succeed.
+# A push that changes only the project site builds nothing: pages.yml publishes it.
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - site/**
+      - .github/workflows/pages.yml
   workflow_dispatch:
 
 concurrency:
