@@ -1,9 +1,12 @@
-//! Which files every commit changed, for the hotspots of the statistics: the files and directories
-//! changed most often, and by whom.
+//! Which files every commit changed, and how many lines it added and removed in each, for the
+//! hotspots of the statistics: the files and directories changed most often, and by whom.
 //!
 //! Each commit is compared with its first parent (a root commit with the empty tree), without
 //! rename tracking, which would cost far more than the tree diff itself. Merges are skipped, as
 //! `git log --stat` does by default: their changes are already counted in the commits they bring.
+//! Lines are counted only when asked for, since diffing every blob costs some twenty times more
+//! than the tree diffs; then as in the details panel: binary files, submodules and blobs too big
+//! to diff count 0 lines (the commit still counts).
 //!
 //! A commit's files never change, so the session keeps them: a later request (after a fetch, or
 //! after leaving and reopening the statistics) only diffs the commits it has not seen. The work is
@@ -25,12 +28,14 @@ const PROGRESS_STEP: usize = 500;
 const BATCH: usize = 64;
 const MAX_THREADS: usize = 8;
 
-/// The files each commit changed, with every path stored once.
+/// The files each commit changed (path indices), with every path stored once, and for the
+/// commits read with lines, the lines added and removed in each file, in the same order.
 #[derive(Default)]
 pub struct ActivityCache {
     paths: Vec<String>,
     path_index: HashMap<String, u32>,
     by_commit: HashMap<gix::ObjectId, Vec<u32>>,
+    lines: HashMap<gix::ObjectId, Vec<[u32; 2]>>,
 }
 
 impl ActivityCache {
@@ -45,11 +50,14 @@ impl ActivityCache {
     }
 }
 
-/// One commit and the indices (in `FileActivity::paths`) of the files it changed.
+/// One commit and the indices (in `FileActivity::paths`) of the files it changed, with the lines
+/// added and removed in each, in the same order, when they were asked for.
 #[derive(Debug, Clone, Serialize, Type)]
 pub struct CommitFiles {
     pub id: String,
     pub files: Vec<u32>,
+    pub added: Option<Vec<u32>>,
+    pub removed: Option<Vec<u32>>,
 }
 
 #[derive(Debug, Clone, Serialize, Type)]
@@ -76,13 +84,15 @@ struct Pending {
     parent: Option<gix::ObjectId>,
 }
 
-/// The files changed by every commit reachable from `tips`. Commits already in `cache` are not
-/// read again; new ones are added to it. Returns `None` when `cancelled` (what was read so far
+/// The files changed by every commit reachable from `tips`, and with `lines` the lines added and
+/// removed in each. Commits already in `cache` (with lines, when asked for) are not read again;
+/// new ones are added to it. Returns `None` when `cancelled` (what was read so far
 /// stays in the cache). `progress` is called with (done, total) as the commits are read.
 pub fn file_activity(
     handle: &gix::ThreadSafeRepository,
     tips: Vec<gix::ObjectId>,
     cache: &Mutex<ActivityCache>,
+    lines: bool,
     cancelled: &(dyn Fn() -> bool + Sync),
     progress: &(dyn Fn(u32, u32) + Sync),
 ) -> Result<Option<FileActivity>, AppError> {
@@ -95,7 +105,9 @@ pub fn file_activity(
             let info = info.map_err(git)?;
             let parents: Vec<gix::ObjectId> = info.parent_ids().map(|p| p.detach()).collect();
             all.push(info.id);
-            if parents.len() > 1 || known.by_commit.contains_key(&info.id) {
+            let known = known.by_commit.contains_key(&info.id)
+                && (!lines || known.lines.contains_key(&info.id));
+            if parents.len() > 1 || known {
                 continue;
             }
             pending.push(Pending {
@@ -130,7 +142,7 @@ pub fn file_activity(
                         };
                         let mut read = Vec::with_capacity(batch.len());
                         for item in batch {
-                            match changed_paths(&repo, item) {
+                            match changed_files(&repo, item, lines) {
                                 Ok(paths) => read.push((item.id, paths)),
                                 Err(err) => {
                                     *lock(&failed) = Some(err);
@@ -140,8 +152,13 @@ pub fn file_activity(
                         }
                         {
                             let mut cache = lock(cache);
-                            for (id, paths) in read {
-                                let files = paths.into_iter().map(|p| cache.intern(p)).collect();
+                            for (id, changed) in read {
+                                if lines {
+                                    let counts = changed.iter().map(|f| [f.1, f.2]).collect();
+                                    cache.lines.insert(id, counts);
+                                }
+                                let files =
+                                    changed.into_iter().map(|f| cache.intern(f.0)).collect();
                                 cache.by_commit.insert(id, files);
                             }
                         }
@@ -167,9 +184,12 @@ pub fn file_activity(
         .iter()
         .filter_map(|id| {
             let files = cache.by_commit.get(id)?;
+            let counts = lines.then(|| cache.lines.get(id)).flatten();
             (!files.is_empty()).then(|| CommitFiles {
                 id: id.to_string(),
                 files: files.clone(),
+                added: counts.map(|c| c.iter().map(|n| n[0]).collect()),
+                removed: counts.map(|c| c.iter().map(|n| n[1]).collect()),
             })
         })
         .collect();
@@ -179,8 +199,13 @@ pub fn file_activity(
     }))
 }
 
-/// The paths of the files (not directories) `item` changed against its first parent.
-fn changed_paths(repo: &gix::Repository, item: &Pending) -> Result<Vec<String>, AppError> {
+/// The files (not directories) `item` changed against its first parent: path, lines added, lines
+/// removed (0 and 0 without `lines`).
+fn changed_files(
+    repo: &gix::Repository,
+    item: &Pending,
+    lines: bool,
+) -> Result<Vec<(String, u32, u32)>, AppError> {
     use gix::object::tree::diff::ChangeDetached;
     let tree = repo
         .find_commit(item.id)
@@ -195,7 +220,7 @@ fn changed_paths(repo: &gix::Repository, item: &Pending) -> Result<Vec<String>, 
         .diff_tree_to_tree(parent.as_ref(), Some(&tree), gix::diff::Options::default())
         .map_err(git)?;
     Ok(changes
-        .into_iter()
+        .iter()
         .filter_map(|change| match change {
             ChangeDetached::Addition {
                 location,
@@ -216,7 +241,14 @@ fn changed_paths(repo: &gix::Repository, item: &Pending) -> Result<Vec<String>, 
                 location,
                 entry_mode,
                 ..
-            } => (!entry_mode.is_tree()).then(|| location.to_string()),
+            } => (!entry_mode.is_tree()).then(|| {
+                let stats = lines.then(|| crate::git::diff::line_stats(repo, change));
+                let (added, removed) = match stats.flatten() {
+                    Some((added, removed, false)) => (added, removed),
+                    _ => (0, 0),
+                };
+                (location.to_string(), added, removed)
+            }),
         })
         .collect())
 }

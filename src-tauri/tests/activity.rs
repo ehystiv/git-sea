@@ -38,7 +38,7 @@ fn by_commit(
     cache: &Mutex<ActivityCache>,
 ) -> Vec<(String, Vec<String>)> {
     let tips = collect_refs(&handle.to_thread_local()).unwrap().tips;
-    let activity = file_activity(handle, tips, cache, &|| false, &|_, _| {})
+    let activity = file_activity(handle, tips, cache, false, &|| false, &|_, _| {})
         .unwrap()
         .unwrap();
     let mut out: Vec<(String, Vec<String>)> = activity
@@ -89,7 +89,7 @@ fn lists_the_files_of_every_commit_but_merges() {
     let mut calls = 0;
     let tips = collect_refs(&handle.to_thread_local()).unwrap().tips;
     let progress = std::sync::Mutex::new(&mut calls);
-    file_activity(&handle, tips, &cache, &|| false, &|_, _| {
+    file_activity(&handle, tips, &cache, false, &|| false, &|_, _| {
         **progress.lock().unwrap() += 1
     })
     .unwrap();
@@ -105,9 +105,67 @@ fn a_cancelled_read_returns_nothing() {
     let cache = Mutex::new(ActivityCache::default());
     let tips = collect_refs(&handle.to_thread_local()).unwrap().tips;
     assert!(
-        file_activity(&handle, tips, &cache, &|| true, &|_, _| {})
+        file_activity(&handle, tips, &cache, false, &|| true, &|_, _| {})
             .unwrap()
             .is_none()
     );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn counts_the_lines_of_each_file_when_asked() {
+    let dir = fixture("diffs.sh", "activity-lines");
+    let handle = gix::ThreadSafeRepository::open(&dir).unwrap();
+    let cache = Mutex::new(ActivityCache::default());
+    let tips = collect_refs(&handle.to_thread_local()).unwrap().tips;
+
+    // Without lines first: the counts are not there, and asking for them reads the commits again.
+    let plain = file_activity(&handle, tips.clone(), &cache, false, &|| false, &|_, _| {})
+        .unwrap()
+        .unwrap();
+    assert!(plain.commits.iter().all(|c| c.added.is_none()));
+    let activity = file_activity(&handle, tips, &cache, true, &|| false, &|_, _| {})
+        .unwrap()
+        .unwrap();
+
+    // As `git log --numstat`, with binary files ("-") as 0.
+    let log = git(
+        &dir,
+        &[
+            "log",
+            "--all",
+            "--no-merges",
+            "--no-renames",
+            "--format=@%H",
+            "--numstat",
+        ],
+    );
+    let mut expected: Vec<(String, String, u32, u32)> = Vec::new();
+    for chunk in log.split('@').filter(|c| !c.trim().is_empty()) {
+        let mut lines = chunk.lines().filter(|l| !l.is_empty());
+        let id = lines.next().unwrap().to_owned();
+        for line in lines {
+            let mut parts = line.split('\t');
+            let added = parts.next().unwrap().parse().unwrap_or(0);
+            let removed = parts.next().unwrap().parse().unwrap_or(0);
+            expected.push((id.clone(), parts.next().unwrap().to_owned(), added, removed));
+        }
+    }
+    let mut found: Vec<(String, String, u32, u32)> = activity
+        .commits
+        .iter()
+        .flat_map(|c| {
+            let added = c.added.clone().unwrap();
+            let removed = c.removed.clone().unwrap();
+            c.files
+                .iter()
+                .enumerate()
+                .map(move |(i, &f)| (c.id.clone(), f, added[i], removed[i]))
+        })
+        .map(|(id, f, a, r)| (id, activity.paths[f as usize].clone(), a, r))
+        .collect();
+    expected.sort();
+    found.sort();
+    assert_eq!(found, expected);
     let _ = std::fs::remove_dir_all(&dir);
 }

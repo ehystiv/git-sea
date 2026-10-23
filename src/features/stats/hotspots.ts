@@ -14,6 +14,9 @@ export interface Hotspot {
   authors: Array<{ name: string; commits: number }>;
   /** Unix seconds of the newest of those commits, or null when none has a date. */
   last: number | null;
+  /** Lines those commits added and removed in it; 0 when the lines were not counted. */
+  added: number;
+  removed: number;
 }
 
 /** Commit id -> paths it changed, from what the backend sends. */
@@ -22,36 +25,68 @@ export function filesByCommit(activity: FileActivity): Map<string, string[]> {
   for (const commit of activity.commits) {
     map.set(
       commit.id,
-      commit.files.flatMap((i) => activity.paths[i] ?? []),
+      commit.files.map((i) => activity.paths[i] ?? ""),
     );
   }
   return map;
 }
+
+/** Commit id -> lines added and removed in each of its files (as `filesByCommit` lists them), or null when the backend did not count them. */
+export function linesByCommit(activity: FileActivity): Map<string, Array<[number, number]>> | null {
+  if (activity.commits.some((c) => !c.added || !c.removed)) return null;
+  const map = new Map<string, Array<[number, number]>>();
+  for (const commit of activity.commits) {
+    map.set(
+      commit.id,
+      commit.files.map((_, i) => [commit.added?.[i] ?? 0, commit.removed?.[i] ?? 0]),
+    );
+  }
+  return map;
+}
+
+/** How to rank the hotspots: by commits, or by lines added and removed. */
+export type HotspotOrder = "commits" | "lines";
 
 /**
  * The files and directories right inside `dir` (`""` for the root, else ending with `/`), ranked
  * by how many of `commits` changed them, then by path. Only the commits for which `include`
  * holds count; merges are not in `files`, so they never do.
  */
-export function hotspots(commits: readonly CommitSummary[], files: ReadonlyMap<string, readonly string[]>, dir: string, include: (commit: CommitSummary) => boolean = () => true): Hotspot[] {
+export function hotspots(
+  commits: readonly CommitSummary[],
+  files: ReadonlyMap<string, readonly string[]>,
+  dir: string,
+  include: (commit: CommitSummary) => boolean = () => true,
+  lines: ReadonlyMap<string, ReadonlyArray<readonly [number, number]>> | null = null,
+  order: HotspotOrder = "commits",
+): Hotspot[] {
   const byPath = new Map<string, { spot: Hotspot; authors: Map<string, number> }>();
   for (const commit of commits) {
     const changed = files.get(commit.id);
     if (!changed || !include(commit)) continue;
-    // A commit counts once for a directory, however many of its files it changed.
+    // A commit counts once for a directory, however many of its files it changed; its lines
+    // count for every file.
     const seen = new Set<string>();
-    for (const path of changed) {
+    const counts = lines?.get(commit.id);
+    for (let f = 0; f < changed.length; f++) {
+      const path = changed[f] ?? "";
       const key = childOf(path, dir);
-      if (key === null || seen.has(key)) continue;
+      if (key === null) continue;
       const rest = path.slice(dir.length);
       const slash = rest.indexOf("/");
-      seen.add(key);
       let entry = byPath.get(key);
       if (!entry) {
         const isDir = slash >= 0;
-        entry = { spot: { path: key, name: isDir ? rest.slice(0, slash + 1) : rest, isDir, commits: 0, authors: [], last: null }, authors: new Map() };
+        entry = { spot: { path: key, name: isDir ? rest.slice(0, slash + 1) : rest, isDir, commits: 0, authors: [], last: null, added: 0, removed: 0 }, authors: new Map() };
         byPath.set(key, entry);
       }
+      const count = counts?.[f];
+      if (count) {
+        entry.spot.added += count[0];
+        entry.spot.removed += count[1];
+      }
+      if (seen.has(key)) continue;
+      seen.add(key);
       entry.spot.commits++;
       for (const name of authorsOf(commit)) entry.authors.set(name, (entry.authors.get(name) ?? 0) + 1);
       const time = commit.time;
@@ -62,7 +97,8 @@ export function hotspots(commits: readonly CommitSummary[], files: ReadonlyMap<s
     spot.authors = [...authors].map(([name, n]) => ({ name, commits: n })).sort((a, b) => b.commits - a.commits || a.name.localeCompare(b.name));
     return spot;
   });
-  return spots.sort((a, b) => b.commits - a.commits || (a.path < b.path ? -1 : 1));
+  const weight = (s: Hotspot) => (order === "lines" ? s.added + s.removed : s.commits);
+  return spots.sort((a, b) => weight(b) - weight(a) || b.commits - a.commits || (a.path < b.path ? -1 : 1));
 }
 
 /** What right inside `dir` holds `path`: the file itself, or the directory (ending with `/`). */

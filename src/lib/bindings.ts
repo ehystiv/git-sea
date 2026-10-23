@@ -42,10 +42,10 @@ export const commands = {
 	listStashes: (sessionId: string) => typedError<StashEntry[], AppError>(__TAURI_INVOKE("list_stashes", { sessionId })),
 	/**
 	 *  Which files every commit changed (merges left out), for the hotspots of the statistics, with
-	 *  progress on the way. Every ref is read, as in a search; the frontend keeps the commits it has.
+	 *  progress on the way; with `lines`, also the lines added and removed in each (much slower). Every ref is read, as in a search; the frontend keeps the commits it has.
 	 *  Commits read before on this session are not read again. A new request stops the previous one.
 	 */
-	fileActivity: (sessionId: string, onEvent: Channel<ActivityEvent>) => typedError<null, AppError>(__TAURI_INVOKE("file_activity", { sessionId, onEvent })),
+	fileActivity: (sessionId: string, lines: boolean, onEvent: Channel<ActivityEvent>) => typedError<null, AppError>(__TAURI_INVOKE("file_activity", { sessionId, lines, onEvent })),
 	/**  The upstream of every local branch that has one. */
 	listUpstreams: (sessionId: string) => typedError<Upstream[], AppError>(__TAURI_INVOKE("list_upstreams", { sessionId })),
 	/**
@@ -309,10 +309,15 @@ export type CommitDetails = {
 	statsTruncated: boolean,
 };
 
-/**  One commit and the indices (in `FileActivity::paths`) of the files it changed. */
+/**
+ *  One commit and the indices (in `FileActivity::paths`) of the files it changed, with the lines
+ *  added and removed in each, in the same order, when they were asked for.
+ */
 export type CommitFiles = {
 	id: string,
 	files: number[],
+	added: number[] | null,
+	removed: number[] | null,
 };
 
 export type CommitSummary = {

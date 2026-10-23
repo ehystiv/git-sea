@@ -304,7 +304,10 @@ fn file_change(change: &ChangeDetached) -> Option<FileChange> {
 }
 
 /// (additions, deletions, is_binary) for one change, or `None` when the content is too big.
-fn line_stats(repo: &gix::Repository, change: &ChangeDetached) -> Option<(u32, u32, bool)> {
+pub(crate) fn line_stats(
+    repo: &gix::Repository,
+    change: &ChangeDetached,
+) -> Option<(u32, u32, bool)> {
     let (old_id, new_id) = match change {
         ChangeDetached::Addition { id, .. } => (None, Some(*id)),
         ChangeDetached::Deletion { id, .. } => (Some(*id), None),

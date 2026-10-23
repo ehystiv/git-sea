@@ -3,7 +3,7 @@ import { formatAgo, formatCount } from "../../lib/format";
 import { useT } from "../../lib/i18n";
 import { authorsOf } from "../commits/authors";
 import type { GraphIndex } from "../graph/GraphIndex";
-import { dirTrail, filesByCommit, hotspots, pathSearch, type Hotspot } from "./hotspots";
+import { dirTrail, filesByCommit, hotspots, linesByCommit, pathSearch, type Hotspot, type HotspotOrder } from "./hotspots";
 import { calendarPeriod } from "./stats";
 import type { FileActivityState } from "./useFileActivity";
 import styles from "./StatsView.module.css";
@@ -22,6 +22,9 @@ interface HotspotsCardProps {
   onDir: (dir: string) => void;
   period: HotspotPeriod;
   onPeriod: (period: HotspotPeriod) => void;
+  /** Ranked by commits, or by lines (which the activity then counts). */
+  order: HotspotOrder;
+  onOrder: (order: HotspotOrder) => void;
   onSearch: (text: string) => void;
 }
 
@@ -35,20 +38,23 @@ export function inPeriod(period: HotspotPeriod): (commit: { time: number | null 
 }
 
 /** The files and directories changed most often, one directory at a time. */
-export function HotspotsCard({ index, version, activity, author, dir, onDir: setDir, period, onPeriod: setPeriod, onSearch }: HotspotsCardProps) {
+export function HotspotsCard({ index, version, activity, author, dir, onDir: setDir, period, onPeriod: setPeriod, order, onOrder, onSearch }: HotspotsCardProps) {
   const m = useT();
   const [all, setAll] = useState(false);
 
   const files = useMemo(() => (activity.activity ? filesByCommit(activity.activity) : null), [activity.activity]);
+  const lines = useMemo(() => (activity.activity ? linesByCommit(activity.activity) : null), [activity.activity]);
   const spots = useMemo(() => {
     if (!files) return [];
     const when = inPeriod(period);
-    return hotspots(index.commits, files, dir, (c) => (author === null || authorsOf(c).includes(author)) && when(c));
+    return hotspots(index.commits, files, dir, (c) => (author === null || authorsOf(c).includes(author)) && when(c), lines, lines ? order : "commits");
     // `version` stands for the contents of `index`, which is mutated in place.
-  }, [files, index, version, dir, period, author]);
+  }, [files, lines, index, version, dir, period, author, order]);
 
   const shown = all ? spots : spots.slice(0, TOP);
-  const top = spots[0]?.commits ?? 1;
+  const ranked = lines !== null && order === "lines";
+  const weight = (spot: Hotspot) => (ranked ? spot.added + spot.removed : spot.commits);
+  const top = Math.max(1, spots[0] ? weight(spots[0]) : 1);
   const now = Date.now();
   const open = (spot: Hotspot) => {
     setDir(spot.path);
@@ -60,6 +66,14 @@ export function HotspotsCard({ index, version, activity, author, dir, onDir: set
       <div className={styles.cardHead}>
         <h2>{m.stats.hotspots}</h2>
         <span className={styles.note}>{m.stats.hotspotsNote}</span>
+        <span className={styles.seg} role="tablist" aria-label={m.stats.order}>
+          <button type="button" role="tab" aria-selected={order === "commits"} className={order === "commits" ? styles.on : undefined} onClick={() => onOrder("commits")}>
+            {m.stats.byCommits}
+          </button>
+          <button type="button" role="tab" aria-selected={order === "lines"} className={order === "lines" ? styles.on : undefined} title={m.stats.byLinesTitle} onClick={() => onOrder("lines")}>
+            {m.stats.byLines}
+          </button>
+        </span>
         <select className={styles.select} aria-label={m.stats.year} value={period} onChange={(e) => setPeriod(e.target.value === "last" ? "last" : "all")}>
           <option value="all">{m.stats.allTime}</option>
           <option value="last">{m.stats.lastYear}</option>
@@ -92,16 +106,21 @@ export function HotspotsCard({ index, version, activity, author, dir, onDir: set
             <li key={spot.path} className={styles.author}>
               <button
                 type="button"
-                className={`${styles.authorMain} ${styles.spotMain}`}
+                className={`${styles.authorMain} ${styles.spotMain} ${lines ? styles.withLines : ""}`}
                 title={spot.isDir ? `${spot.path}\n${m.stats.openDir}` : `${spot.path}\n${m.stats.showChanges}`}
                 onClick={() => (spot.isDir ? open(spot) : onSearch(pathSearch(spot)))}
               >
                 <span className={styles.rank}>{i + 1}</span>
                 <span className={`${styles.name} ${spot.isDir ? styles.dirName : ""}`}>{spot.name}</span>
                 <span className={styles.bar}>
-                  <span style={{ width: `${(spot.commits / top) * 100}%` }} />
+                  <span style={{ width: `${(weight(spot) / top) * 100}%` }} />
                 </span>
                 <span className={styles.count}>{formatCount(spot.commits)}</span>
+                {lines && (
+                  <span className={styles.lines} title={m.stats.linesTitle}>
+                    {m.stats.lines(formatCount(spot.added), formatCount(spot.removed))}
+                  </span>
+                )}
                 <span className={styles.share} title={main ? m.stats.mainAuthorTitle(main.name, main.commits, spot.commits) : undefined}>
                   {main ? m.stats.mainAuthor(main.name, String(share)) : ""}
                 </span>

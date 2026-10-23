@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { CommitSummary, FileActivity } from "../../lib/bindings";
 import { parseQuery } from "../search/query";
-import { dirTrail, fileHeatmap, filesByCommit, hotspots, monthSearch, pathSearch } from "./hotspots";
+import { dirTrail, fileHeatmap, filesByCommit, hotspots, linesByCommit, monthSearch, pathSearch } from "./hotspots";
 
 const commit = (id: string, author: string, time: number | null, coAuthors?: string[]): CommitSummary => ({ id, summary: id, author, time, parents: [], coAuthors });
 
 const activity: FileActivity = {
   paths: ["src/a.ts", "src/b.ts", "src/lib/c.ts", "README.md"],
   commits: [
-    { id: "c3", files: [0, 1] },
-    { id: "c2", files: [0, 2] },
-    { id: "c1", files: [3, 0] },
-    { id: "gone", files: [3] },
+    { id: "c3", files: [0, 1], added: null, removed: null },
+    { id: "c2", files: [0, 2], added: null, removed: null },
+    { id: "c1", files: [3, 0], added: null, removed: null },
+    { id: "gone", files: [3], added: null, removed: null },
   ],
 };
 const commits = [commit("c3", "Anna", 300), commit("c2", "Bruno", 200, ["Anna"]), commit("c1", "Anna", null), commit("m", "Carla", 400)];
@@ -44,6 +44,24 @@ describe("hotspots", () => {
     expect(hotspots(commits, files, "").find((s) => s.path === "README.md")?.last).toBeNull();
   });
 
+  it("sums the lines when they were counted, and can rank by them", () => {
+    expect(linesByCommit(activity)).toBeNull();
+    const counted: FileActivity = {
+      ...activity,
+      commits: activity.commits.map((c) => ({ ...c, added: c.files.map(() => 1), removed: c.files.map((f) => (f === 2 ? 50 : 0)) })),
+    };
+    const lines = linesByCommit(counted);
+    const byCommits = hotspots(commits, files, "src/", undefined, lines);
+    expect(byCommits.map((s) => [s.path, s.added, s.removed])).toEqual([
+      ["src/a.ts", 3, 0],
+      ["src/b.ts", 1, 0],
+      ["src/lib/", 1, 50],
+    ]);
+    expect(hotspots(commits, files, "src/", undefined, lines, "lines")[0]?.path).toBe("src/lib/");
+    // A directory sums every file a commit changed in it.
+    expect(hotspots(commits, files, "", undefined, lines).find((s) => s.path === "src/")).toMatchObject({ commits: 3, added: 5, removed: 50 });
+  });
+
   it("keeps only the commits asked for", () => {
     const bruno = hotspots(commits, files, "", (c) => c.author === "Bruno");
     expect(bruno.map((s) => [s.path, s.commits])).toEqual([["src/", 1]]);
@@ -53,7 +71,7 @@ describe("hotspots", () => {
 describe("fileHeatmap", () => {
   const at = (year: number, month: number, day = 15) => new Date(year, month - 1, day).getTime() / 1000;
   const dated = [commit("c3", "Anna", at(2026, 3)), commit("c2", "Bruno", at(2026, 1, 2)), commit("c1", "Anna", at(2025, 12, 31)), commit("x", "Anna", null)];
-  const files = filesByCommit({ ...activity, commits: [...activity.commits, { id: "x", files: [0] }] });
+  const files = filesByCommit({ ...activity, commits: [...activity.commits, { id: "x", files: [0], added: null, removed: null }] });
 
   it("counts the changes of the top entries month by month", () => {
     const map = fileHeatmap(dated, files, "src/", 2);

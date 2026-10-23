@@ -94,6 +94,12 @@
   .scope:hover { background: var(--accent-soft); color: var(--accent-text); }
   /* Hotspots: the share column holds an author's name too. */
   .spotMain { grid-template-columns: 28px minmax(140px, 260px) minmax(60px, 1fr) 64px 150px 190px; }
+  .withLines { grid-template-columns: 28px minmax(140px, 260px) minmax(60px, 1fr) 64px 130px 150px 190px; }
+  .lines { font: 500 11.5px var(--font-mono); color: var(--text-3); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seg { display: flex; padding: 2px; border-radius: 6px; background: var(--subtle); flex: none; margin-left: auto; }
+  .seg button { height: 20px; padding: 0 8px; border-radius: 4px; font-size: 11px; font-weight: 500; color: var(--text-2); }
+  .seg .on { background: var(--surface); color: var(--text); box-shadow: 0 0 0 0.5px var(--border-strong); }
+  .seg + .select { margin-left: 0; }
   .dirName { font-weight: 600; }
   .trail { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-bottom: var(--space-2); font-size: 12px; }
   .trail button { padding: 2px 6px; border-radius: var(--r-sm); color: var(--accent-text); font-weight: 500; }

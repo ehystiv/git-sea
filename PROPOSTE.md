@@ -11,9 +11,6 @@ Le proposte ancora da fare. L'app resta di sola lettura sui repository. Quelle r
 - **Vista first-parent:** solo i merge su `main`, che si aprono al clic sui commit che portano.
 - **Righe spostate nel diff:** codice spostato da un punto o da un file all'altro segnato come tale, non come tolto e aggiunto.
 
-## Viste
-- **Righe nei file più modificati:** oggi contano i commit; aggiunte e tolte per file richiederebbero un diff dei blob per ogni commit, da tenere in cache.
-
 ## Repo complessi
 - **Sottomoduli:** nei dettagli di un commit che sposta il puntatore, i commit del sottomodulo tra i due hash, e apertura del sottomodulo in una tab (anche dal browser dei file).
 - **Worktree multipli:** sezione della sidebar con gli altri worktree (`git worktree list`), il loro percorso e branch, apribili in una tab.

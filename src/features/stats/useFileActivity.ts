@@ -12,11 +12,11 @@ export interface FileActivityState {
 }
 
 /**
- * Which files every commit changed, asked for while `enabled` and again each time `refresh`
- * changes (the history was loaded again). The backend keeps what it read, so asking again only
- * reads the new commits.
+ * Which files every commit changed (with `lines`, also the lines added and removed in each), asked
+ * for while `enabled` and again each time `refresh` changes (the history was loaded again). The
+ * backend keeps what it read, so asking again only reads the new commits.
  */
-export function useFileActivity(sessionId: string, enabled: boolean, refresh: unknown): FileActivityState {
+export function useFileActivity(sessionId: string, enabled: boolean, refresh: unknown, lines = false): FileActivityState {
   const [state, setState] = useState<FileActivityState>({ activity: null, progress: null, error: null });
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export function useFileActivity(sessionId: string, enabled: boolean, refresh: un
       else setState({ activity: event.data, progress: null, error: null });
     };
     commands
-      .fileActivity(sessionId, channel)
+      .fileActivity(sessionId, lines, channel)
       .then((result) => {
         if (active && result.status === "error") setState((prev) => ({ ...prev, progress: null, error: describeError(new CommandError(result.error)) }));
       })
@@ -39,7 +39,7 @@ export function useFileActivity(sessionId: string, enabled: boolean, refresh: un
     return () => {
       active = false;
     };
-  }, [sessionId, enabled, refresh]);
+  }, [sessionId, enabled, refresh, lines]);
 
   return state;
 }

@@ -6,6 +6,7 @@ import type { GraphIndex } from "../graph/GraphIndex";
 import { authorsOf } from "../commits/authors";
 import { HeatmapCard } from "./HeatmapCard";
 import { HotspotsCard, type HotspotPeriod } from "./HotspotsCard";
+import type { HotspotOrder } from "./hotspots";
 import { ReleasesCard } from "./ReleasesCard";
 import { TypesCard } from "./TypesCard";
 import { useFileActivity } from "./useFileActivity";
@@ -51,14 +52,15 @@ interface StatsViewProps {
 
 export function StatsView({ sessionId, index, version, loading, filter, onSearch, onCompare, onShowCommit }: StatsViewProps) {
   const m = useT();
-  // Asked for again when the history is loaded again (the refs map is replaced then).
-  const activity = useFileActivity(sessionId, !loading, index.refs);
   const [focus, setFocus] = useState<string | null>(null);
   const [year, setYear] = useState<number | "last">("last");
   const [allAuthors, setAllAuthors] = useState(false);
   // Shared by the hotspots and the heatmap: the directory looked into and the period.
   const [dir, setDir] = useState("");
   const [filesPeriod, setFilesPeriod] = useState<HotspotPeriod>("all");
+  const [filesOrder, setFilesOrder] = useState<HotspotOrder>("commits");
+  // Asked for again when the history is loaded again (the refs map is replaced then).
+  const activity = useFileActivity(sessionId, !loading, index.refs, filesOrder === "lines");
 
   const all = useMemo(() => repoStats(index.commits), [index, version]);
   const shown = useMemo(() => (focus === null ? all : repoStats(index.commits, (c) => authorsOf(c).includes(focus))), [all, index, version, focus]);
@@ -146,7 +148,7 @@ export function StatsView({ sessionId, index, version, loading, filter, onSearch
 
         <TypesCard index={index} version={version} author={focused} onSearch={onSearch} />
 
-        <HotspotsCard index={index} version={version} activity={activity} author={focused} dir={dir} onDir={setDir} period={filesPeriod} onPeriod={setFilesPeriod} onSearch={onSearch} />
+        <HotspotsCard index={index} version={version} activity={activity} author={focused} dir={dir} onDir={setDir} period={filesPeriod} onPeriod={setFilesPeriod} order={filesOrder} onOrder={setFilesOrder} onSearch={onSearch} />
 
         <HeatmapCard index={index} version={version} activity={activity} author={focused} dir={dir} onDir={setDir} period={filesPeriod} onSearch={onSearch} />
 

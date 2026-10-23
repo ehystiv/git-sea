@@ -375,13 +375,14 @@ pub async fn file_content(
 }
 
 /// Which files every commit changed (merges left out), for the hotspots of the statistics, with
-/// progress on the way. Every ref is read, as in a search; the frontend keeps the commits it has.
+/// progress on the way; with `lines`, also the lines added and removed in each (much slower). Every ref is read, as in a search; the frontend keeps the commits it has.
 /// Commits read before on this session are not read again. A new request stops the previous one.
 #[tauri::command]
 #[specta::specta]
 pub async fn file_activity(
     state: State<'_, AppState>,
     session_id: String,
+    lines: bool,
     on_event: Channel<ActivityEvent>,
 ) -> Result<(), AppError> {
     let session = state.get(&session_id)?;
@@ -396,6 +397,7 @@ pub async fn file_activity(
             &session.repo,
             tips,
             &session.activity,
+            lines,
             &cancelled,
             &progress,
         )

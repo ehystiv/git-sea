@@ -40,7 +40,7 @@ The Rust integration tests build fixture repositories by running the shell scrip
 - compressed topology (`compress.ts`): folds linear runs into single nodes
 - timeline (`features/timeline/layout.ts`)
 - minimap
-- statistics (`features/stats/`): DOM and SVG, not canvas; pure counts in `stats.ts`, hotspots in `hotspots.ts` from the files each commit changed (`file_activity`, `git/activity.rs`, kept per session)
+- statistics (`features/stats/`): DOM and SVG, not canvas; pure counts in `stats.ts`, hotspots in `hotspots.ts` from the files each commit changed (`file_activity`, `git/activity.rs`, kept per session; lines added and removed only when asked for, being much slower)
 
 The canvas views are drawn on Canvas 2D by imperative controller classes (`GraphController`, `TimelineController`) that live outside React's render cycle. React components only mount them and pass callbacks. Drawing is in `draw.ts`. View math (pan, zoom, fit, clamp), hit testing, morph and arrival animations, and "unseen commits" are separate pure modules with their own `.test.ts`, so new logic should be kept testable the same way. The graph has levels of detail (card, tile, dot) and only draws the visible columns. `features/files/` browses the whole tree of the selected commit in the details panel (`list_files`/`file_content` in `git/tree.rs`, with tree building and fuzzy file search in the pure `tree.ts`). `features/sea/` is a decorative fish layer behind the graph, with pure simulation in `sea.ts`, drawing in `SeaLayer.ts` and on/off state in `src/lib/sea.ts`.
 

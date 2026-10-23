@@ -200,7 +200,8 @@ let shellInstalled = false;
           .filter((c) => c.parents.length < 2)
           .map((c) => {
             const n = parseInt(c.id.slice(0, 6), 16);
-            return { id: c.id, files: [...new Set([n % 12, (n >> 4) % 12, (n >> 9) % 7])] };
+            const files = [...new Set([n % 12, (n >> 4) % 12, (n >> 9) % 7])];
+            return { id: c.id, files, added: args.lines ? files.map((f) => (n >> f) % 40) : null, removed: args.lines ? files.map((f) => (n >> (f + 3)) % 25) : null };
           });
         const total = commits.length;
         [0, Math.floor(total / 2)].forEach((done, index) => setTimeout(() => send?.({ index, message: { event: "progress", data: { done, total } } }), 200 * index));
