@@ -4,7 +4,8 @@ import { useT } from "../../lib/i18n";
 import { useElementWidth } from "../../lib/useElementWidth";
 import type { GraphIndex } from "../graph/GraphIndex";
 import { authorsOf } from "../commits/authors";
-import { HotspotsCard } from "./HotspotsCard";
+import { HeatmapCard } from "./HeatmapCard";
+import { HotspotsCard, type HotspotPeriod } from "./HotspotsCard";
 import { TypesCard } from "./TypesCard";
 import { useFileActivity } from "./useFileActivity";
 import { calendar, calendarPeriod, calendarStep, daySearch, level, punchSteps, repoStats, type AuthorStats, type CalendarDay, type RepoStats } from "./stats";
@@ -51,6 +52,9 @@ export function StatsView({ sessionId, index, version, loading, filter, onSearch
   const [focus, setFocus] = useState<string | null>(null);
   const [year, setYear] = useState<number | "last">("last");
   const [allAuthors, setAllAuthors] = useState(false);
+  // Shared by the hotspots and the heatmap: the directory looked into and the period.
+  const [dir, setDir] = useState("");
+  const [filesPeriod, setFilesPeriod] = useState<HotspotPeriod>("all");
 
   const all = useMemo(() => repoStats(index.commits), [index, version]);
   const shown = useMemo(() => (focus === null ? all : repoStats(index.commits, (c) => authorsOf(c).includes(focus))), [all, index, version, focus]);
@@ -136,7 +140,9 @@ export function StatsView({ sessionId, index, version, loading, filter, onSearch
 
         <TypesCard index={index} version={version} author={focused} onSearch={onSearch} />
 
-        <HotspotsCard index={index} version={version} activity={activity} author={focused} onSearch={onSearch} />
+        <HotspotsCard index={index} version={version} activity={activity} author={focused} dir={dir} onDir={setDir} period={filesPeriod} onPeriod={setFilesPeriod} onSearch={onSearch} />
+
+        <HeatmapCard index={index} version={version} activity={activity} author={focused} dir={dir} onDir={setDir} period={filesPeriod} onSearch={onSearch} />
 
         <section className={styles.card}>
           <div className={styles.cardHead}>

@@ -17,21 +17,33 @@ interface HotspotsCardProps {
   activity: FileActivityState;
   /** Only this author's commits count, when set. */
   author: string | null;
+  /** The directory whose contents are ranked (`""` for the root, else ending with `/`). */
+  dir: string;
+  onDir: (dir: string) => void;
+  period: HotspotPeriod;
+  onPeriod: (period: HotspotPeriod) => void;
   onSearch: (text: string) => void;
 }
 
+export type HotspotPeriod = "all" | "last";
+
+/** Whether a commit falls in the period: all of them, or the last 12 months. */
+export function inPeriod(period: HotspotPeriod): (commit: { time: number | null }) => boolean {
+  if (period === "all") return () => true;
+  const since = calendarPeriod("last", new Date()).start.getTime() / 1000;
+  return (c) => c.time !== null && c.time >= since;
+}
+
 /** The files and directories changed most often, one directory at a time. */
-export function HotspotsCard({ index, version, activity, author, onSearch }: HotspotsCardProps) {
+export function HotspotsCard({ index, version, activity, author, dir, onDir: setDir, period, onPeriod: setPeriod, onSearch }: HotspotsCardProps) {
   const m = useT();
-  const [dir, setDir] = useState("");
-  const [period, setPeriod] = useState<"all" | "last">("all");
   const [all, setAll] = useState(false);
 
   const files = useMemo(() => (activity.activity ? filesByCommit(activity.activity) : null), [activity.activity]);
   const spots = useMemo(() => {
     if (!files) return [];
-    const since = period === "last" ? calendarPeriod("last", new Date()).start.getTime() / 1000 : null;
-    return hotspots(index.commits, files, dir, (c) => (author === null || authorsOf(c).includes(author)) && (since === null || (c.time !== null && c.time >= since)));
+    const when = inPeriod(period);
+    return hotspots(index.commits, files, dir, (c) => (author === null || authorsOf(c).includes(author)) && when(c));
     // `version` stands for the contents of `index`, which is mutated in place.
   }, [files, index, version, dir, period, author]);
 

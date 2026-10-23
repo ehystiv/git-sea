@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { CommitSummary, FileActivity } from "../../lib/bindings";
-import { dirTrail, filesByCommit, hotspots, pathSearch } from "./hotspots";
+import { parseQuery } from "../search/query";
+import { dirTrail, fileHeatmap, filesByCommit, hotspots, monthSearch, pathSearch } from "./hotspots";
 
 const commit = (id: string, author: string, time: number | null, coAuthors?: string[]): CommitSummary => ({ id, summary: id, author, time, parents: [], coAuthors });
 
@@ -46,6 +47,33 @@ describe("hotspots", () => {
   it("keeps only the commits asked for", () => {
     const bruno = hotspots(commits, files, "", (c) => c.author === "Bruno");
     expect(bruno.map((s) => [s.path, s.commits])).toEqual([["src/", 1]]);
+  });
+});
+
+describe("fileHeatmap", () => {
+  const at = (year: number, month: number, day = 15) => new Date(year, month - 1, day).getTime() / 1000;
+  const dated = [commit("c3", "Anna", at(2026, 3)), commit("c2", "Bruno", at(2026, 1, 2)), commit("c1", "Anna", at(2025, 12, 31)), commit("x", "Anna", null)];
+  const files = filesByCommit({ ...activity, commits: [...activity.commits, { id: "x", files: [0] }] });
+
+  it("counts the changes of the top entries month by month", () => {
+    const map = fileHeatmap(dated, files, "src/", 2);
+    expect(map.months.map((m) => m.key)).toEqual(["2025-12", "2026-01", "2026-02", "2026-03"]);
+    expect(map.rows.map((r) => [r.spot.path, r.counts])).toEqual([
+      ["src/a.ts", [1, 1, 0, 1]],
+      ["src/b.ts", [0, 0, 0, 1]],
+    ]);
+    expect(map.max).toBe(1);
+    expect(map.months[0]?.start).toBe(new Date(2025, 11, 1).getTime() / 1000);
+  });
+
+  it("is empty when nothing dated changed", () => {
+    expect(fileHeatmap(dated, files, "docs/", 5)).toEqual({ months: [], rows: [], max: 0 });
+  });
+
+  it("searches the commits of one month", () => {
+    const text = monthSearch({ path: "src/" }, { key: "2025-12", start: 0, end: new Date(2026, 0, 1).getTime() / 1000 });
+    expect(text).toBe("path:src after:2025-12 before:2026-01");
+    expect(parseQuery(text)).not.toBeNull();
   });
 });
 
